@@ -357,6 +357,136 @@ app.post('/api/shipping/check', async (c) => {
 });
 
 // ===============================================
+// 7. UNIVERSAL WEBHOOK HANDLER
+// ===============================================
+app.post('/api/webhook/:provider', async (c) => {
+    const providerSlug = c.req.param('provider');
+    const rawBody = await c.req.text(); // Ambil raw text utk verifikasi hash
+    const headers = c.req.header();
+    
+    try {
+        let bodyJson = {};
+        try { bodyJson = JSON.parse(rawBody); } catch(e) {}
+
+        console.log(`[WEBHOOK] Received from ${providerSlug}`, bodyJson);
+
+        // 1. Ambil Konfigurasi Template Provider
+        const template = await c.env.DB.prepare("SELECT * FROM payment_templates WHERE slug = ?").bind(providerSlug).first();
+        if (!template) return c.json({ message: 'Provider not found' }, 404);
+
+        // Parsing config webhook dari template
+        const whConfig = JSON.parse(template.webhook_config || '{}');
+        if (!whConfig.mode) {
+            // Jika tidak ada config keamanan, kita anggap insecure (hati-hati)
+            // Atau bisa kita auto-approve (tergantung kebijakan)
+            console.warn("[WEBHOOK] No security config defined. Proceeding blindly.");
+        }
+
+        // 2. Ambil Credentials User (Server Key / Callback Token)
+        // Disini kita asumsikan webhook ini milik Admin Utama dulu.
+        // (Untuk SaaS multi-user, kita harus cari user mana yang punya order_id ini)
+        
+        // Cari transaksi berdasarkan Order ID yang dikirim webhook
+        // Kita butuh mapping utk tahu field mana yg berisi Order ID
+        let orderId = null;
+        if (whConfig.payload_order_id_path) {
+            // Support nested object: data.order_id
+            orderId = whConfig.payload_order_id_path.split('.').reduce((o, i) => o?.[i], bodyJson);
+        } else {
+            // Fallback default umum
+            orderId = bodyJson.order_id || bodyJson.external_id || bodyJson.reference_id;
+        }
+
+        if (!orderId) return c.json({ message: 'Order ID not found in payload' }, 400);
+
+        // Cari transaksi di DB untuk tahu siapa pemiliknya (jika multi user)
+        // Karena ini single admin, kita langsung ambil credentials admin
+        const credRow = await c.env.DB.prepare("SELECT * FROM credentials WHERE provider_slug = ?").bind(providerSlug).first();
+        if (!credRow) return c.json({ message: 'Credentials not configured' }, 500);
+
+        const creds = await decryptJSON(credRow.encrypted_data, credRow.iv, c.env.APP_MASTER_KEY || JWT_SECRET);
+
+        // 3. VERIFIKASI KEAMANAN (SECURITY CHECK)
+        let isValid = false;
+
+        // --- MODE A: HEADER MATCH (Paspay) ---
+        if (whConfig.mode === 'header_match') {
+            const headerName = whConfig.header_key.toLowerCase(); // header di hono lowercase
+            const incomingToken = headers[headerName];
+            const storedToken = creds[whConfig.credential_ref]; // misal: callback_token
+            const prefix = whConfig.prefix || '';
+
+            if (incomingToken === (prefix + storedToken)) {
+                isValid = true;
+            } else {
+                console.error(`[WEBHOOK] Token mismatch. Got: ${incomingToken}`);
+            }
+        }
+        
+        // --- MODE B: HMAC SIGNATURE (Midtrans/Stripe) ---
+        else if (whConfig.mode === 'hmac_sha512' || whConfig.mode === 'hmac_sha256') {
+            const secret = creds[whConfig.credential_ref]; // misal: server_key
+            const algo = whConfig.mode === 'hmac_sha512' ? 'SHA-512' : 'SHA-256';
+            
+            // Generate Hash Lokal
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(secret);
+            const msgData = encoder.encode(rawBody);
+
+            const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: algo }, false, ['sign']);
+            const signatureBuffer = await crypto.subtle.sign('HMAC', key, msgData);
+            
+            // Convert ArrayBuffer to Hex String
+            const hashArray = Array.from(new Uint8Array(signatureBuffer));
+            const localSignature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            
+            const incomingSignature = headers[whConfig.header_key.toLowerCase()];
+
+            if (localSignature === incomingSignature) isValid = true;
+        } 
+        
+        // --- MODE C: BYPASS (Dev Only) ---
+        else if (whConfig.mode === 'none') {
+            isValid = true;
+        }
+
+        if (!isValid) return c.json({ message: 'Unauthorized / Invalid Signature' }, 401);
+
+        // 4. UPDATE STATUS TRANSAKSI
+        // Mapping status dari provider ke status internal ('paid', 'pending', 'expire')
+        let providerStatus = null;
+        if (whConfig.payload_status_path) {
+            providerStatus = whConfig.payload_status_path.split('.').reduce((o, i) => o?.[i], bodyJson);
+        }
+
+        let internalStatus = 'pending';
+        // Mapping Logic Sederhana (Bisa diperluas di DB juga kalau mau kompleks)
+        const pStatus = String(providerStatus).toLowerCase();
+        
+        if (['paid', 'settlement', 'success', 'capture'].includes(pStatus)) {
+            internalStatus = 'paid';
+        } else if (['expire', 'failure', 'deny', 'cancel'].includes(pStatus)) {
+            internalStatus = 'cancel';
+        }
+
+        // Update DB
+        await c.env.DB.prepare("UPDATE transactions SET status = ? WHERE order_id = ?")
+            .bind(internalStatus, orderId).run();
+
+        // Update Orders Table (jika ada, untuk sinkronisasi)
+        await c.env.DB.prepare("UPDATE orders SET status = ? WHERE order_id = ?")
+            .bind(internalStatus, orderId).run().catch(()=>{});
+
+        console.log(`[WEBHOOK] Order ${orderId} updated to ${internalStatus}`);
+        return c.json({ success: true, status: internalStatus });
+
+    } catch (e) {
+        console.error(`[WEBHOOK ERROR]`, e);
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// ===============================================
 // 6. RENDER HALAMAN PUBLIC
 // ===============================================
 app.get('/', async (c) => {
