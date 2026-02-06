@@ -1,122 +1,219 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pages - BlinkSite</title>
+    <title>Pages Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script>if (!localStorage.getItem('admin_pass')) window.location.href = '/login';</script>
+    <script src="/js/layout.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans" x-data="pagesApp()">
-
-    <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30 hidden md:flex flex-col">
-        <div class="h-16 flex items-center px-6 border-b border-gray-100">
-            <h1 class="font-black text-2xl text-blue-600 tracking-tighter">Blink<span class="text-gray-800">Site</span></h1>
-        </div>
-        <nav class="flex-1 p-4 space-y-1">
-            <a href="/admin/dashboard" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition">
-                <i class="ph ph-squares-four text-lg"></i> Dashboard
-            </a>
-            <a href="/admin/pages" class="flex items-center gap-3 px-4 py-3 text-sm font-bold bg-blue-50 text-blue-600 rounded-lg">
-                <i class="ph ph-files text-lg"></i> Landing Pages
-            </a>
-            <a href="/admin/reports" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition">
-                <i class="ph ph-chart-line-up text-lg"></i> Reports
-            </a>
-            <a href="/admin/settings" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition">
-                <i class="ph ph-gear text-lg"></i> Settings
-            </a>
-        </nav>
-    </aside>
-
-    <main class="md:ml-64 min-h-screen p-4 md:p-8">
-        <div class="flex justify-between items-center mb-8">
-            <div>
-                <h2 class="text-2xl font-bold text-gray-800">Landing Pages</h2>
-                <p class="text-gray-500 text-sm mt-1">Kelola semua halaman penjualan Anda di sini.</p>
+<body>
+    <admin-layout>
+        <div x-data="pagesList()" x-init="init()" class="min-h-screen">
+            
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Daftar Halaman</h2>
+                <button @click="openCreate = true" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg hover:-translate-y-0.5 transition">
+                    <i class="ph ph-plus-bold"></i> Halaman Baru
+                </button>
             </div>
-            <button @click="createPage" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-blue-500/30 transition">
-                <i class="ph ph-plus-circle text-lg"></i> Buat Baru
-            </button>
-        </div>
 
-        <div class="bg-white p-4 rounded-xl border border-gray-200 mb-6 flex gap-4">
-            <div class="flex-1 relative">
-                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input x-model="search" type="text" placeholder="Cari halaman..." class="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 transition">
-            </div>
-            <select class="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-600 outline-none">
-                <option>Terbaru</option>
-                <option>Terlama</option>
-            </select>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <template x-for="page in filteredPages" :key="page.id">
-                <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition group overflow-hidden flex flex-col h-full">
-                    <div class="h-32 bg-gray-100 flex items-center justify-center border-b border-gray-100 relative">
-                        <i class="ph ph-browser text-4xl text-gray-300"></i>
-                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3 backdrop-blur-sm">
-                            <a :href="'/'+page.slug" target="_blank" class="p-2 bg-white rounded-full text-gray-800 hover:text-blue-600 transition" title="View"><i class="ph ph-eye text-lg"></i></a>
-                            <a :href="'/admin/editor?slug='+page.slug" class="p-2 bg-blue-600 rounded-full text-white hover:bg-blue-700 transition" title="Edit"><i class="ph ph-pencil-simple text-lg"></i></a>
+            <div x-show="openCreate" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak x-transition>
+                <div @click.outside="openCreate = false" class="bg-white dark:bg-gray-800 p-6 rounded-xl w-96 shadow-2xl border dark:border-gray-700 transform transition-all">
+                    <h3 class="font-bold text-xl mb-4 text-gray-800 dark:text-white">Buat Landing Page</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">JUDUL HALAMAN</label>
+                            <input x-model="newPage.title" @input="generateSlug" placeholder="Contoh: Promo Lebaran" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">URL SLUG (Otomatis)</label>
+                            <input x-model="newPage.slug" placeholder="promo-lebaran" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 font-mono text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">TIPE PRODUK</label>
+                            <select x-model="newPage.type" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 outline-none">
+                                <option value="physical">📦 Produk Fisik (Kirim Barang)</option>
+                                <option value="digital">📂 Produk Digital (Download)</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="p-5 flex-1 flex flex-col">
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-bold text-gray-800 truncate" x-text="page.title || 'Untitled Page'"></h3>
-                            <span class="text-[10px] px-2 py-1 rounded-full bg-blue-50 text-blue-600 font-bold uppercase tracking-wider" x-text="page.product_type"></span>
-                        </div>
-                        <p class="text-xs text-gray-400 font-mono mb-4 flex-1">/<span x-text="page.slug"></span></p>
-                        <div class="flex justify-between items-center pt-4 border-t border-gray-100 mt-auto">
-                            <span class="text-[10px] text-gray-400" x-text="new Date(page.created_at).toLocaleDateString()"></span>
-                            <div class="flex gap-2">
-                                <button class="text-gray-400 hover:text-blue-600 transition"><i class="ph ph-copy text-lg"></i></button>
-                                <button class="text-gray-400 hover:text-red-500 transition"><i class="ph ph-trash text-lg"></i></button>
-                            </div>
-                        </div>
+
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button @click="openCreate = false" class="px-4 py-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 font-bold transition">Batal</button>
+                        <button @click="createPage" :disabled="creating" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition flex items-center gap-2 disabled:opacity-50">
+                            <span x-show="creating" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                            <span x-text="creating ? 'Memproses...' : 'Buat Sekarang'"></span>
+                        </button>
                     </div>
                 </div>
-            </template>
-        </div>
-
-        <div x-show="filteredPages.length === 0" class="text-center py-20">
-            <div class="inline-flex h-16 w-16 bg-gray-100 rounded-full items-center justify-center text-gray-400 mb-4">
-                <i class="ph ph-files text-3xl"></i>
             </div>
-            <h3 class="text-lg font-bold text-gray-600">Tidak ada halaman ditemukan.</h3>
-            <p class="text-gray-400 text-sm mt-1">Buat halaman baru untuk memulai penjualan.</p>
-        </div>
-    </main>
 
-    <script>
-        function pagesApp() {
-            return {
-                pages: [],
-                search: '',
-                token: localStorage.getItem('admin_pass'),
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border dark:border-gray-700 relative min-h-[200px]">
                 
-                get filteredPages() {
-                    if (!this.search) return this.pages;
-                    return this.pages.filter(p => p.title?.toLowerCase().includes(this.search.toLowerCase()) || p.slug?.toLowerCase().includes(this.search.toLowerCase()));
-                },
+                <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 z-10">
+                    <div class="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
 
-                async init() {
-                    try {
-                        const res = await fetch('/api/admin/pages', { headers: { 'Authorization': this.token } });
-                        this.pages = await res.json();
-                    } catch(e) { console.error(e); }
-                },
+                <div x-show="!loading && pages.length === 0" class="p-10 text-center text-gray-500">
+                    <i class="ph ph-files text-4xl mb-2"></i>
+                    <p>Belum ada halaman. Buat baru sekarang!</p>
+                </div>
 
-                createPage() {
-                    const slug = prompt("Masukkan URL Slug untuk halaman baru (misal: promo-lebaran):");
-                    if(slug) {
-                        window.location.href = `/admin/editor?slug=${slug.toLowerCase().replace(/[^a-z0-9-]/g, '-')}`;
+                <table x-show="pages.length > 0" class="w-full text-left">
+                    <thead class="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 text-gray-500 dark:text-gray-300 text-xs uppercase tracking-wider">
+                        <tr>
+                            <th class="p-4 w-10 text-center">Home</th>
+                            <th class="p-4">Judul / Slug</th>
+                            <th class="p-4">Tipe Produk</th>
+                            <th class="p-4">Tanggal Dibuat</th>
+                            <th class="p-4 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y dark:divide-gray-700 text-sm">
+                        <template x-for="p in pages" :key="p.id">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition group">
+                                <td class="p-4 text-center">
+                                    <button @click="setHomepage(p.slug)" class="transition transform hover:scale-110" :title="homepageSlug === p.slug ? 'Ini adalah Homepage' : 'Set sebagai Homepage'">
+                                        <i class="ph-fill ph-star text-yellow-400 text-xl" x-show="homepageSlug === p.slug"></i>
+                                        <i class="ph ph-star text-gray-300 hover:text-yellow-400 text-xl" x-show="homepageSlug !== p.slug"></i>
+                                    </button>
+                                </td>
+                                <td class="p-4">
+                                    <div class="font-bold text-gray-800 dark:text-white text-base" x-text="p.title"></div>
+                                    <a :href="'/' + p.slug" target="_blank" class="text-blue-500 hover:underline flex items-center gap-1 mt-1">
+                                        <span x-text="'/' + p.slug"></span>
+                                        <i class="ph ph-arrow-square-out text-xs"></i>
+                                    </a>
+                                </td>
+                                <td class="p-4">
+                                    <span class="px-2 py-1 rounded text-xs font-bold uppercase border" 
+                                          :class="p.product_type === 'digital' 
+                                            ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' 
+                                            : 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800'"
+                                          x-text="p.product_type"></span>
+                                </td>
+                                <td class="p-4 text-gray-500 dark:text-gray-400">
+                                    <span x-text="new Date(p.created_at).toLocaleDateString('id-ID')"></span>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <div class="flex justify-end gap-2">
+                                        <a :href="'/admin/editor?slug=' + p.slug" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 shadow hover:shadow-md transition">
+                                            <i class="ph ph-pencil-simple text-sm"></i> Edit
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <script>
+            function pagesList() {
+                return {
+                    pages: [],
+                    homepageSlug: null, // Menyimpan slug homepage saat ini
+                    loading: true,
+                    creating: false,
+                    openCreate: false,
+                    newPage: { slug: '', title: '', type: 'physical' },
+
+                    async init() {
+                        this.loading = true;
+                        try {
+                            // 1. Ambil List Halaman
+                            const resPages = await fetch('/api/admin/pages');
+                            // 2. Ambil Info Homepage (ENDPOINT SUDAH ADA KEMBALI)
+                            const resHome = await fetch('/api/admin/homepage-slug');
+                            
+                            if(resPages.ok) this.pages = await resPages.json();
+                            if(resHome.ok) {
+                                const dataHome = await resHome.json();
+                                this.homepageSlug = dataHome.slug;
+                            }
+                        } catch(e) {
+                            console.error("Gagal mengambil data", e);
+                        }
+                        this.loading = false;
+                    },
+
+                    // Fungsi Set Homepage
+                    async setHomepage(slug) {
+                        if(!confirm('Jadikan halaman ini sebagai Homepage utama?')) return;
+                        
+                        try {
+                            const res = await fetch('/api/admin/set-homepage', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ slug: slug })
+                            });
+                            
+                            if(res.ok) {
+                                this.homepageSlug = slug; // Update UI langsung
+                                alert('Homepage berhasil diubah!');
+                            } else {
+                                alert('Gagal mengubah homepage');
+                            }
+                        } catch(e) {
+                            alert('Error koneksi');
+                        }
+                    },
+
+                    generateSlug() {
+                        this.newPage.slug = this.newPage.title
+                            .toLowerCase()
+                            .replace(/[^a-z0-9\s-]/g, '')
+                            .trim()
+                            .replace(/\s+/g, '-');
+                    },
+
+                    async createPage() {
+                        if (!this.newPage.slug || !this.newPage.title) return alert('Mohon isi Slug dan Judul');
+                        
+                        this.creating = true;
+                        try {
+                            const defaultHtml = `
+                                <section style="padding: 50px 20px; text-align: center; font-family: sans-serif;">
+                                    <h1 style="font-size: 2.5rem; margin-bottom: 1rem; color: #1e293b;">${this.newPage.title}</h1>
+                                    <p style="font-size: 1.25rem; color: #64748b; margin-bottom: 2rem;">Tulis penawaran menarik Anda di sini...</p>
+                                    <div data-gjs-type="checkout-widget"></div>
+                                </section>
+                            `;
+
+                            const payload = {
+                                slug: this.newPage.slug,
+                                title: this.newPage.title,
+                                product_type: this.newPage.type,
+                                html: defaultHtml, 
+                                css: '',
+                                product_config: { variants: [], order_bump: { active: false }, shipping: { weight: 1000 } }
+                            };
+
+                            const res = await fetch('/api/admin/pages', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+
+                            const data = await res.json();
+
+                            if (res.ok && data.success) {
+                                window.location.href = '/admin/editor?slug=' + this.newPage.slug;
+                            } else {
+                                alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+                            }
+                        } catch (e) {
+                            alert('Error koneksi ke server');
+                        }
+                        this.creating = false;
                     }
                 }
             }
-        }
-    </script>
+        </script>
+    </admin-layout>
 </body>
 </html>
