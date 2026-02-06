@@ -8,14 +8,17 @@ import { uploadImage } from '../src/modules/cloudinary'
 const app = new Hono()
 const JWT_SECRET = 'BantarCaringin1BantarCaringin2BantarCaringin3'
 
+// --- KONFIGURASI RELAY PROXY ---
 const RELAY_URL = "https://pasdigi-relay.hf.space/proxy";
 const RELAY_SECRET = "BantarCaringin1";
 
 // =============================================================
-// 1. INTERNAL ENGINE
+// 1. INTERNAL ENGINE (LENGKAP DENGAN LOGGING)
 // =============================================================
 async function executeGenericAPI(c, type, slug, payload) {
+    console.log(`[ENGINE] Executing ${type} for slug: ${slug}`);
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
+    
     const template = await c.env.DB.prepare(`SELECT * FROM ${table} WHERE slug = ?`).bind(slug).first();
     if (!template) throw new Error(`Template '${slug}' tidak ditemukan.`);
 
@@ -26,24 +29,27 @@ async function executeGenericAPI(c, type, slug, payload) {
     const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
     const decryptedText = await decryptJSON(credRow.encrypted_data, credRow.iv, secret);
     const creds = typeof decryptedText === 'string' ? JSON.parse(decryptedText) : decryptedText;
+    console.log(`[ENGINE] Credentials Decrypted for: ${providerSlug}`);
 
     let extraHeaders = {};
     if (slug.includes('flashpay')) {
-        const authPayload = {
-            target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
-            target_method: "POST",
-            target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
-            target_payload: { client_key: creds.client_key, server_key: creds.server_key }
-        };
+        console.log(`[ENGINE] Fetching FlashPay Token via Relay...`);
         const authRes = await fetch(RELAY_URL, {
             method: 'POST',
             headers: { "Content-Type": "application/json", "x-relay-auth": RELAY_SECRET },
-            body: JSON.stringify(authPayload)
+            body: JSON.stringify({
+                target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
+                target_method: "POST",
+                target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                target_payload: { client_key: creds.client_key, server_key: creds.server_key }
+            })
         });
         const authData = await authRes.json();
-        const token = authData?.data?.token;
-        if (!token) throw new Error("Gagal ambil Token FlashPay");
-        extraHeaders['Authorization'] = `Bearer ${token}`;
+        if (!authData?.data?.token) {
+            console.error(`[ENGINE] Auth Relay Failed:`, authData);
+            throw new Error("Gagal ambil Token FlashPay: " + JSON.stringify(authData));
+        }
+        extraHeaders['Authorization'] = `Bearer ${authData.data.token}`;
         extraHeaders['X-Client-Key'] = creds.client_key;
     }
 
@@ -56,37 +62,29 @@ async function executeGenericAPI(c, type, slug, payload) {
         });
     };
 
-    let bodyRaw = template.body_json || '{}';
     if (slug.includes('flashpay')) {
         payload.customer.phone_clean = payload.customer?.phone?.replace(/[^0-9]/g, '') || '08123456789';
         payload.customer.customer_id = payload.customer.phone_clean; 
     }
     
-    const bodyFinal = replaceVars(bodyRaw);
-    let headersFinal = JSON.parse(template.headers_json || '{}');
-    headersFinal = { ...headersFinal, ...extraHeaders }; 
+    const bodyFinal = replaceVars(template.body_json || '{}');
+    const headersFinal = { ...JSON.parse(template.headers_json || '{}'), ...extraHeaders }; 
 
-    let res;
-    if (slug.includes('flashpay')) {
-        res = await fetch(RELAY_URL, {
-            method: 'POST',
-            headers: { "Content-Type": "application/json", "x-relay-auth": RELAY_SECRET },
-            body: JSON.stringify({
-                target_url: template.api_endpoint,
-                target_method: template.method || 'POST',
-                target_headers: headersFinal,
-                target_payload: JSON.parse(bodyFinal)
-            })
-        });
-    } else {
-        res = await fetch(template.api_endpoint, {
-            method: template.method || 'POST',
-            headers: headersFinal,
-            body: bodyFinal
-        });
-    }
+    console.log(`[ENGINE] Sending Final Request to Relay...`);
+    const res = await fetch(RELAY_URL, {
+        method: 'POST',
+        headers: { "Content-Type": "application/json", "x-relay-auth": RELAY_SECRET },
+        body: JSON.stringify({
+            target_url: template.api_endpoint,
+            target_method: template.method || 'POST',
+            target_headers: headersFinal,
+            target_payload: JSON.parse(bodyFinal)
+        })
+    });
 
     const resData = await res.json();
+    console.log(`[ENGINE] RAW RESPONSE FROM RELAY:`, JSON.stringify(resData));
+
     const mapping = JSON.parse(template.response_mapping || '{}');
     const result = {};
     const getVal = (path, source) => path.split('.').reduce((o, i) => o?.[i], source);
@@ -98,70 +96,51 @@ async function executeGenericAPI(c, type, slug, payload) {
 }
 
 // ===============================================
-// 2. GLOBAL HANDLERS
+// 6. PUBLIC CHECKOUT (DENGAN LOG RESPONSE)
 // ===============================================
-app.onError((err, c) => {
-    return c.json({ success: false, message: err.message }, 500);
-});
-
-const requireAuth = async (c, next) => {
-    const path = new URL(c.req.url).pathname;
-    const whitelisted = (path === '/' || path === '/login' || path.startsWith('/api/public/') || path.includes('.'));
-    if (whitelisted) return await next();
-    const token = getCookie(c, 'auth_token');
-    if (!token) return c.redirect('/login');
-    try {
-        await verify(token, c.env.APP_MASTER_KEY || JWT_SECRET, 'HS256');
-        await next();
-    } catch (e) { return c.redirect('/login'); }
-};
-
-app.use('*', requireAuth);
-
-// ===============================================
-// 4. ADMIN & PUBLIC API
-// ===============================================
-app.post('/api/login', async (c) => {
-    const { email, password } = await c.req.json();
-    const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
-    if (!user || await sha256(password) !== user.password) return c.json({ success: false }, 401);
-    const token = await sign({ id: user.id, exp: Math.floor(Date.now() / 1000) + 86400 }, c.env.APP_MASTER_KEY || JWT_SECRET, 'HS256');
-    setCookie(c, 'auth_token', token, { path: '/', secure: true, httpOnly: true });
-    return c.json({ success: true, token });
-});
-
-app.post('/api/admin/credentials', async (c) => {
-    const { provider, data } = await c.req.json();
-    const { encrypted, iv } = await encryptJSON(data, c.env.APP_MASTER_KEY || JWT_SECRET);
-    await c.env.DB.prepare(`INSERT INTO credentials (provider_slug, encrypted_data, iv) VALUES (?, ?, ?) ON CONFLICT(provider_slug) DO UPDATE SET encrypted_data=excluded.encrypted_data, iv=excluded.iv`).bind(provider, encrypted, iv).run();
-    return c.json({ success: true });
-});
-
 app.post('/api/public/checkout', async (c) => {
     try {
         const body = await c.req.json();
+        console.log(`[CHECKOUT] Incoming Payload:`, body);
+
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(body.page_id).first();
         const config = JSON.parse(page?.product_config_json || '{}');
+        
         body.amount = config.price || 150000;
         body.order_id = "INV-" + Date.now();
         body.customer_name = body.customer?.name || "Customer";
         body.customer_phone = body.customer?.phone || "0812";
+
         const result = await executeGenericAPI(c, 'payment', body.slug_payment, body);
-        const payment_url = result.payment_url || result._raw?.data?.payment_url || result._raw?.payment_url;
-        if (!payment_url) return c.json({ error: "Link tidak ditemukan" }, 400);
-        return c.json({ payment_url });
-    } catch (e) { return c.json({ error: e.message }, 500); }
+        
+        const va_data = {
+            number: result.va_number || result._raw?.data?.payment_code || result._raw?.data?.va_number,
+            bank: result.bank_name || result._raw?.data?.bank_code || "Virtual Account",
+            amount: body.amount
+        };
+
+        console.log(`[CHECKOUT] Prepared VA Data:`, va_data);
+
+        if (!va_data.number) {
+            console.error(`[CHECKOUT] VA Number Missing! Raw:`, result._raw);
+            return c.json({ error: "Gagal membuat VA", debug: result._raw }, 400);
+        }
+
+        return c.json({ va: va_data, _debug_raw: result._raw });
+    } catch (e) { 
+        console.error(`[CHECKOUT] CRASH:`, e.message);
+        return c.json({ error: e.message }, 500); 
+    }
 });
 
 // ===============================================
-// 8. PAGE RENDERING
+// 8. RENDERING (FRONTEND DENGAN LOG CONSOLE)
 // ===============================================
 app.get('/:slug', async (c) => {
     const slug = c.req.param('slug');
     if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
     const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
-    if(!page) return c.text('404', 404);
-    return renderPage(c, page);
+    return page ? renderPage(c, page) : c.text('404', 404);
 });
 
 async function renderPage(c, page) {
@@ -170,7 +149,8 @@ async function renderPage(c, page) {
     const checkoutScript = `
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if (!document.body.innerHTML.includes('[ CHECKOUT ]')) return;
+            const container = document.body;
+            if (!container.innerHTML.includes('[ CHECKOUT ]')) return;
             const activeSlugs = ${JSON.stringify(activePayments)};
             let listHTML = activeSlugs.map(s => \`
                 <label class="flex items-center p-3 border rounded-lg mb-2 cursor-pointer border-gray-200">
@@ -178,18 +158,24 @@ async function renderPage(c, page) {
                     <span class="font-bold text-xs uppercase text-gray-700">\${s.replace(/-/g,' ')}</span>
                 </label>\`).join('');
             const formHTML = \`
-                <div class="max-w-md mx-auto my-10 p-8 bg-white rounded-2xl shadow-2xl border">
-                    <input type="text" id="c_name" placeholder="Nama" class="w-full mb-3 p-3 bg-gray-50 border rounded-lg">
-                    <input type="tel" id="c_phone" placeholder="WhatsApp" class="w-full mb-6 p-3 bg-gray-50 border rounded-lg">
-                    <div class="mb-6">\${listHTML}</div>
-                    <button id="btn-pay" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl">BAYAR SEKARANG</button>
+                <div id="checkout-box" class="max-w-md mx-auto my-10 p-8 bg-white rounded-2xl shadow-2xl border">
+                    <div id="checkout-form-inner">
+                        <h2 class="text-xl font-black mb-6 text-gray-800 tracking-tight">DATA PENERIMA</h2>
+                        <input type="text" id="c_name" placeholder="Nama" class="w-full mb-3 p-3 bg-gray-50 border rounded-lg outline-none focus:border-blue-500">
+                        <input type="tel" id="c_phone" placeholder="WhatsApp" class="w-full mb-6 p-3 bg-gray-50 border rounded-lg outline-none focus:border-blue-500">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase block mb-2">Metode Pembayaran</label>
+                        <div class="mb-6">\${listHTML}</div>
+                        <button id="btn-pay" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl">PROSES SEKARANG</button>
+                    </div>
                 </div>\`;
-            document.body.innerHTML = document.body.innerHTML.replace('[ CHECKOUT ]', formHTML);
+            container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', formHTML);
+
             document.getElementById('btn-pay').onclick = async () => {
                 const method = document.querySelector('input[name="pay_method"]:checked')?.value;
                 if(!method) return alert('Pilih pembayaran!');
                 const btn = document.getElementById('btn-pay');
-                btn.disabled = true; btn.innerText = 'PROSES...';
+                btn.disabled = true; btn.innerText = 'MEMPROSES...';
+                
                 try {
                     const res = await fetch('/api/public/checkout', {
                         method: 'POST',
@@ -197,14 +183,30 @@ async function renderPage(c, page) {
                         body: JSON.stringify({ page_id: ${page.id}, slug_payment: method, customer: { name: document.getElementById('c_name').value, phone: document.getElementById('c_phone').value } })
                     });
                     const data = await res.json();
-                    if(data.payment_url) window.location.href = data.payment_url;
-                    else { alert(data.error || 'Gagal'); btn.disabled = false; btn.innerText = 'BAYAR'; }
-                } catch(e) { alert(e.message); btn.disabled = false; }
+                    console.log("[DEBUG] RESPONSE DARI SERVER:", data);
+                    
+                    if(data.va) {
+                        document.getElementById('checkout-form-inner').innerHTML = \`
+                            <div class="text-center">
+                                <h3 class="text-lg font-black text-gray-800 mb-2">NOMOR VA ANDA</h3>
+                                <div class="bg-gray-50 p-6 rounded-2xl border border-dashed mb-4">
+                                    <div class="text-[9px] text-gray-400 uppercase mb-1">\${data.va.bank}</div>
+                                    <div class="text-2xl font-black text-blue-600">\${data.va.number}</div>
+                                </div>
+                                <div class="text-sm font-bold">Total: Rp \${new Intl.NumberFormat('id-ID').format(data.va.amount)}</div>
+                            </div>\`;
+                    } else { 
+                        console.error("[DEBUG] GAGAL GENERATE VA:", data);
+                        alert(data.error || 'Gagal'); 
+                        btn.disabled = false; btn.innerText = 'PROSES SEKARANG'; 
+                    }
+                } catch(e) { console.error("[DEBUG] CRASH:", e); alert(e.message); btn.disabled = false; }
             };
         });
     </script>`;
-    return c.html(`<!DOCTYPE html><html><head><title>${page.title}</title><script src="https://cdn.tailwindcss.com"></script><style>${page.css_content}</style></head><body>${page.html_content}<script>window.PAGE_ID=${page.id}</script>${checkoutScript}</body></html>`);
+    return c.html(\`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>\${page.title}</title><script src="https://cdn.tailwindcss.com"></script></head><body>\${page.html_content}<script>window.PAGE_ID=\${page.id}</script>\${checkoutScript}</body></html>\`);
 }
 
+// Sisa Route (Auth & Admin) biarkan di bawah
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 export const onRequest = handle(app);
