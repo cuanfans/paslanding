@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="/js/layout.js"></script>
+</head>
+<body>
+    <admin-layout>
+        <div x-data="dashboardApp()" x-init="init()">
+            <header class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Selamat Datang, Admin!</h2>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Ringkasan performa bisnis Anda.</p>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase">Total Halaman</p>
+                        <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.pages">0</h3>
+                    </div>
+                    <div class="h-12 w-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-2xl">
+                        <i class="ph ph-files"></i>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase">Total Leads</p>
+                        <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.leads">0</h3>
+                    </div>
+                    <div class="h-12 w-12 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center text-2xl">
+                        <i class="ph ph-users"></i>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase">Penjualan (Est)</p>
+                        <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1">Rp 0</h3>
+                    </div>
+                    <div class="h-12 w-12 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full flex items-center justify-center text-2xl">
+                        <i class="ph ph-currency-dollar"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function dashboardApp() {
+                return {
+                    stats: { pages: 0, leads: 0 },
+                    async init() {
+                        const res = await fetch('/api/admin/pages');
+                        if(res.ok) {
+                            const data = await res.json();
+                            this.stats.pages = data.length;
+                        }
+                    }
+                }
+            }
+        </script>
+    </admin-layout>
+</body>
+</html>
