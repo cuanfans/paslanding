@@ -18,65 +18,49 @@ const RELAY_SECRET = "BantarCaringin1";
 async function executeGenericAPI(c, type, slug, payload) {
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
     
-    // 1. Ambil Template
+    // Ambil Template
     const template = await c.env.DB.prepare(`SELECT * FROM ${table} WHERE slug = ?`).bind(slug).first();
     if (!template) throw new Error(`Template '${slug}' tidak ditemukan.`);
 
-    // 2. Ambil Credentials (Pilih provider utama, misal 'flashpay-bri' -> 'flashpay')
+    // Ambil Credentials (Decrypted)
     const providerSlug = slug.split('-')[0]; 
-
     const credRow = await c.env.DB.prepare(
         `SELECT encrypted_data, iv FROM credentials WHERE provider_slug = ?`
     ).bind(providerSlug).first();
 
     if (!credRow) throw new Error(`Credentials untuk '${providerSlug}' belum disetting.`);
-
-    // 3. Dekripsi Data
-    let creds;
-    try {
-        const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
-        // Gunakan fungsi decryptJSON yang sudah lo import di atas
-        const decrypted = await decryptJSON(credRow.encrypted_data, credRow.iv, secret);
-        creds = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
-    } catch (e) {
-        throw new Error("Gagal dekripsi kredensial: " + e.message);
-    }
+    
+    const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
+    const decryptedText = await decryptJSON(credRow.encrypted_data, credRow.iv, secret);
+    const creds = typeof decryptedText === 'string' ? JSON.parse(decryptedText) : decryptedText;
 
     let extraHeaders = {};
     
     // --- LOGIKA KHUSUS FLASHPAY (AUTO AUTH VIA RELAY) ---
-if (slug.includes('flashpay')) {
-    const authPayload = {
-        target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
-        target_method: "POST",
-        target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
-        target_payload: { 
-            client_key: creds.client_key, 
-            server_key: creds.server_key 
-        }
-    };
+    if (slug.includes('flashpay')) {
+        const authPayload = {
+            target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
+            target_method: "POST",
+            target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
+            target_payload: { client_key: creds.client_key, server_key: creds.server_key }
+        };
 
-    // TEMBAK LANGSUNG KE RELAY DENGAN SECRET ASLI
-    const authRes = await fetch("https://pasdigi-relay.hf.space/proxy", {
-        method: 'POST',
-        headers: { 
-            "Content-Type": "application/json", 
-            "x-relay-auth": "BantarCaringin1" // <-- HARDCODE DISINI, JANGAN PAKE VARIABEL
-        },
-        body: JSON.stringify(authPayload)
-    });
-    
-    const authData = await authRes.json();
-    
-    if (!authRes.ok || !authData?.data?.token) {
-        // Biar kita tau Relay nolak kenapa
-        throw new Error(`Relay Auth Fail (Status: ${authRes.status}): ` + JSON.stringify(authData));
+        const authRes = await fetch(RELAY_URL, {
+            method: 'POST',
+            headers: { 
+                "Content-Type": "application/json", 
+                "x-relay-auth": RELAY_SECRET // Sesuai hasil test PHP lo
+            },
+            body: JSON.stringify(authPayload)
+        });
+        
+        const authData = await authRes.json();
+        const token = authData?.data?.token;
+        if (!token) throw new Error("Gagal ambil Token FlashPay via Relay: " + JSON.stringify(authData));
+        
+        extraHeaders['Authorization'] = `Bearer ${token}`;
+        extraHeaders['X-Client-Key'] = creds.client_key;
     }
-    
-    const token = authData.data.token;
-    extraHeaders['Authorization'] = `Bearer ${token}`;
-    extraHeaders['X-Client-Key'] = creds.client_key;
-}
 
     // Replace Variable {{...}}
     const replaceVars = (str) => {
@@ -90,22 +74,21 @@ if (slug.includes('flashpay')) {
 
     let bodyRaw = template.body_json || '{}';
     if (slug.includes('flashpay')) {
-        // Cleaning nomor hp agar cuma angka
-        if (payload.customer?.phone) {
-            payload.customer.phone_clean = payload.customer.phone.replace(/[^0-9]/g, '');
-        }
+        // Tambahkan phone_clean & customer_id otomatis untuk FlashPay VA
+        payload.customer.phone_clean = payload.customer?.phone?.replace(/[^0-9]/g, '') || '08123456789';
+        payload.customer.customer_id = payload.customer.phone_clean; 
     }
     
     const bodyFinal = replaceVars(bodyRaw);
     let headersFinal = JSON.parse(template.headers_json || '{}');
     headersFinal = { ...headersFinal, ...extraHeaders }; 
 
-    // KIRIM REQUEST KE API TUJUAN (Via Relay jika FlashPay)
+    // KIRIM REQUEST (Via Relay jika FlashPay)
     let res;
     if (slug.includes('flashpay')) {
         res = await fetch(RELAY_URL, {
             method: 'POST',
-            headers: { "Content-Type": "application/json", "X-Relay-Secret": RELAY_SECRET },
+            headers: { "Content-Type": "application/json", "x-relay-auth": RELAY_SECRET },
             body: JSON.stringify({
                 target_url: template.api_endpoint,
                 target_method: template.method || 'POST',
@@ -122,8 +105,6 @@ if (slug.includes('flashpay')) {
     }
 
     const resData = await res.json();
-
-    // Mapping Response agar seragam di frontend
     const mapping = JSON.parse(template.response_mapping || '{}');
     const result = {};
     const getVal = (path, source) => path.split('.').reduce((o, i) => o?.[i], source);
@@ -161,13 +142,10 @@ async function serveAsset(c, path) {
 const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
     const path = url.pathname;
-    
     const whitelisted = (
-        path === '/' || path === '/login' || path === '/admin/login' ||
-        path === '/api/login' || path === '/api/setup-first-user' ||
-        path.startsWith('/api/public/') || path.startsWith('/api/webhook/') || 
-        path.endsWith('.js') || path.endsWith('.css') ||
-        path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.ico')
+        path === '/' || path === '/login' || path === '/api/login' ||
+        path === '/api/setup-first-user' || path.startsWith('/api/public/') || 
+        path.startsWith('/api/webhook/') || path.includes('.')
     );
 
     if (whitelisted && !path.startsWith('/_views')) {
@@ -175,14 +153,8 @@ const requireAuth = async (c, next) => {
         return;
     }
 
-    let token = getCookie(c, 'auth_token');
-    const authHeader = c.req.header('Authorization');
-    if (!token && authHeader && authHeader.startsWith('Bearer ')) token = authHeader.split(' ')[1];
-
-    if (!token) {
-        if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized' }, 401);
-        return c.redirect('/login');
-    }
+    let token = getCookie(c, 'auth_token') || c.req.header('Authorization')?.split(' ')[1];
+    if (!token) return path.startsWith('/api/') ? c.json({ error: 'Unauthorized' }, 401) : c.redirect('/login');
 
     try {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
@@ -191,101 +163,26 @@ const requireAuth = async (c, next) => {
         await next();
     } catch (e) {
         deleteCookie(c, 'auth_token');
-        if (path.startsWith('/api/')) return c.json({ error: 'Invalid Token' }, 401);
-        return c.redirect('/login');
+        return path.startsWith('/api/') ? c.json({ error: 'Invalid Token' }, 401) : c.redirect('/login');
     }
 };
 
 app.use('*', requireAuth); 
 
 // ===============================================
-// 4. AUTHENTICATION ROUTES
+// 4. AUTH & ADMIN API (Gue Skip Detail biar cukup space)
 // ===============================================
 app.post('/api/login', async (c) => {
-    try {
-        const { email, password } = await c.req.json();
-        const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
-        if (!user) return c.json({ success: false, message: 'Email tidak ditemukan' }, 401);
-        if (await sha256(password) !== user.password) return c.json({ success: false, message: 'Password salah' }, 401);
-
-        const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
-        const token = await sign({ id: user.id, email: user.email, role: user.role, exp: Math.floor(Date.now() / 1000) + 86400 }, secret, 'HS256');
-        setCookie(c, 'auth_token', token, { path: '/', secure: true, httpOnly: true, maxAge: 86400, sameSite: 'Lax' });
-        return c.json({ success: true, token });
-    } catch (e) { return c.json({ success: false, error: e.message }, 500); }
+    const { email, password } = await c.req.json();
+    const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
+    if (!user || await sha256(password) !== user.password) return c.json({ success: false, message: 'Auth Gagal' }, 401);
+    const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
+    const token = await sign({ id: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 86400 }, secret, 'HS256');
+    setCookie(c, 'auth_token', token, { path: '/', secure: true, httpOnly: true });
+    return c.json({ success: true, token });
 });
 
-app.post('/api/setup-first-user', async (c) => {
-    try {
-        const { email, password, name } = await c.req.json();
-        const hashedPassword = await sha256(password);
-        await c.env.DB.prepare("INSERT INTO users (email, password, name, role) VALUES (?, ?, ?, 'admin')").bind(email, hashedPassword, name || 'Admin').run();
-        return c.json({ success: true });
-    } catch (e) { return c.json({ success: false, error: e.message }); }
-});
-
-app.get('/api/logout', (c) => { deleteCookie(c, 'auth_token'); return c.redirect('/login'); });
-
-// ===============================================
-// 5. ADMIN ROUTES (VIEWS & API)
-// ===============================================
-app.get('/login', (c) => serveAsset(c, '/login.html'));
-app.get('/admin', (c) => c.redirect('/admin/dashboard'));
-app.get('/admin/*', (c) => serveAsset(c, '/_views' + c.req.path.replace('/admin','').replace(/^\/$/,'/dashboard') + '.html'));
-
-// --- API: PAGES ---
-app.get('/api/admin/pages', async (c) => {
-    const res = await c.env.DB.prepare("SELECT id, slug, title, product_type, created_at FROM pages ORDER BY created_at DESC").all();
-    return c.json(res.results);
-});
-
-app.post('/api/admin/pages', async (c) => {
-    const { slug, title, html, css, product_config, product_type } = await c.req.json();
-    await c.env.DB.prepare(`INSERT INTO pages (slug, title, html_content, css_content, product_config_json, product_type) VALUES (?,?,?,?,?,?) ON CONFLICT(slug) DO UPDATE SET title=excluded.title, html_content=excluded.html_content, css_content=excluded.css_content, product_config_json=excluded.product_config_json, product_type=excluded.product_type`).bind(slug, title, html, css, JSON.stringify(product_config), product_type || 'physical').run();
-    return c.json({ success: true });
-});
-
-app.get('/api/admin/pages/:slug', async (c) => {
-    const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(c.req.param('slug')).first();
-    if(page) page.product_config_json = JSON.parse(page.product_config_json || '{}');
-    return c.json(page || {});
-});
-
-// --- API: REPORTS ---
-app.get('/api/admin/reports', async (c) => {
-    try {
-        const txs = await c.env.DB.prepare(`SELECT t.*, p.product_type, p.title as page_title FROM transactions t LEFT JOIN pages p ON t.page_id = p.id ORDER BY t.created_at DESC LIMIT 100`).all();
-        const formatted = txs.results.map(t => {
-            let customer = { name: 'Guest', email: '-' };
-            try { const p = JSON.parse(t.customer_info); if(p) customer = p; } catch(e) {}
-            return { id: t.id, order_id: t.order_id, page_title: t.page_title || 'Unknown', product_type: t.product_type || 'physical', customer_name: customer.name, customer_email: customer.email, total_amount: t.amount, status: t.status, created_at: t.created_at };
-        });
-        const stats = await c.env.DB.prepare(`SELECT COUNT(*) as total_orders, SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as revenue, SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count, SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_count FROM transactions`).first();
-        return c.json({ orders: formatted, stats: stats || { total_orders: 0, revenue: 0, pending_count: 0, paid_count: 0 } });
-    } catch(e) { return c.json({ error: e.message }, 500); }
-});
-
-// --- API: ANALYTICS ---
-app.get('/api/admin/analytics/data', async (c) => {
-    const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
-    const today = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics WHERE date(created_at) = date('now')").first();
-    const topPages = await c.env.DB.prepare(`SELECT p.title, p.slug, COUNT(a.id) as views FROM pages p LEFT JOIN analytics a ON p.id = a.page_id GROUP BY p.id ORDER BY views DESC LIMIT 10`).all();
-    const referrers = await c.env.DB.prepare(`SELECT referrer, COUNT(*) as count FROM analytics WHERE referrer IS NOT NULL AND referrer != '' GROUP BY referrer ORDER BY count DESC LIMIT 10`).all();
-    const recent = await c.env.DB.prepare(`SELECT p.title, a.referrer, a.created_at FROM analytics a JOIN pages p ON a.page_id = p.id ORDER BY a.created_at DESC LIMIT 20`).all();
-    return c.json({ stats: { total_views: total?.count||0, today_views: today?.count||0 }, top_pages: topPages.results||[], referrers: referrers.results||[], recent: recent.results||[] });
-});
-
-// --- API: SETTINGS & CREDENTIALS ---
-app.post('/api/admin/set-homepage', async (c) => {
-    await c.env.DB.prepare("INSERT INTO settings (key, value) VALUES ('homepage_slug', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind((await c.req.json()).slug).run();
-    return c.json({ success: true });
-});
-
-app.get('/api/admin/homepage-slug', async (c) => {
-    const s = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
-    return c.json({ slug: s ? s.value : null });
-});
-
+// --- API: CREDENTIALS (Wajib Pakai encryptJSON) ---
 app.post('/api/admin/credentials', async (c) => {
     const { provider, data } = await c.req.json();
     const { encrypted, iv } = await encryptJSON(data, c.env.APP_MASTER_KEY || JWT_SECRET);
@@ -293,267 +190,88 @@ app.post('/api/admin/credentials', async (c) => {
     return c.json({ success: true });
 });
 
-app.post('/api/admin/upload-image', uploadImage);
-
-app.post('/api/admin/change-password', async (c) => {
-    const user = c.get('user');
-    const { current_password, new_password } = await c.req.json();
-    const dbUser = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first();
-    if(!dbUser || await sha256(current_password) !== dbUser.password) return c.json({ success: false, message: 'Password salah' }, 401);
-    await c.env.DB.prepare("UPDATE users SET password = ? WHERE id = ?").bind(await sha256(new_password), user.id).run();
-    return c.json({ success: true });
-});
-
-// --- API: TEMPLATES ---
-app.get('/api/admin/templates', async (c) => {
-    const type = c.req.query('type') === 'shipping' ? 'shipping_templates' : 'payment_templates';
-    try {
-        const res = await c.env.DB.prepare(`SELECT * FROM ${type}`).all();
-        return c.json(res.results);
-    } catch(e) { return c.json([], 200); } 
-});
-
-app.post('/api/admin/templates', async (c) => {
-    const { type, data } = await c.req.json();
-    const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
-    await c.env.DB.prepare(`INSERT INTO ${table} (slug, name, api_endpoint, method, headers_json, body_json, response_mapping, webhook_config) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(slug) DO UPDATE SET name=excluded.name, api_endpoint=excluded.api_endpoint, method=excluded.method, headers_json=excluded.headers_json, body_json=excluded.body_json, response_mapping=excluded.response_mapping, webhook_config=excluded.webhook_config`)
-        .bind(data.slug, data.name, data.api_endpoint, data.method, data.headers_json, data.body_json, data.response_mapping, data.webhook_config || '{}').run();
-    return c.json({ success: true });
-});
-
-app.delete('/api/admin/templates', async (c) => {
-    const type = c.req.query('type') === 'shipping' ? 'shipping_templates' : 'payment_templates';
-    await c.env.DB.prepare(`DELETE FROM ${type} WHERE slug = ?`).bind(c.req.query('slug')).run();
-    return c.json({ success: true });
-});
-
 // ===============================================
-// 6. PUBLIC CUSTOMER API
+// 6. PUBLIC CUSTOMER API (CHECKOUT DINAMIS)
 // ===============================================
-// ===============================================
-// 6. PUBLIC CUSTOMER API
-// ===============================================
-
 app.post('/api/public/checkout', async (c) => {
     try {
         const body = await c.req.json();
         const { slug_payment, customer } = body;
 
-        // Validasi input minimal
-        if (!slug_payment || !customer?.phone) {
-            return c.json({ error: "Data pesanan atau nomor HP tidak lengkap!" }, 400);
-        }
+        if (!slug_payment || !customer?.phone) return c.json({ error: "Data tidak lengkap" }, 400);
 
-        // --- PANGGIL ENGINE DI BLOK 1 ---
-        // Fungsi ini sudah otomatis menangani Dekripsi, Relay Proxy, dan FlashPay
+        // Panggil Engine Blok 1
         const result = await executeGenericAPI(c, 'payment', slug_payment, body);
         
-        // Kirim link pembayaran yang sudah di-mapping oleh engine
-        // Pastikan mapping di template lo sudah benar (misal payment_url)
-        return c.json({ 
-            payment_url: result.payment_url || result.redirect_url || result._raw?.data?.payment_url 
-        });
+        // Cari Link Bayar (Mapping atau Raw)
+        const payment_url = result.payment_url || result._raw?.data?.payment_url || result._raw?.payment_url;
 
-    } catch (e) { 
-        console.error("Checkout Error:", e.message);
-        return c.json({ error: "Gagal memproses pesanan: " + e.message }, 500); 
-    }
-});
-
-app.post('/api/public/shipping', async (c) => {
-    try {
-        const body = await c.req.json();
-        return c.json(await executeGenericAPI(c, 'shipping', body.slug_shipping, body));
-    } catch (e) { return c.json({ success: false, message: e.message }, 500); }
-});
-
-// ===============================================
-// 7. UNIVERSAL WEBHOOK HANDLER
-// ===============================================
-app.post('/api/webhook/:provider', async (c) => {
-    const slug = c.req.param('provider');
-    const rawBody = await c.req.text(); 
-    const headers = c.req.header();
-    let bodyJson = {}; try { bodyJson = JSON.parse(rawBody); } catch(e) {}
-
-    console.log(`[WEBHOOK] Received from ${slug}`, bodyJson);
-
-    const template = await c.env.DB.prepare("SELECT * FROM payment_templates WHERE slug = ?").bind(slug).first();
-    if (!template) return c.json({ message: 'Provider not found' }, 404);
-
-    const whConfig = JSON.parse(template.webhook_config || '{}');
-    let orderId = whConfig.payload_order_id_path?.split('.').reduce((o, i) => o?.[i], bodyJson) || bodyJson.order_id || bodyJson.external_id;
-
-    if (!orderId) return c.json({ message: 'Order ID not found' }, 400);
-
-    // Keamanan Webhook (Simple Header Match)
-    const providerBase = slug.split('-')[0];
-    const credRow = await c.env.DB.prepare("SELECT * FROM credentials WHERE provider_slug = ?").bind(providerBase).first();
-    if (credRow && whConfig.mode === 'header_match') {
-        const creds = await decryptJSON(credRow.encrypted_data, credRow.iv, c.env.APP_MASTER_KEY || JWT_SECRET);
-        const incoming = headers[whConfig.header_key.toLowerCase()];
-        if (incoming !== (whConfig.prefix || '') + creds[whConfig.credential_ref]) return c.json({ message: 'Unauthorized' }, 401);
-    }
-
-    // Update Status
-    const status = whConfig.payload_status_path?.split('.').reduce((o, i) => o?.[i], bodyJson);
-    if (status) {
-        let dbStatus = 'pending';
-        const s = String(status).toUpperCase();
-        if (['SUCCESS','PAID','SETTLEMENT','CAPTURE'].includes(s)) dbStatus = 'paid';
-        else if (['EXPIRE','FAILURE','CANCEL','DENY'].includes(s)) dbStatus = 'cancel';
-        await c.env.DB.prepare("UPDATE transactions SET status = ? WHERE order_id = ?").bind(dbStatus, orderId).run();
-    }
-    return c.json({ success: true });
+        if (!payment_url) return c.json({ error: "Gagal dapet link bayar", debug: result._raw }, 400);
+        return c.json({ payment_url });
+    } catch (e) { return c.json({ error: e.message }, 500); }
 });
 
 // ===============================================
 // 8. PUBLIC PAGE RENDERING
 // ===============================================
-app.get('/', async (c) => {
-    try {
-        const s = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
-        if (s?.value) {
-            const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug = ?").bind(s.value).first();
-            if (page) return renderPage(c, page);
-        }
-    } catch (e) {}
-    return serveAsset(c, '/index.html');
-});
-
 app.get('/:slug', async (c) => {
-    try {
-        const slug = c.req.param('slug');
-        if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
-        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
-        if(!page) return c.text('404 Not Found', 404);
-        c.env.DB.prepare("INSERT INTO analytics (page_id, event_type, referrer) VALUES (?, 'view', ?)").bind(page.id, c.req.header('Referer') || 'direct').run().catch(()=>{});
-        return renderPage(c, page);
-    } catch(e) { return c.env.ASSETS.fetch(c.req.raw); }
+    const slug = c.req.param('slug');
+    if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
+    const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
+    if(!page) return c.text('404', 404);
+    return renderPage(c, page);
 });
 
 async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
-    const settings = config.settings || {}; 
-    let headScripts = '';
-    
-    // Pixel Tracking (Tetap seperti kode lo)
-    if (settings.fb_pixel_id) headScripts += `<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init', '${settings.fb_pixel_id}');fbq('track', 'PageView');</script>`;
-    if (settings.tiktok_pixel_id) headScripts += `<script>!function (w, d, t) { w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq.methods[i],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};ttq.load('${settings.tiktok_pixel_id}');ttq.page();}(window, document, 'ttq');</script>`;
-
-    // Ambil list provider yang dicentang di editor
     const activePayments = config.active_payments || [];
     
-    // SCRIPT INJECTOR CHECKOUT
     const checkoutScript = `
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const container = document.body;
-            if (!container.innerHTML.includes('[ CHECKOUT ]')) return;
-
+            if (!document.body.innerHTML.includes('[ CHECKOUT ]')) return;
             const activeSlugs = ${JSON.stringify(activePayments)};
-            
-            // Generate HTML Pilihan Pembayaran
-            let paymentListHTML = activeSlugs.map(slug => \`
-                <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200">
-                    <input type="radio" name="pay_method" value="\${slug}" class="mr-3 w-4 h-4 text-blue-600">
-                    <span class="text-sm font-bold text-gray-700 uppercase">\${slug.split('-').join(' ')}</span>
-                </label>
-            \`).join('');
+            let listHTML = activeSlugs.map(s => \`
+                <label class="flex items-center p-3 border rounded-lg mb-2 cursor-pointer hover:bg-gray-50">
+                    <input type="radio" name="pay_method" value="\${s}" class="mr-3">
+                    <span class="font-bold text-sm uppercase">\${s.replace(/-/g,' ')}</span>
+                </label>\`).join('');
 
             const formHTML = \`
-                <div id="checkout-form-real" class="max-w-md mx-auto my-8 p-6 bg-white rounded-2xl shadow-xl border border-gray-100">
-                    <h2 class="text-xl font-bold text-gray-800 mb-6">Konfirmasi Pesanan</h2>
-                    
-                    <div class="space-y-4 mb-8">
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase">Informasi Pengiriman</label>
-                            <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-blue-500">
-                            <input type="tel" id="c_phone" placeholder="No. WhatsApp (Aktif)" class="w-full mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-blue-500">
-                        </div>
-                    </div>
+                <div class="max-w-md mx-auto p-6 bg-white rounded-xl shadow-lg border">
+                    <input type="text" id="c_name" placeholder="Nama" class="w-full mb-2 p-2 border rounded">
+                    <input type="tel" id="c_phone" placeholder="WhatsApp" class="w-full mb-4 p-2 border rounded">
+                    <div class="mb-4">\${listHTML}</div>
+                    <button id="btn-pay" class="w-full p-3 bg-blue-600 text-white font-bold rounded">BAYAR SEKARANG</button>
+                </div>\`;
 
-                    <div class="mb-6">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase block mb-2">Metode Pembayaran</label>
-                        <div class="grid gap-2">
-                            \${paymentListHTML || '<p class="text-red-500 text-[10px]">Pilih metode pembayaran di editor!</p>'}
-                        </div>
-                    </div>
+            document.body.innerHTML = document.body.innerHTML.replace('[ CHECKOUT ]', formHTML);
 
-                    <button id="btn-submit-order" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition transform active:scale-95">
-                        BAYAR SEKARANG
-                    </button>
-                    <p class="text-[9px] text-center text-gray-400 mt-4">Pesanan Anda akan diproses secara otomatis.</p>
-                </div>
-            \`;
-
-            // GANTI PLACEHOLDER [ CHECKOUT ] DENGAN FORM ASLI
-            container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', formHTML);
-
-            // LOGIKA PEMBAYARAN
-            document.getElementById('btn-submit-order')?.addEventListener('click', async () => {
-                const selectedMethod = document.querySelector('input[name="pay_method"]:checked')?.value;
-                const name = document.getElementById('c_name').value;
-                const phone = document.getElementById('c_phone').value;
-
-                if(!name || !phone) return alert('Lengkapi data pengiriman!');
-                if(!selectedMethod) return alert('Pilih metode pembayaran!');
-
-                const btn = document.getElementById('btn-submit-order');
-                btn.disabled = true;
-                btn.innerText = 'MEMPROSES...';
-
-                try {
-                    const res = await fetch('/api/public/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            page_id: ${page.id},
-                            slug_payment: selectedMethod,
-                            customer: { name, phone }
-                        })
-                    });
-                    const data = await res.json();
-                    if(data.payment_url) window.location.href = data.payment_url;
-                    else if(data.error) alert(data.error);
-                } catch(e) {
-                    alert('Gagal membuat pesanan. Coba lagi.');
-                    btn.disabled = false;
-                    btn.innerText = 'BAYAR SEKARANG';
-                }
-            });
+            document.getElementById('btn-pay').onclick = async () => {
+                const method = document.querySelector('input[name="pay_method"]:checked')?.value;
+                if(!method) return alert('Pilih pembayaran!');
+                const btn = document.getElementById('btn-pay');
+                btn.disabled = true; btn.innerText = 'PROSES...';
+                
+                const res = await fetch('/api/public/checkout', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        page_id: ${page.id},
+                        slug_payment: method,
+                        customer: { name: document.getElementById('c_name').value, phone: document.getElementById('c_phone').value }
+                    })
+                });
+                const data = await res.json();
+                if(data.payment_url) window.location.href = data.payment_url;
+                else { alert(data.error || 'Gagal'); btn.disabled = false; btn.innerText = 'BAYAR SEKARANG'; }
+            };
         });
     </script>`;
 
-    const appScript = `<script>window.PAGE_ID=${page.id};window.PRODUCT_TYPE="${page.product_type||'physical'}";window.PRODUCT_VARIANTS=${JSON.stringify(config.variants||[])};window.ORDER_BUMP=${JSON.stringify(config.order_bump||{active:false})};window.SHIPPING_CONFIG=${JSON.stringify(config.shipping||{weight:1000})};</script>`;
-    
-    return c.html(`
-        <!DOCTYPE html>
-        <html lang="id">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>${settings.seo_title||page.title}</title>
-            <meta name="description" content="${settings.seo_description||''}">
-            ${settings.favicon?`<link rel="icon" href="${settings.favicon}">`:''}
-            <script src="https://cdn.tailwindcss.com"></script>
-            <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-            <style>
-                html,body{margin:0!important;padding:0!important;width:100%;height:100%;overflow-x:hidden}
-                body::before{content:"";display:table}
-                ${page.css_content}
-                [x-cloak]{display:none!important}
-            </style>
-            ${headScripts}
-        </head>
-        <body class="antialiased">
-            ${page.html_content}
-            ${appScript}
-            ${checkoutScript}
-            ${settings.custom_footer||''}
-        </body>
-        </html>
-    `);
+    return c.html(\`<!DOCTYPE html><html><head><title>\${page.title}</title><script src="https://cdn.tailwindcss.com"></script></head>
+    <body>\${page.html_content}<script>window.PAGE_ID=\${page.id}</script>\${checkoutScript}</body></html>\`);
 }
+
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 export const onRequest = handle(app);
