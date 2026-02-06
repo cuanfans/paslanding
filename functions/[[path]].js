@@ -18,16 +18,29 @@ const RELAY_SECRET = "BantarCaringin1";
 async function executeGenericAPI(c, type, slug, payload) {
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
     
-    // Ambil Template
+    // 1. Ambil Template
     const template = await c.env.DB.prepare(`SELECT * FROM ${table} WHERE slug = ?`).bind(slug).first();
     if (!template) throw new Error(`Template '${slug}' tidak ditemukan.`);
 
-    // Ambil Credentials (Decrypted)
+    // 2. Ambil Credentials (Pilih provider utama, misal 'flashpay-bri' -> 'flashpay')
     const providerSlug = slug.split('-')[0]; 
-    const credRow = await c.env.DB.prepare("SELECT * FROM credentials WHERE provider_slug = ?").bind(providerSlug).first();
+
+    const credRow = await c.env.DB.prepare(
+        `SELECT encrypted_data, iv FROM credentials WHERE provider_slug = ?`
+    ).bind(providerSlug).first();
+
     if (!credRow) throw new Error(`Credentials untuk '${providerSlug}' belum disetting.`);
-    
-    const creds = await decryptJSON(credRow.encrypted_data, credRow.iv, c.env.APP_MASTER_KEY || JWT_SECRET);
+
+    // 3. Dekripsi Data
+    let creds;
+    try {
+        const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
+        // Gunakan fungsi decryptJSON yang sudah lo import di atas
+        const decrypted = await decryptJSON(credRow.encrypted_data, credRow.iv, secret);
+        creds = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
+    } catch (e) {
+        throw new Error("Gagal dekripsi kredensial: " + e.message);
+    }
 
     let extraHeaders = {};
     
@@ -48,7 +61,7 @@ async function executeGenericAPI(c, type, slug, payload) {
         
         const authData = await authRes.json();
         const token = authData?.data?.token;
-        if (!token) throw new Error("Gagal ambil Token FlashPay via Relay: " + JSON.stringify(authData));
+        if (!token) throw new Error("Gagal ambil Token FlashPay via Relay");
         
         extraHeaders['Authorization'] = `Bearer ${token}`;
         extraHeaders['X-Client-Key'] = creds.client_key;
@@ -66,14 +79,17 @@ async function executeGenericAPI(c, type, slug, payload) {
 
     let bodyRaw = template.body_json || '{}';
     if (slug.includes('flashpay')) {
-        payload.customer.phone_clean = payload.customer?.phone?.replace(/[^0-9]/g, '') || '08123456789'; 
+        // Cleaning nomor hp agar cuma angka
+        if (payload.customer?.phone) {
+            payload.customer.phone_clean = payload.customer.phone.replace(/[^0-9]/g, '');
+        }
     }
     
     const bodyFinal = replaceVars(bodyRaw);
     let headersFinal = JSON.parse(template.headers_json || '{}');
     headersFinal = { ...headersFinal, ...extraHeaders }; 
 
-    // KIRIM REQUEST (Via Relay jika FlashPay)
+    // KIRIM REQUEST KE API TUJUAN (Via Relay jika FlashPay)
     let res;
     if (slug.includes('flashpay')) {
         res = await fetch(RELAY_URL, {
@@ -96,7 +112,7 @@ async function executeGenericAPI(c, type, slug, payload) {
 
     const resData = await res.json();
 
-    // Mapping Response
+    // Mapping Response agar seragam di frontend
     const mapping = JSON.parse(template.response_mapping || '{}');
     const result = {};
     const getVal = (path, source) => path.split('.').reduce((o, i) => o?.[i], source);
