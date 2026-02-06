@@ -113,7 +113,7 @@ app.post('/api/login', async (c) => {
             secure: true, 
             httpOnly: true, 
             maxAge: 86400,
-            sameSite: 'None' 
+            sameSite: 'Lax' 
         });
 
         return c.json({ success: true, token: token });
