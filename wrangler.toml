@@ -1,0 +1,8 @@
+name = "blinksite"
+pages_build_output_dir = "./public"
+compatibility_date = "2024-02-05"
+
+[[d1_databases]]
+binding = "DB" # PENTING: Nama binding harus "DB" agar cocok dengan kode (c.env.DB)
+database_name = "paslanding"
+database_id = "b7090254-9230-4df7-9684-fd9637c96ddf"
