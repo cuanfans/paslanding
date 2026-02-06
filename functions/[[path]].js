@@ -21,6 +21,8 @@ async function serveAsset(c, path) {
     try {
         const url = new URL(path, c.req.url);
         const response = await c.env.ASSETS.fetch(url);
+        
+        // JIKA yang diminta adalah file HTML (halaman admin), paksa browser jangan cache!
         if (path.endsWith('.html')) {
             const newResponse = new Response(response.body, response);
             newResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -35,22 +37,26 @@ async function serveAsset(c, path) {
 }
 
 // ===============================================
-// 1. MIDDLEWARE AUTH
+// 1. MIDDLEWARE AUTH (DIPERBAIKI: HAPUS LOGIKA TITIK)
 // ===============================================
 const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
     const path = url.pathname;
     
-    if (path.startsWith('/api/public/') || 
-        path === '/admin/login' || 
-        path === '/login' || 
-        path === '/api/login' || 
-        path === '/api/setup-first-user' ||
-        path.includes('.') 
-    ) {
-        await next(); return;
+    // --- LOGIKA BARU: Tentukan mana yang WAJIB PROTECTED ---
+    // Kita kunci semua jalur yang berbau admin atau source code views
+    const isProtected = 
+        (path.startsWith('/admin') && path !== '/admin/login') || // /admin/* (kecuali halaman login admin)
+        path.startsWith('/api/admin') ||                          // /api/admin/*
+        path.startsWith('/_views');                               // /_views/* (Mencegah akses langsung ke raw HTML)
+
+    // Jika BUKAN jalur protected, biarkan lewat (Public Access: Landing page, login, assets)
+    if (!isProtected) {
+        await next();
+        return;
     }
 
+    // --- CEK TOKEN (Hanya dijalankan jika masuk jalur protected) ---
     let token = getCookie(c, 'auth_token');
     const authHeader = c.req.header('Authorization');
     
@@ -58,6 +64,7 @@ const requireAuth = async (c, next) => {
         token = authHeader.split(' ')[1];
     }
 
+    // Jika token tidak ada di area terlarang -> TENDANG
     if (!token) {
         if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized' }, 401);
         return c.redirect('/login');
@@ -67,10 +74,14 @@ const requireAuth = async (c, next) => {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
         const payload = await verify(token, secret);
         c.set('user', payload);
+        
         await next();
+
+        // Paksa header anti-cache untuk area admin
         c.res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         c.res.headers.set('Pragma', 'no-cache');
         c.res.headers.set('Expires', '0');
+
     } catch (e) {
         deleteCookie(c, 'auth_token');
         if (path.startsWith('/api/')) return c.json({ error: 'Invalid Token' }, 401);
@@ -78,8 +89,7 @@ const requireAuth = async (c, next) => {
     }
 };
 
-app.use('/admin*', requireAuth);
-app.use('/api/admin*', requireAuth);
+app.use('*', requireAuth); // Terapkan middleware ke SEMUA route dulu, nanti disaring di dalam
 
 // ===============================================
 // 2. AUTH ROUTES
@@ -126,7 +136,11 @@ app.get('/api/logout', (c) => {
 // ===============================================
 // 3. ADMIN HTML MAPPING
 // ===============================================
+// Login Page (Public)
 app.get('/login', (c) => serveAsset(c, '/login.html'));
+app.get('/admin/login', (c) => c.redirect('/login'));
+
+// Admin Pages (Protected by Middleware)
 app.get('/admin', (c) => c.redirect('/admin/dashboard'));
 app.get('/admin/dashboard', (c) => serveAsset(c, '/_views/dashboard.html'));
 app.get('/admin/pages', (c) => serveAsset(c, '/_views/pages.html'));
@@ -134,6 +148,8 @@ app.get('/admin/editor', (c) => serveAsset(c, '/_views/editor.html'));
 app.get('/admin/reports', (c) => serveAsset(c, '/_views/reports.html'));
 app.get('/admin/analytics', (c) => serveAsset(c, '/_views/analytics.html'));
 app.get('/admin/settings', (c) => serveAsset(c, '/_views/settings.html'));
+
+// Block direct access to _views if somehow bypassed (Extra Safety)
 app.get('/_views*', (c) => c.redirect('/login'));
 
 // ===============================================
@@ -149,53 +165,37 @@ app.get('/api/admin/pages', async (c) => {
 // API: AMBIL DATA ANALYTICS
 app.get('/api/admin/analytics/data', async (c) => {
     try {
-        // 1. Total Views
         const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
-        
-        // 2. Views Hari Ini (SQLite Date Function)
         const today = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics WHERE date(created_at) = date('now')").first();
         
-        // 3. Top Pages (Halaman paling banyak dilihat)
         const topPages = await c.env.DB.prepare(`
             SELECT p.title, p.slug, COUNT(a.id) as views 
             FROM pages p 
             LEFT JOIN analytics a ON p.id = a.page_id 
-            GROUP BY p.id 
-            ORDER BY views DESC 
-            LIMIT 10
+            GROUP BY p.id ORDER BY views DESC LIMIT 10
         `).all();
 
-        // 4. Top Referrers (Traffic Source)
         const referrers = await c.env.DB.prepare(`
             SELECT referrer, COUNT(*) as count 
             FROM analytics 
             WHERE referrer IS NOT NULL AND referrer != ''
-            GROUP BY referrer 
-            ORDER BY count DESC 
-            LIMIT 10
+            GROUP BY referrer ORDER BY count DESC LIMIT 10
         `).all();
 
-        // 5. Recent Activity (Log terbaru)
         const recent = await c.env.DB.prepare(`
             SELECT p.title, a.referrer, a.created_at 
             FROM analytics a 
             JOIN pages p ON a.page_id = p.id 
-            ORDER BY a.created_at DESC 
-            LIMIT 20
+            ORDER BY a.created_at DESC LIMIT 20
         `).all();
 
         return c.json({
-            stats: {
-                total_views: total.count,
-                today_views: today.count
-            },
+            stats: { total_views: total.count, today_views: today.count },
             top_pages: topPages.results,
             referrers: referrers.results,
             recent: recent.results
         });
-    } catch (e) {
-        return c.json({ error: e.message }, 500);
-    }
+    } catch (e) { return c.json({ error: e.message }, 500); }
 });
 
 app.post('/api/admin/pages', async (c) => {
@@ -244,11 +244,9 @@ app.post('/api/admin/credentials', async (c) => {
 
 app.post('/api/admin/upload-image', uploadImage);
 
-// API Shipping Admin (Generic)
 app.post('/api/shipping/check', async (c) => {
     try {
         const body = await c.req.json();
-        // Body: { slug_shipping: 'rajaongkir', destination: '...', weight: 1000 }
         const result = await executeGenericAPI(c, 'shipping', body.slug_shipping, body);
         return c.json(result);
     } catch(e) { return c.json({ success: false, message: e.message }, 500); }
@@ -272,7 +270,6 @@ app.post('/api/public/submit-form', async (c) => {
     } catch (e) { return c.text('Error: ' + e.message, 500); }
 });
 
-// API Checkout Publik (Generic)
 app.post('/api/public/checkout', async (c) => {
     try {
         const { page_id, customer, items, total, shipping, slug_payment } = await c.req.json();
@@ -301,7 +298,6 @@ app.post('/api/public/checkout', async (c) => {
     }
 });
 
-// API Shipping Publik (Generic)
 app.post('/api/public/shipping', async (c) => {
     try {
         const body = await c.req.json();
@@ -338,8 +334,6 @@ app.get('/:slug', async (c) => {
     } catch(e) { return c.env.ASSETS.fetch(c.req.raw); }
 });
 
-// 7. RENDER ENGINE (Helper)
-// CLEAN VERSION: Tanpa hardcode Midtrans
 async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
     const settings = config.settings || {}; 
@@ -347,16 +341,12 @@ async function renderPage(c, page) {
 
     let headScripts = '';
     
-    // Pixel & Scripts Logic
     if (settings.fb_pixel_id) {
         headScripts += `<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init', '${settings.fb_pixel_id}');fbq('track', 'PageView');</script><noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${settings.fb_pixel_id}&ev=PageView&noscript=1"/></noscript>`;
     }
     if (settings.tiktok_pixel_id) {
         headScripts += `<script>!function (w, d, t) { w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq.methods[i],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};ttq.load('${settings.tiktok_pixel_id}');ttq.page();}(window, document, 'ttq');</script>`;
     }
-    
-    // Fallback Modular: Script apapun dari provider (Midtrans/Xendit/dll) 
-    // dimasukkan user via Dashboard -> Settings -> Custom Head
     if (settings.custom_head) headScripts += settings.custom_head;
 
     const appScript = `
@@ -381,40 +371,26 @@ async function renderPage(c, page) {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        
         <title>${settings.seo_title || page.title}</title>
         <meta name="description" content="${settings.seo_description || ''}">
         ${settings.favicon ? `<link rel="icon" href="${settings.favicon}">` : ''}
-
         <meta property="og:type" content="website" />
         <meta property="og:url" content="${url}" />
         <meta property="og:title" content="${settings.og_title || settings.seo_title || page.title}" />
         <meta property="og:description" content="${settings.og_description || settings.seo_description || ''}" />
         ${settings.og_image ? `<meta property="og:image" content="${settings.og_image}" />` : ''}
-
         <script src="https://cdn.tailwindcss.com"></script>
         <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
         <style>
-            html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 100%;
-                height: 100%;
-                overflow-x: hidden;
-            }
-            body::before {
-                content: "";
-                display: table;
-            }
+            html, body { margin: 0 !important; padding: 0 !important; width: 100%; height: 100%; overflow-x: hidden; }
+            body::before { content: ""; display: table; }
             ${page.css_content}
             [x-cloak] { display: none !important; }
         </style>
-
         ${headScripts}
     </head>
     <body class="antialiased" style="margin:0; padding:0;">
         ${page.html_content}
-        
         ${appScript}
         ${settings.custom_footer || ''}
     </body>
