@@ -38,37 +38,29 @@ const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
     const path = url.pathname;
     
-    // --- WHITELIST (JALUR BEBAS) ---
-    if (
-        path === '/' ||
-        path === '/login' ||
-        path === '/admin/login' ||
-        path === '/api/login' ||                 
+    // 1. Definisikan Whitelist dengan Jelas
+    const isPublic = 
+        path === '/' || 
+        path === '/login' || 
+        path === '/api/login' || 
         path === '/api/setup-first-user' ||
         path.startsWith('/api/public/') ||
-        path.endsWith('.js') ||  // Izinkan JS
-        path.endsWith('.css') || // Izinkan CSS
-        path.endsWith('.png') || // Izinkan Gambar
-        path.endsWith('.jpg') ||
-        path.endsWith('.ico')
-    ) {
-        // Pengecualian: Jika file ada di folder _views, tetap harus dicek (TIDAK BOLEH DIAKSES LANGSUNG)
-        if (!path.startsWith('/_views')) {
-            await next();
-            return;
-        }
+        /\.(js|css|png|jpg|ico|svg)$/.test(path);
+
+    // 2. Jika public DAN bukan folder terlarang, izinkan
+    if (isPublic && !path.startsWith('/_views')) {
+        return await next();
     }
 
-    // --- CEK TOKEN ---
+    // 3. Cek Token untuk area terproteksi (Admin)
     let token = getCookie(c, 'auth_token');
-    const authHeader = c.req.header('Authorization');
-    
-    if (!token && authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.split(' ')[1];
+    if (!token) {
+        const authHeader = c.req.header('Authorization');
+        if (authHeader?.startsWith('Bearer ')) token = authHeader.split(' ')[1];
     }
 
     if (!token) {
-        if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized: No Token' }, 401);
+        if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized' }, 401);
         return c.redirect('/login');
     }
 
@@ -77,10 +69,13 @@ const requireAuth = async (c, next) => {
         const payload = await verify(token, secret);
         c.set('user', payload);
         await next();
-        c.res.headers.set('Cache-Control', 'no-store, max-age=0');
+        // Set header cache hanya jika bukan API
+        if (!path.startsWith('/api/')) {
+            c.res.headers.set('Cache-Control', 'no-store, max-age=0');
+        }
     } catch (e) {
         deleteCookie(c, 'auth_token');
-        if (path.startsWith('/api/')) return c.json({ error: 'Invalid Token' }, 401);
+        if (path.startsWith('/api/')) return c.json({ error: 'Invalid Session' }, 401);
         return c.redirect('/login');
     }
 };
