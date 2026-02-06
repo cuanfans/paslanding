@@ -1,114 +1,162 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - BlinkSite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="/js/layout.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900">
-    <admin-layout>
-        <div x-data="dashboardApp()" x-init="init()">
-            <header class="mb-8">
-                <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Selamat Datang, Admin!</h2>
-                <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Ringkasan performa bisnis Anda hari ini.</p>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200" x-data="dashboardApp()" x-init="init()" :class="darkMode ? 'dark' : ''">
+
+    <div class="flex h-screen overflow-hidden" x-cloak>
+        
+        <aside :class="sidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full md:w-20 md:translate-x-0'" 
+               class="fixed md:relative z-30 h-full flex flex-col bg-white dark:bg-gray-800 border-r dark:border-gray-700 transition-all duration-300 shadow-xl md:shadow-none">
+            
+            <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0">
+                <span x-show="sidebarOpen" class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span>
+                <span x-show="!sidebarOpen" class="text-xl font-bold text-blue-600 hidden md:block">B</span>
+            </div>
+
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md group">
+                    <i class="ph ph-squares-four text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Dashboard</span>
+                </a>
+                <a href="/admin/pages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-files text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Halaman</span>
+                </a>
+                <a href="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-trend-up text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Traffic</span>
+                </a>
+                <a href="/admin/settings" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-gear text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Settings</span>
+                </a>
+            </nav>
+
+            <div class="p-4 border-t dark:border-gray-700 shrink-0">
+                <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors">
+                    <i class="ph ph-sign-out text-xl"></i>
+                    <span x-show="sidebarOpen" class="font-medium">Keluar</span>
+                </button>
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-4 shadow-sm z-20 shrink-0">
+                <div class="flex items-center gap-4">
+                    <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <i class="ph ph-list text-2xl"></i>
+                    </button>
+                    <h1 class="font-bold text-lg truncate">Dashboard</h1>
+                </div>
+                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors">
+                    <i x-show="!darkMode" class="ph ph-moon text-xl"></i>
+                    <i x-show="darkMode" class="ph ph-sun text-xl text-yellow-400"></i>
+                </button>
             </header>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-                    <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Halaman</p>
-                        <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.pages">0</h3>
-                    </div>
-                    <div class="h-12 w-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-2xl">
-                        <i class="ph ph-files"></i>
-                    </div>
-                </div>
+            <main class="flex-1 overflow-y-auto p-4 md:p-8">
+                <header class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Selamat Datang, Admin!</h2>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Status database dan ringkasan halaman Anda.</p>
+                </header>
 
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-                    <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Kunjungan</p>
-                        <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.views">0</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Halaman</p>
+                            <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.pages">0</h3>
+                        </div>
+                        <div class="h-12 w-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-2xl">
+                            <i class="ph ph-files"></i>
+                        </div>
                     </div>
-                    <div class="h-12 w-12 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center text-2xl">
-                        <i class="ph ph-chart-line"></i>
-                    </div>
-                </div>
 
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-                    <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Penjualan (Est)</p>
-                        <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1">Rp 0</h3>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Leads</p>
+                            <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.leads">0</h3>
+                        </div>
+                        <div class="h-12 w-12 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center text-2xl">
+                            <i class="ph ph-users"></i>
+                        </div>
                     </div>
-                    <div class="h-12 w-12 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full flex items-center justify-center text-2xl">
-                        <i class="ph ph-currency-circle-dollar"></i>
-                    </div>
-                </div>
-            </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-                    <div class="p-4 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
-                        <h4 class="font-bold text-sm uppercase text-gray-500">Kunjungan Terbaru</h4>
-                        <a href="/admin/analytics" class="text-xs text-blue-600 font-bold hover:underline">Lihat Semua</a>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
-                            <tbody class="divide-y dark:divide-gray-700">
-                                <template x-for="item in recentViews" :key="item.created_at">
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td class="p-4 font-medium" x-text="item.title"></td>
-                                        <td class="p-4 text-gray-400 text-xs" x-text="item.referrer"></td>
-                                        <td class="p-4 text-right text-gray-400 text-[10px]" x-text="new Date(item.created_at).toLocaleString()"></td>
-                                    </tr>
-                                </template>
-                                <tr x-show="recentViews.length === 0">
-                                    <td colspan="3" class="p-8 text-center text-gray-400">Belum ada data kunjungan.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">API Status</p>
+                            <h3 class="text-xl font-bold text-green-500 mt-1">CONNECTED</h3>
+                        </div>
+                        <div class="h-12 w-12 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full flex items-center justify-center text-2xl">
+                            <i class="ph ph-check-circle"></i>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
 
-        <script>
-            function dashboardApp() {
-                return {
-                    stats: { pages: 0, views: 0 },
-                    recentViews: [],
-                    async init() {
-                        const token = localStorage.getItem('admin_pass');
-                        const headers = { 'Authorization': `Bearer ${token}` };
+        <div x-show="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/50 z-20 md:hidden" x-transition.opacity></div>
+    </div>
 
-                        try {
-                            // Fetch Data Halaman
-                            const resPages = await fetch('/api/admin/pages', { headers });
-                            if(resPages.ok) {
-                                const pages = await resPages.json();
-                                this.stats.pages = pages.length;
-                            }
+    <script>
+        function dashboardApp() {
+            return {
+                sidebarOpen: window.innerWidth > 768,
+                darkMode: localStorage.getItem('theme') === 'dark',
+                stats: { pages: 0, leads: 0 },
 
-                            // Fetch Data Analytics
-                            const resAnal = await fetch('/api/admin/analytics/data', { headers });
-                            if(resAnal.ok) {
-                                const anal = await resAnal.json();
-                                this.stats.views = anal.stats.total_views || 0;
-                                this.recentViews = anal.recent || [];
-                            }
+                async init() {
+                    const token = localStorage.getItem('admin_pass');
+                    if (!token) {
+                        window.location.href = '/login';
+                        return;
+                    }
 
-                            if(resPages.status === 401 || resAnal.status === 401) {
-                                window.location.href = '/login';
-                            }
-                        } catch (e) {
-                            console.error("Dashboard Load Error:", e);
+                    if (this.darkMode) document.documentElement.classList.add('dark');
+
+                    try {
+                        const res = await fetch('/api/admin/pages', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.stats.pages = data.length;
+                        } else if (res.status === 401) {
+                            window.location.href = '/login';
                         }
+                    } catch (e) {
+                        console.error("Gagal memuat data API:", e);
+                    }
+                },
+
+                toggleTheme() {
+                    this.darkMode = !this.darkMode;
+                    localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+                    if (this.darkMode) document.documentElement.classList.add('dark');
+                    else document.documentElement.classList.remove('dark');
+                },
+
+                logout() {
+                    if (confirm('Keluar dari dashboard?')) {
+                        localStorage.removeItem('admin_pass');
+                        fetch('/api/logout').finally(() => {
+                            window.location.href = '/login';
+                        });
                     }
                 }
             }
-        </script>
-    </admin-layout>
+        }
+    </script>
 </body>
 </html>
