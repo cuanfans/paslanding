@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - BlinkSite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        // AUTH CHECK
+        if (!localStorage.getItem('admin_pass')) window.location.href = '/login';
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans" x-data="dashboardApp()">
+
+    <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30 hidden md:flex flex-col">
+        <div class="h-16 flex items-center px-6 border-b border-gray-100">
+            <h1 class="font-black text-2xl text-blue-600 tracking-tighter">Blink<span class="text-gray-800">Site</span></h1>
+        </div>
+        <nav class="flex-1 p-4 space-y-1">
+            <a href="/admin/dashboard" class="flex items-center gap-3 px-4 py-3 text-sm font-bold bg-blue-50 text-blue-600 rounded-lg">
+                <i class="ph ph-squares-four text-lg"></i> Dashboard
+            </a>
+            <a href="/admin/pages" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition">
+                <i class="ph ph-files text-lg"></i> Landing Pages
+            </a>
+            <a href="/admin/reports" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition">
+                <i class="ph ph-chart-line-up text-lg"></i> Reports
+            </a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition">
+                <i class="ph ph-gear text-lg"></i> Settings
+            </a>
+        </nav>
+        <div class="p-4 border-t border-gray-100">
+            <button @click="logout" class="flex items-center gap-3 px-4 py-2 text-sm font-bold text-red-500 hover:bg-red-50 w-full rounded-lg transition">
+                <i class="ph ph-sign-out text-lg"></i> Logout
+            </button>
+        </div>
+    </aside>
+
+    <main class="md:ml-64 min-h-screen p-4 md:p-8">
+        <div class="md:hidden flex justify-between items-center mb-6">
+            <h1 class="font-black text-xl text-blue-600">BlinkSite</h1>
+            <button class="text-gray-500"><i class="ph ph-list text-2xl"></i></button>
+        </div>
+
+        <header class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-800">Selamat Datang, Admin!</h2>
+            <p class="text-gray-500 text-sm mt-1">Berikut ringkasan performa landing page Anda hari ini.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Pages</p>
+                    <h3 class="text-3xl font-black text-gray-800 mt-1" x-text="stats.pages">0</h3>
+                </div>
+                <div class="h-12 w-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-2xl">
+                    <i class="ph ph-files"></i>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Leads</p>
+                    <h3 class="text-3xl font-black text-gray-800 mt-1" x-text="stats.leads">0</h3>
+                </div>
+                <div class="h-12 w-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-2xl">
+                    <i class="ph ph-users"></i>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Penjualan Hari Ini</p>
+                    <h3 class="text-3xl font-black text-gray-800 mt-1" x-text="'Rp ' + stats.sales.toLocaleString()">Rp 0</h3>
+                </div>
+                <div class="h-12 w-12 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center text-2xl">
+                    <i class="ph ph-currency-dollar"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800">Halaman Terbaru</h3>
+                <a href="/admin/pages" class="text-xs font-bold text-blue-600 hover:underline">Lihat Semua</a>
+            </div>
+            <div class="divide-y divide-gray-50">
+                <template x-for="p in recentPages" :key="p.id">
+                    <div class="px-6 py-4 flex justify-between items-center hover:bg-gray-50 transition">
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-sm" x-text="p.title || 'Untitled'"></h4>
+                            <a :href="'/'+p.slug" target="_blank" class="text-xs text-blue-500 hover:underline" x-text="'/'+p.slug"></a>
+                        </div>
+                        <span class="text-xs text-gray-400 font-mono" x-text="new Date(p.created_at).toLocaleDateString()"></span>
+                    </div>
+                </template>
+                <div x-show="recentPages.length===0" class="p-8 text-center text-gray-400 text-sm">Belum ada halaman.</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function dashboardApp() {
+            return {
+                stats: { pages: 0, leads: 0, sales: 0 },
+                recentPages: [],
+                token: localStorage.getItem('admin_pass'),
+                
+                async init() {
+                    // Fetch Data Dummy/Real dari API
+                    try {
+                        const res = await fetch('/api/admin/pages', { headers: { 'Authorization': this.token } });
+                        const pages = await res.json();
+                        this.stats.pages = pages.length;
+                        this.recentPages = pages.slice(0, 5); // Ambil 5 terbaru
+                    } catch(e) { console.error(e); }
+                },
+                logout() {
+                    localStorage.removeItem('admin_pass');
+                    fetch('/api/logout').then(() => window.location.href = '/login');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
