@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Laporan Transaksi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="/js/layout.js"></script>
+</head>
+<body>
+    <admin-layout>
+        <h2 class="text-2xl font-bold mb-6">Laporan Transaksi Produk</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-white dark:bg-gray-800 p-4 rounded shadow border dark:border-gray-700">
+                <h4 class="text-gray-500 text-sm font-bold uppercase">Produk Fisik</h4>
+                <div class="text-2xl font-bold mt-1">Rp 120.500.000</div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-4 rounded shadow border dark:border-gray-700">
+                <h4 class="text-gray-500 text-sm font-bold uppercase">Produk Digital</h4>
+                <div class="text-2xl font-bold mt-1">Rp 45.000.000</div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border dark:border-gray-700">
+            <div class="p-8 text-center text-gray-500">Loading Data Transaksi...</div>
+        </div>
+    </admin-layout>
+</body>
+</html>
