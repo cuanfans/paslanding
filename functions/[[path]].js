@@ -10,7 +10,7 @@ const RELAY_URL = "https://pasdigi-relay.hf.space/proxy";
 const RELAY_SECRET = "BantarCaringin1";
 
 // =============================================================
-// 1. ENGINE: EKSEKUSI API DENGAN LOGGING MENTAH
+// 1. ENGINE: EKSEKUSI API (SINKRON SPEK DOKUMENTASI)
 // =============================================================
 async function executeGenericAPI(c, type, slug, payload) {
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
@@ -38,15 +38,16 @@ async function executeGenericAPI(c, type, slug, payload) {
             })
         });
         const authData = await authRes.json();
-        if (!authData?.data?.token) throw new Error("FlashPay Auth Fail: " + JSON.stringify(authData));
+        if (!authData?.data?.token) throw new Error("FlashPay Auth Fail");
         extraHeaders['Authorization'] = `Bearer ${authData.data.token}`;
     }
 
+    const transactionAmount = Number(payload.amount);
     const finalPayload = {
         external_id: "INV-" + Date.now(),
         payment_type: [slug.toUpperCase().replace(/-/g, '_')],
         currency: "IDR",
-        transaction_amount: parseInt(payload.amount),
+        transaction_amount: transactionAmount,
         session_time: "15",
         remark: "Order " + payload.customer_name,
         customer_id: String(payload.customer_phone).replace(/[^0-9]/g, ''),
@@ -54,7 +55,7 @@ async function executeGenericAPI(c, type, slug, payload) {
         va_reusability: "SINGLE_USE",
         customer_details: {
             name: payload.customer_name,
-            email: payload.customer_email || "customer@mail.com",
+            email: "customer@mail.com",
             phone: payload.customer_phone,
             address: "Jl.In",
             postal_code: "13930"
@@ -62,7 +63,7 @@ async function executeGenericAPI(c, type, slug, payload) {
         item_details: [{
             item_id: "ITEM-01",
             information: "Order " + slug,
-            amount: parseInt(payload.amount),
+            amount: transactionAmount,
             beneficiary_bank: "MNC",
             beneficiary_account: "5279910282",
             beneficiary_name: "PASDIGI"
@@ -80,30 +81,102 @@ async function executeGenericAPI(c, type, slug, payload) {
         })
     });
 
-    const resBody = await res.json();
-    return { _raw: resBody, amount: finalPayload.transaction_amount };
+    return { _raw: await res.json(), amount: transactionAmount };
 }
 
 // ===============================================
-// 6. CHECKOUT: HANDLE HARGA & KUPON
+// 2. MIDDLEWARE & AUTH (GUE FIX AGAR BISA LOGIN)
+// ===============================================
+const requireAuth = async (c, next) => {
+    const url = new URL(c.req.url);
+    const path = url.pathname;
+    
+    // Halaman yang BOLEH diakses tanpa login
+    const isPublic = (
+        path === '/' || 
+        path === '/login' || 
+        path === '/api/login' || 
+        path.startsWith('/api/public/') || 
+        path.includes('.') // Assets (css, js, png)
+    );
+
+    if (isPublic) return await next();
+
+    // Cek Cookie
+    const token = getCookie(c, 'auth_token');
+    if (!token) return c.redirect('/login');
+
+    try {
+        const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
+        await verify(token, secret, 'HS256');
+        await next();
+    } catch (e) {
+        deleteCookie(c, 'auth_token');
+        return c.redirect('/login');
+    }
+};
+
+app.use('*', requireAuth);
+
+// ROUTE LOGIN ADMIN
+app.post('/api/login', async (c) => {
+    try {
+        const { email, password } = await c.req.json();
+        const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
+        
+        if (!user || await sha256(password) !== user.password) {
+            return c.json({ success: false, message: 'Email atau Password salah' }, 401);
+        }
+
+        const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
+        const token = await sign({ 
+            id: user.id, 
+            exp: Math.floor(Date.now() / 1000) + 86400 
+        }, secret, 'HS256');
+
+        setCookie(c, 'auth_token', token, { 
+            path: '/', 
+            secure: true, 
+            httpOnly: true, 
+            maxAge: 86400, 
+            sameSite: 'Lax' 
+        });
+
+        return c.json({ success: true, token });
+    } catch (e) { return c.json({ success: false, error: e.message }, 500); }
+});
+
+// ===============================================
+// 5. ADMIN API (GUE BALIKIN LAGI)
+// ===============================================
+app.get('/api/admin/pages', async (c) => {
+    const res = await c.env.DB.prepare("SELECT * FROM pages").all();
+    return c.json(res.results);
+});
+
+app.post('/api/admin/credentials', async (c) => {
+    const { provider, data } = await c.req.json();
+    const { encrypted, iv } = await encryptJSON(data, c.env.APP_MASTER_KEY || JWT_SECRET);
+    await c.env.DB.prepare(`INSERT INTO credentials (provider_slug, encrypted_data, iv) VALUES (?, ?, ?) ON CONFLICT(provider_slug) DO UPDATE SET encrypted_data=excluded.encrypted_data, iv=excluded.iv`).bind(provider, encrypted, iv).run();
+    return c.json({ success: true });
+});
+
+// ===============================================
+// 6. PUBLIC CHECKOUT (PRICE LIST & KUPON)
 // ===============================================
 app.post('/api/public/checkout', async (c) => {
     try {
         const body = await c.req.json();
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(body.page_id).first();
-        if (!page) return c.json({ success: false, error: "Halaman tidak ditemukan" }, 404);
-        
         const config = JSON.parse(page.product_config_json || '{}');
+        
         let finalPrice = 0;
-
-        // Ambil Harga dari Varian (Price List) atau Harga Dasar
         if (config.variants && config.variants[body.variant_index]) {
             finalPrice = Number(config.variants[body.variant_index].price);
         } else {
             finalPrice = Number(config.price || 0);
         }
 
-        // Cek Kupon
         if (body.coupon_code && config.coupons) {
             const cp = config.coupons.find(x => x.code.toUpperCase() === body.coupon_code.toUpperCase());
             if (cp) {
@@ -112,34 +185,25 @@ app.post('/api/public/checkout', async (c) => {
             }
         }
 
-        if (finalPrice <= 0) return c.json({ success: false, error: "Harga tidak valid. Cek editor!" }, 400);
-
         const result = await executeGenericAPI(c, 'payment', body.slug_payment, {
             amount: finalPrice,
             customer_name: body.customer?.name || "Guest",
             customer_phone: body.customer?.phone || "0812345678"
         });
 
-        const d = result._raw;
-        // Tangkap data VA/QRIS/URL
-        const va = d.data?.payment_code || d.data?.va_number;
-        const qr = d.data?.qr_string || d.data?.qr_url;
-        const url = d.data?.payment_url || d.data?.redirect_url;
+        const d = result._raw.data;
+        const va = d?.payment_code || d?.va_number;
+        const qr = d?.qr_string || d?.qr_url;
 
-        if (va || qr || url) {
-            return c.json({ success: true, type: va ? 'va' : (qr ? 'qris' : 'url'), data: va || qr || url, amount: finalPrice });
+        if (va || qr) {
+            return c.json({ success: true, type: va ? 'va' : 'qris', data: va || qr, amount: finalPrice });
         }
-
-        // JIKA GAGAL, LEMPAR SEMUA DEBUG KE FRONTEND
-        return c.json({ success: false, error: d.message || "Provider Rejected Request", debug: d }, 400);
-
-    } catch (e) {
-        return c.json({ success: false, error: e.message }, 500);
-    }
+        return c.json({ success: false, error: "Provider Error", debug: result._raw }, 400);
+    } catch (e) { return c.json({ success: false, error: e.message }, 500); }
 });
 
 // ===============================================
-// 8. RENDERING: UI DENGAN DEBUG LOG
+// 8. RENDERING (FIXED & NYATA)
 // ===============================================
 app.get('/:slug', async (c) => {
     const slug = c.req.param('slug');
@@ -157,38 +221,35 @@ async function renderPage(c, page) {
             if (!cont.innerHTML.includes('[ CHECKOUT ]')) return;
             const config = ${JSON.stringify(config)};
 
-            // UI PRICE LIST
             let varHTML = (config.variants || []).map((v, i) => \`
-                <label class="flex justify-between items-center p-4 border rounded-2xl cursor-pointer mb-2 border-gray-100 hover:border-blue-500 transition">
+                <label class="flex justify-between items-center p-4 border rounded-2xl cursor-pointer mb-2 border-gray-100">
                     <span class="text-sm font-bold"><input type="radio" name="v_idx" value="\${i}" \${i===0?'checked':''} class="mr-2"> \${v.name}</span>
-                    <span class="font-black text-blue-600 italic">Rp \${new Intl.NumberFormat('id-ID').format(v.price)}</span>
+                    <span class="font-black text-blue-600">Rp \${new Intl.NumberFormat('id-ID').format(v.price)}</span>
                 </label>\`).join('');
 
-            // UI GATEWAY
             let payHTML = (config.active_payments || []).map(s => \`
-                <label class="flex items-center p-3 border rounded-xl cursor-pointer mb-2 border-gray-100 hover:bg-gray-50 uppercase text-[10px] font-bold">
+                <label class="flex items-center p-3 border rounded-xl cursor-pointer mb-2 border-gray-100 uppercase text-[10px] font-bold">
                     <input type="radio" name="p_slug" value="\${s}" class="mr-2"> \${s.replace(/-/g,' ')}
                 </label>\`).join('');
 
             const formHTML = \`
-                <div id="checkout-box" class="max-w-md mx-auto my-10 p-8 bg-white rounded-[2rem] shadow-2xl border border-gray-50">
+                <div id="checkout-box" class="max-w-md mx-auto my-10 p-8 bg-white rounded-[2rem] shadow-2xl border">
                     <div id="inner-checkout">
-                        <h2 class="text-xl font-black mb-6 text-center italic tracking-tighter uppercase">Konfirmasi Order</h2>
+                        <h2 class="text-xl font-black mb-6 text-center uppercase">Checkout</h2>
                         <div class="mb-6">\${varHTML}</div>
-                        <input type="text" id="cn" placeholder="Nama Lengkap" class="w-full mb-2 p-4 bg-gray-50 border rounded-xl outline-none focus:ring-4 ring-blue-500/10">
-                        <input type="tel" id="cp" placeholder="No WhatsApp" class="w-full mb-4 p-4 bg-gray-50 border rounded-xl outline-none focus:ring-4 ring-blue-500/10">
+                        <input type="text" id="cn" placeholder="Nama" class="w-full mb-2 p-4 bg-gray-50 border rounded-xl">
+                        <input type="tel" id="cp" placeholder="No WA" class="w-full mb-4 p-4 bg-gray-50 border rounded-xl">
                         <div class="mb-6">\${payHTML}</div>
-                        <button id="btn-p" class="w-full p-5 bg-blue-600 text-white font-black rounded-2xl shadow-xl uppercase italic tracking-widest">Bayar Sekarang</button>
+                        <button id="btn-p" class="w-full p-5 bg-blue-600 text-white font-black rounded-2xl uppercase">Bayar Sekarang</button>
                     </div>
                 </div>\`;
 
             cont.innerHTML = cont.innerHTML.replace('[ CHECKOUT ]', formHTML);
 
             document.getElementById('btn-p').onclick = async () => {
-                const b = document.getElementById('btn-p');
                 const m = document.querySelector('input[name="p_slug"]:checked')?.value;
                 if(!m) return alert('Pilih metode pembayaran!');
-                
+                const b = document.getElementById('btn-p');
                 b.disabled = true; b.innerText = 'MEMPROSES...';
                 try {
                     const r = await fetch('/api/public/checkout', {
@@ -203,28 +264,22 @@ async function renderPage(c, page) {
                     });
                     const d = await r.json();
                     if(d.success) {
-                        if(d.type === 'url') { window.location.href = d.data; return; }
                         let ui = d.type === 'va' 
-                            ? \`<div class="bg-blue-50 p-6 rounded-2xl border border-dashed border-blue-200 mb-6"><div class="text-xl font-black text-blue-700 tracking-widest">\${d.data}</div></div>\`
-                            : \`<div class="flex justify-center mb-6 border-4 p-2 rounded-2xl border-gray-50"><img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=\${encodeURIComponent(d.data)}" class="w-40 h-40"></div>\`;
-                        
+                            ? \`<div class="bg-blue-50 p-6 rounded-2xl border border-dashed mb-4"><div class="text-xl font-black text-blue-700">\${d.data}</div></div>\`
+                            : \`<div class="flex justify-center mb-6"><img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=\${encodeURIComponent(d.data)}" class="w-40 h-40"></div>\`;
                         document.getElementById('inner-checkout').innerHTML = \`
                             <div class="text-center">
-                                <h3 class="font-bold text-gray-400 mb-4 uppercase text-[10px] tracking-widest">Selesaikan Pembayaran</h3>
+                                <h3 class="font-bold mb-4 uppercase text-xs">Instruksi Pembayaran</h3>
                                 \${ui}
-                                <div class="text-xl font-black text-gray-800 italic">Total: Rp \${new Intl.NumberFormat('id-ID').format(d.amount)}</div>
+                                <div class="text-lg font-bold">Total: Rp \${new Intl.NumberFormat('id-ID').format(d.amount)}</div>
                             </div>\`;
-                    } else { 
-                        alert('Error: ' + d.error);
-                        console.error("DEBUG FLASHMOBILE:", d.debug); // Buka Console Browser buat liat ini!
-                        b.disabled = false; b.innerText = 'BAYAR SEKARANG';
-                    }
-                } catch(e) { alert('System Error!'); b.disabled = false; }
+                    } else { alert('Error: ' + d.error); b.disabled = false; b.innerText = 'BAYAR'; }
+                } catch(e) { alert('Error!'); b.disabled = false; }
             };
         });
     </script>`;
     
-    return c.html("<!DOCTYPE html><html lang='id'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>" + page.title + "</title><script src='https://cdn.tailwindcss.com'></script><style>" + page.css_content + "</style></head><body>" + page.html_content + "<script>window.PAGE_ID=" + page.id + "</script>" + checkoutScript + "</body></html>");
+    return c.html("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>" + page.title + "</title><script src='https://cdn.tailwindcss.com'></script><style>" + page.css_content + "</style></head><body>" + page.html_content + "<script>window.PAGE_ID=" + page.id + "</script>" + checkoutScript + "</body></html>");
 }
 
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
