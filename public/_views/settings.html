@@ -72,10 +72,8 @@
                 
                 <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
                     <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
-                        <i class="ph ph-key text-yellow-500"></i> API Credentials (Keys)
+                        <i class="ph ph-key text-yellow-500"></i> API Credentials
                     </h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Konfigurasi kunci rahasia untuk layanan pihak ketiga (Midtrans, RajaOngkir, dll).</p>
-                    
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">Pilih Layanan</label>
@@ -99,15 +97,47 @@
                     </div>
                 </section>
 
+                <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
+                    <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+                        <i class="ph ph-shield-check text-red-500"></i> Keamanan Akun
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            <p class="mb-2">Ganti password secara berkala untuk menjaga keamanan akun admin Anda.</p>
+                            <p>Password baru akan langsung aktif setelah disimpan dan Anda akan diminta login ulang.</p>
+                        </div>
+                        <div class="md:col-span-2 space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">Password Lama</label>
+                                <input type="password" x-model="security.old_pass" class="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500 transition">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Password Baru</label>
+                                    <input type="password" x-model="security.new_pass" class="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500 transition">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Ulangi Password Baru</label>
+                                    <input type="password" x-model="security.confirm_pass" class="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500 transition">
+                                </div>
+                            </div>
+                            <div class="flex justify-end pt-2">
+                                <button @click="changePassword" class="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition shadow-lg flex items-center gap-2">
+                                    <i class="ph ph-lock-key"></i> Update Password
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700 relative overflow-hidden">
                     <div class="flex justify-between items-center mb-6">
                         <div>
                             <h3 class="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2">
                                 <i class="ph ph-brackets-curly text-purple-500"></i> API Templates
                             </h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Atur endpoint dan mapping response untuk Payment & Shipping secara dinamis.</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Atur endpoint payment & shipping dinamis.</p>
                         </div>
-                        
                         <div class="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-lg">
                             <button @click="tplType='payment'; fetchTemplates()" :class="tplType=='payment' ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-white' : 'text-gray-500'" class="px-4 py-1.5 rounded-md text-sm font-bold transition">Payment</button>
                             <button @click="tplType='shipping'; fetchTemplates()" :class="tplType=='shipping' ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-white' : 'text-gray-500'" class="px-4 py-1.5 rounded-md text-sm font-bold transition">Shipping</button>
@@ -115,7 +145,6 @@
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        
                         <div class="lg:col-span-1 border-r dark:border-gray-700 pr-6">
                             <div class="flex justify-between items-center mb-3">
                                 <label class="text-xs font-bold text-gray-500 uppercase">Daftar Template</label>
@@ -128,9 +157,7 @@
                                         <div class="text-[10px] text-gray-500 font-mono mt-1" x-text="t.slug"></div>
                                     </button>
                                 </template>
-                                <div x-show="templates.length === 0" class="text-center py-8 text-gray-400 text-xs">
-                                    Belum ada template.
-                                </div>
+                                <div x-show="templates.length === 0" class="text-center py-8 text-gray-400 text-xs">Belum ada template.</div>
                             </div>
                         </div>
 
@@ -138,29 +165,26 @@
                             <div class="space-y-4">
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Slug (ID Unik)</label>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Slug</label>
                                         <input x-model="tpl.slug" :disabled="isEditing" placeholder="cth: midtrans-qris" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-xs disabled:opacity-50">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama Template</label>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama</label>
                                         <input x-model="tpl.name" placeholder="cth: Midtrans QRIS" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-xs">
                                     </div>
                                 </div>
-
                                 <div class="grid grid-cols-4 gap-4">
                                     <div class="col-span-1">
                                         <label class="block text-xs font-bold text-gray-500 mb-1">Method</label>
                                         <select x-model="tpl.method" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-xs font-bold">
-                                            <option>POST</option>
-                                            <option>GET</option>
+                                            <option>POST</option><option>GET</option>
                                         </select>
                                     </div>
                                     <div class="col-span-3">
                                         <label class="block text-xs font-bold text-gray-500 mb-1">API Endpoint</label>
-                                        <input x-model="tpl.api_endpoint" placeholder="https://api.gateway.com/v1/..." class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-xs">
+                                        <input x-model="tpl.api_endpoint" placeholder="https://..." class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-xs">
                                     </div>
                                 </div>
-
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-xs font-bold text-gray-500 mb-1">Headers JSON</label>
@@ -171,20 +195,15 @@
                                         <textarea x-model="tpl.body_json" rows="4" class="w-full px-3 py-2 bg-gray-900 text-yellow-300 font-mono text-[10px] rounded border border-gray-700"></textarea>
                                     </div>
                                 </div>
-
                                 <div>
                                     <label class="block text-xs font-bold text-gray-500 mb-1">Response Mapping JSON</label>
-                                    <textarea x-model="tpl.response_mapping" rows="2" class="w-full px-3 py-2 bg-gray-900 text-green-300 font-mono text-[10px] rounded border border-gray-700" placeholder='{"token": "data.token", "redirect_url": "data.redirect_url"}'></textarea>
-                                    <p class="text-[10px] text-gray-400 mt-1">Mapping field dari response API provider ke sistem lokal.</p>
+                                    <textarea x-model="tpl.response_mapping" rows="2" class="w-full px-3 py-2 bg-gray-900 text-green-300 font-mono text-[10px] rounded border border-gray-700" placeholder='{"token": "data.token"}'></textarea>
                                 </div>
-                                
                                 <div class="flex justify-between pt-2 border-t dark:border-gray-700 mt-4">
                                     <button x-show="isEditing" @click="deleteTemplate" class="text-red-500 text-xs font-bold hover:underline">Hapus Template</button>
-                                    <div class="flex gap-2 ml-auto">
-                                        <button @click="saveTemplate" class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700 transition shadow-lg flex items-center gap-2">
-                                            <i class="ph ph-floppy-disk"></i> Simpan Template
-                                        </button>
-                                    </div>
+                                    <button @click="saveTemplate" class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700 transition shadow-lg flex items-center gap-2">
+                                        <i class="ph ph-floppy-disk"></i> Simpan Template
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -202,10 +221,13 @@
             return {
                 sidebarOpen: window.innerWidth > 768,
                 darkMode: localStorage.getItem('theme') === 'dark',
-                cred: { provider: 'midtrans', data: '' },
                 
-                // Template State
-                tplType: 'payment', // 'payment' or 'shipping'
+                // Kredensial & Security
+                cred: { provider: 'midtrans', data: '' },
+                security: { old_pass: '', new_pass: '', confirm_pass: '' },
+                
+                // Template
+                tplType: 'payment',
                 templates: [],
                 isEditing: false,
                 tpl: { slug: '', name: '', api_endpoint: '', method: 'POST', headers_json: '{}', body_json: '{}', response_mapping: '{}' },
@@ -215,7 +237,7 @@
                 async init() {
                     if (!this.token) return window.location.href = '/login';
                     if (this.darkMode) document.documentElement.classList.add('dark');
-                    this.fetchTemplates(); // Load awal
+                    this.fetchTemplates();
                 },
 
                 toggleTheme() {
@@ -224,17 +246,10 @@
                     document.documentElement.classList.toggle('dark');
                 },
 
-                logout() {
-                    localStorage.removeItem('admin_pass');
-                    window.location.href = '/login';
-                },
+                logout() { localStorage.removeItem('admin_pass'); window.location.href = '/login'; },
+                getIcon(p) { const i={'midtrans':'ph-credit-card','rajaongkir':'ph-truck','cloudinary':'ph-image','whatsapp':'ph-whatsapp-logo'}; return i[p]||'ph-gear'; },
 
-                getIcon(p) {
-                    const icons = { 'midtrans': 'ph-credit-card', 'rajaongkir': 'ph-truck', 'cloudinary': 'ph-image', 'whatsapp': 'ph-whatsapp-logo' };
-                    return icons[p] || 'ph-gear';
-                },
-
-                // --- CREDENTIALS ---
+                // --- 1. CREDENTIALS ---
                 async saveCreds() {
                     try {
                         const parsed = JSON.parse(this.cred.data);
@@ -248,7 +263,33 @@
                     } catch(e) { alert('JSON Kredensial Tidak Valid!'); }
                 },
 
-                // --- TEMPLATES ---
+                // --- 2. SECURITY (CHANGE PASSWORD) ---
+                async changePassword() {
+                    if(!this.security.old_pass || !this.security.new_pass) return alert('Mohon isi password lama dan baru');
+                    if(this.security.new_pass !== this.security.confirm_pass) return alert('Konfirmasi password tidak cocok');
+
+                    try {
+                        const res = await fetch('/api/admin/change-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                            body: JSON.stringify({
+                                current_password: this.security.old_pass,
+                                new_password: this.security.new_pass
+                            })
+                        });
+                        
+                        const data = await res.json();
+                        
+                        if(res.ok) {
+                            alert('Password berhasil diubah! Silakan login kembali.');
+                            this.logout();
+                        } else {
+                            alert('Gagal: ' + (data.message || 'Error server'));
+                        }
+                    } catch(e) { alert('Terjadi kesalahan koneksi'); }
+                },
+
+                // --- 3. TEMPLATES ---
                 async fetchTemplates() {
                     this.templates = [];
                     this.resetTpl();
@@ -260,53 +301,31 @@
                     } catch(e) { console.error("Gagal load templates"); }
                 },
 
-                loadTpl(t) {
-                    this.tpl = { ...t }; // Clone object
-                    this.isEditing = true;
-                },
-
-                resetTpl() {
-                    this.tpl = { slug: '', name: '', api_endpoint: '', method: 'POST', headers_json: '{}', body_json: '{}', response_mapping: '{}' };
-                    this.isEditing = false;
-                },
+                loadTpl(t) { this.tpl = { ...t }; this.isEditing = true; },
+                resetTpl() { this.tpl = { slug: '', name: '', api_endpoint: '', method: 'POST', headers_json: '{}', body_json: '{}', response_mapping: '{}' }; this.isEditing = false; },
 
                 async saveTemplate() {
-                    if(!this.tpl.slug) return alert('Slug template wajib diisi!');
+                    if(!this.tpl.slug) return alert('Slug wajib diisi!');
                     try {
-                        // Validasi JSON Format
-                        JSON.parse(this.tpl.headers_json);
-                        JSON.parse(this.tpl.body_json);
-                        JSON.parse(this.tpl.response_mapping);
-
+                        JSON.parse(this.tpl.headers_json); JSON.parse(this.tpl.body_json); JSON.parse(this.tpl.response_mapping);
                         const res = await fetch('/api/admin/templates', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
                             body: JSON.stringify({ type: this.tplType, data: this.tpl })
                         });
-
-                        if(res.ok) {
-                            alert('Template berhasil disimpan!');
-                            this.fetchTemplates(); // Refresh list
-                        } else {
-                            const err = await res.json();
-                            alert('Gagal: ' + (err.error || 'Server Error'));
-                        }
-
-                    } catch(e) { alert('Format JSON salah! Cek kembali headers/body/mapping.'); }
+                        if(res.ok) { alert('Template tersimpan!'); this.fetchTemplates(); }
+                        else { const e = await res.json(); alert('Gagal: ' + e.error); }
+                    } catch(e) { alert('Format JSON salah!'); }
                 },
 
                 async deleteTemplate() {
                     if(!confirm('Hapus template ini?')) return;
                     try {
                         const res = await fetch(`/api/admin/templates?type=${this.tplType}&slug=${this.tpl.slug}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${this.token}` }
+                            method: 'DELETE', headers: { 'Authorization': `Bearer ${this.token}` }
                         });
-                        if(res.ok) {
-                            alert('Terhapus');
-                            this.fetchTemplates();
-                        }
-                    } catch(e) { alert('Gagal menghapus'); }
+                        if(res.ok) { alert('Terhapus'); this.fetchTemplates(); }
+                    } catch(e) { alert('Gagal'); }
                 }
             }
         }
