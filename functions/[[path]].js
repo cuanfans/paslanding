@@ -76,7 +76,7 @@ const requireAuth = async (c, next) => {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
         console.log(`[AUTH] Verifying token. Master Key present: ${!!c.env.APP_MASTER_KEY}`);
         
-        const payload = await verify(token, secret);
+        const payload = await verify(token, secret, 'HS256');
         console.log(`[AUTH] Token Verified for: ${payload.email}`);
         
         c.set('user', payload);
@@ -119,11 +119,11 @@ app.post('/api/login', async (c) => {
         // Buat Token
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
         const token = await sign({ 
-            id: user.id, 
-            email: user.email, 
-            role: user.role, 
-            exp: Math.floor(Date.now() / 1000) + 86400 
-        }, secret);
+        id: user.id, 
+        email: user.email, 
+        role: user.role, 
+        exp: Math.floor(Date.now() / 1000) + 86400 
+        }, secret, 'HS256');
 
         console.log(`[LOGIN] Token generated. Setting cookie...`);
 
