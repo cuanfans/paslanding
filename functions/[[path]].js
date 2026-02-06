@@ -10,7 +10,7 @@ const app = new Hono()
 const JWT_SECRET = 'BantarCaringin1BantarCaringin2BantarCaringin3'
 
 // ===============================================
-// 0. GLOBAL CONFIG & HELPER ASSETS
+// 0. GLOBAL ERROR & ASSETS
 // ===============================================
 app.onError((err, c) => {
     console.error(`[ERROR] ${err.message}`, err.stack);
@@ -21,42 +21,48 @@ async function serveAsset(c, path) {
     try {
         const url = new URL(path, c.req.url);
         const response = await c.env.ASSETS.fetch(url);
-        
-        // JIKA yang diminta adalah file HTML (halaman admin), paksa browser jangan cache!
+        // Jangan cache HTML admin agar tidak nyangkut
         if (path.endsWith('.html')) {
             const newResponse = new Response(response.body, response);
-            newResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-            newResponse.headers.set('Pragma', 'no-cache');
-            newResponse.headers.set('Expires', '0');
+            newResponse.headers.set('Cache-Control', 'no-store, max-age=0');
             return newResponse;
         }
         return response;
-    } catch (e) {
-        return c.text('Asset Not Found', 404);
-    }
+    } catch (e) { return c.text('Asset Not Found', 404); }
 }
 
 // ===============================================
-// 1. MIDDLEWARE AUTH (DIPERBAIKI: HAPUS LOGIKA TITIK)
+// 1. MIDDLEWARE AUTH (PERBAIKAN TOTAL)
 // ===============================================
 const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
     const path = url.pathname;
     
-    // --- LOGIKA BARU: Tentukan mana yang WAJIB PROTECTED ---
-    // Kita kunci semua jalur yang berbau admin atau source code views
-    const isProtected = 
-        (path.startsWith('/admin') && path !== '/admin/login') || // /admin/* (kecuali halaman login admin)
-        path.startsWith('/api/admin') ||                          // /api/admin/*
-        path.startsWith('/_views');                               // /_views/* (Mencegah akses langsung ke raw HTML)
-
-    // Jika BUKAN jalur protected, biarkan lewat (Public Access: Landing page, login, assets)
-    if (!isProtected) {
-        await next();
+    // LEVEL 1: WHITELIST (Bebas Akses)
+    // Pastikan API Login dan Setup ada di sini!
+    if (
+        path === '/login' || 
+        path === '/admin/login' || 
+        path === '/api/login' ||            // <--- PENTING: Agar bisa login
+        path === '/api/setup-first-user' || // <--- PENTING: Agar bisa setup
+        path.startsWith('/api/public/')     // <--- API Publik (Checkout/Form)
+    ) {
+        await next(); 
         return;
     }
 
-    // --- CEK TOKEN (Hanya dijalankan jika masuk jalur protected) ---
+    // LEVEL 2: STATIC ASSETS (File .js, .css, .png)
+    // Izinkan file berekstensi, TAPI blokir jika itu file HTML admin
+    if (path.includes('.')) {
+        // Jika file ada di folder _views atau admin, JANGAN loloskan (harus cek token)
+        if (!path.startsWith('/_views') && !path.startsWith('/admin/')) {
+             await next(); 
+             return;
+        }
+    }
+
+    // LEVEL 3: PROTECTED ROUTES (Cek Token)
+    // Semua request ke /admin, /api/admin, atau file html admin masuk sini
     let token = getCookie(c, 'auth_token');
     const authHeader = c.req.header('Authorization');
     
@@ -64,9 +70,10 @@ const requireAuth = async (c, next) => {
         token = authHeader.split(' ')[1];
     }
 
-    // Jika token tidak ada di area terlarang -> TENDANG
     if (!token) {
+        // Jika akses API, balas JSON error
         if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized' }, 401);
+        // Jika akses halaman, lempar ke login
         return c.redirect('/login');
     }
 
@@ -74,14 +81,10 @@ const requireAuth = async (c, next) => {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
         const payload = await verify(token, secret);
         c.set('user', payload);
-        
         await next();
-
-        // Paksa header anti-cache untuk area admin
+        
+        // Header anti-cache untuk halaman admin
         c.res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-        c.res.headers.set('Pragma', 'no-cache');
-        c.res.headers.set('Expires', '0');
-
     } catch (e) {
         deleteCookie(c, 'auth_token');
         if (path.startsWith('/api/')) return c.json({ error: 'Invalid Token' }, 401);
@@ -89,7 +92,7 @@ const requireAuth = async (c, next) => {
     }
 };
 
-app.use('*', requireAuth); // Terapkan middleware ke SEMUA route dulu, nanti disaring di dalam
+app.use('*', requireAuth); 
 
 // ===============================================
 // 2. AUTH ROUTES
@@ -134,13 +137,13 @@ app.get('/api/logout', (c) => {
 });
 
 // ===============================================
-// 3. ADMIN HTML MAPPING
+// 3. ADMIN ROUTES MAPPING
 // ===============================================
-// Login Page (Public)
+// Login Page
 app.get('/login', (c) => serveAsset(c, '/login.html'));
 app.get('/admin/login', (c) => c.redirect('/login'));
 
-// Admin Pages (Protected by Middleware)
+// Admin Pages (Aman karena sudah dilindungi middleware)
 app.get('/admin', (c) => c.redirect('/admin/dashboard'));
 app.get('/admin/dashboard', (c) => serveAsset(c, '/_views/dashboard.html'));
 app.get('/admin/pages', (c) => serveAsset(c, '/_views/pages.html'));
@@ -149,7 +152,7 @@ app.get('/admin/reports', (c) => serveAsset(c, '/_views/reports.html'));
 app.get('/admin/analytics', (c) => serveAsset(c, '/_views/analytics.html'));
 app.get('/admin/settings', (c) => serveAsset(c, '/_views/settings.html'));
 
-// Block direct access to _views if somehow bypassed (Extra Safety)
+// Cegah akses langsung ke file mentah di folder _views
 app.get('/_views*', (c) => c.redirect('/login'));
 
 // ===============================================
@@ -162,7 +165,6 @@ app.get('/api/admin/pages', async (c) => {
     } catch(e) { return c.json({ error: e.message }, 500); }
 });
 
-// API: AMBIL DATA ANALYTICS
 app.get('/api/admin/analytics/data', async (c) => {
     try {
         const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
@@ -322,6 +324,7 @@ app.get('/', async (c) => {
 
 app.get('/:slug', async (c) => {
     const slug = c.req.param('slug');
+    // Jika slug ada titiknya (misal: sitemap.xml), lempar ke Asset Fetcher
     if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
 
     try {
