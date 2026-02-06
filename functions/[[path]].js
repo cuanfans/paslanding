@@ -8,12 +8,11 @@ import { uploadImage } from '../src/modules/cloudinary'
 const app = new Hono()
 const JWT_SECRET = 'BantarCaringin1BantarCaringin2BantarCaringin3'
 
-// --- KONFIGURASI RELAY PROXY ---
 const RELAY_URL = "https://pasdigi-relay.hf.space/proxy";
 const RELAY_SECRET = "BantarCaringin1";
 
 // =============================================================
-// 1. INTERNAL ENGINE (SINKRON DENGAN PHP TEST)
+// 1. INTERNAL ENGINE (SINKRON DENGAN TEST PHP)
 // =============================================================
 async function executeGenericAPI(c, type, slug, payload) {
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
@@ -30,7 +29,6 @@ async function executeGenericAPI(c, type, slug, payload) {
 
     let extraHeaders = {};
     if (slug.includes('flashpay')) {
-        // STEP 1: AUTH TOKEN
         const authRes = await fetch(RELAY_URL, {
             method: 'POST',
             headers: { "Content-Type": "application/json", "x-relay-auth": RELAY_SECRET },
@@ -47,7 +45,6 @@ async function executeGenericAPI(c, type, slug, payload) {
         extraHeaders['Authorization'] = `Bearer ${token}`;
     }
 
-    // Fungsi mapping variabel {{...}}
     const replaceVars = (str) => {
         return str.replace(/{{(.*?)}}/g, (match, key) => {
             const keys = key.trim().split('.');
@@ -57,17 +54,15 @@ async function executeGenericAPI(c, type, slug, payload) {
         });
     };
 
-    // --- STRUKTUR PAYLOAD WAJIB FLASHPAY ---
     if (slug.includes('flashpay')) {
         payload.external_id = "ORDER-" + Date.now();
         payload.payment_type = ["VA_BRI"];
-        payload.customer_id = payload.customer_phone; // Customer ID menggunakan No HP
+        payload.customer_id = payload.customer_phone; 
     }
     
     const bodyFinal = replaceVars(template.body_json || '{}');
     const headersFinal = { ...JSON.parse(template.headers_json || '{}'), ...extraHeaders }; 
 
-    // STEP 2: CREATE PAYMENT (VIA RELAY)
     const res = await fetch(RELAY_URL, {
         method: 'POST',
         headers: { "Content-Type": "application/json", "x-relay-auth": RELAY_SECRET },
@@ -99,7 +94,6 @@ app.post('/api/public/checkout', async (c) => {
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(body.page_id).first();
         const config = JSON.parse(page?.product_config_json || '{}');
         
-        // Payload bersih identik dengan script PHP sukses lo
         const requestData = {
             slug_payment: body.slug_payment,
             page_id: body.page_id,
@@ -107,7 +101,6 @@ app.post('/api/public/checkout', async (c) => {
             customer_name: body.customer?.name || "User",
             customer_email: "customer@mail.com",
             customer_phone: body.customer?.phone || "0812312312",
-            // Address & Postal Code buat Sandbox (biasanya wajib di sandbox FlashPay)
             customer_address: "Jl. In",
             customer_postal: "13930"
         };
@@ -115,22 +108,14 @@ app.post('/api/public/checkout', async (c) => {
         const result = await executeGenericAPI(c, 'payment', requestData.slug_payment, requestData);
         const va_number = result.va_number || result._raw?.data?.payment_code || result._raw?.data?.va_number;
 
-        if (!va_number) {
-            return c.json({ error: "FlashPay nolak request!", debug: result._raw }, 400);
-        }
+        if (!va_number) return c.json({ error: "Gagal generate VA", debug: result._raw }, 400);
 
-        return c.json({ 
-            va: { 
-                number: va_number, 
-                bank: "BRI VA", 
-                amount: requestData.amount 
-            } 
-        });
+        return c.json({ va: { number: va_number, bank: "BRI VA", amount: requestData.amount } });
     } catch (e) { return c.json({ error: e.message }, 500); }
 });
 
 // ===============================================
-// 8. RENDERING (FRONTEND)
+// 8. RENDERING (FIXED SYNTAX)
 // ===============================================
 app.get('/:slug', async (c) => {
     const slug = c.req.param('slug');
@@ -145,8 +130,7 @@ async function renderPage(c, page) {
     const checkoutScript = `
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const container = document.body;
-            if (!container.innerHTML.includes('[ CHECKOUT ]')) return;
+            if (!document.body.innerHTML.includes('[ CHECKOUT ]')) return;
             const activeSlugs = ${JSON.stringify(activePayments)};
             let listHTML = activeSlugs.map(s => \`
                 <label class="flex items-center p-3 border rounded-lg mb-2 cursor-pointer border-gray-100">
@@ -163,7 +147,7 @@ async function renderPage(c, page) {
                         <button id="btn-pay" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl">KONFIRMASI BAYAR</button>
                     </div>
                 </div>\`;
-            container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', formHTML);
+            document.body.innerHTML = document.body.innerHTML.replace('[ CHECKOUT ]', formHTML);
 
             document.getElementById('btn-pay').onclick = async () => {
                 const method = document.querySelector('input[name="pay_method"]:checked')?.value;
@@ -180,18 +164,18 @@ async function renderPage(c, page) {
                     if(data.va) {
                         document.getElementById('checkout-form-inner').innerHTML = \`
                             <div class="text-center">
-                                <h3 class="text-lg font-bold mb-4">TRANSFER KE VA BRI</h3>
+                                <h3 class="text-lg font-bold mb-4 uppercase">Nomor VA BRI</h3>
                                 <div class="bg-gray-50 p-6 rounded-xl border border-dashed mb-4">
-                                    <div class="text-2xl font-black text-blue-600">\${data.va.number}</div>
+                                    <div class="text-2xl font-black text-blue-600 tracking-widest">\${data.va.number}</div>
                                 </div>
                                 <div class="text-sm font-bold">Total: Rp \${new Intl.NumberFormat('id-ID').format(data.va.amount)}</div>
                             </div>\`;
-                    } else { alert(data.error || 'Gagal generate VA'); btn.disabled = false; btn.innerText = 'BAYAR'; }
+                    } else { alert(data.error || 'Gagal'); btn.disabled = false; btn.innerText = 'BAYAR'; }
                 } catch(e) { alert(e.message); btn.disabled = false; }
             };
         });
     </script>`;
-    return c.html(\`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>\${page.title}</title><script src="https://cdn.tailwindcss.com"></script><style>\${page.css_content}</style></head><body>\${page.html_content}<script>window.PAGE_ID=\${page.id}</script>\${checkoutScript}</body></html>\`);
+    return c.html(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${page.title}</title><script src="https://cdn.tailwindcss.com"></script><style>${page.css_content}</style></head><body>${page.html_content}<script>window.PAGE_ID=${page.id}</script>${checkoutScript}</body></html>`);
 }
 
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
