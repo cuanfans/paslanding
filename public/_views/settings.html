@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - BlinkSite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>if (!localStorage.getItem('admin_pass')) window.location.href = '/login';</script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans" x-data="settingsApp()">
+
+    <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30 hidden md:flex flex-col">
+        <div class="h-16 flex items-center px-6 border-b border-gray-100">
+            <h1 class="font-black text-2xl text-blue-600 tracking-tighter">Blink<span class="text-gray-800">Site</span></h1>
+        </div>
+        <nav class="flex-1 p-4 space-y-1">
+            <a href="/admin/dashboard" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition">
+                <i class="ph ph-squares-four text-lg"></i> Dashboard
+            </a>
+            <a href="/admin/pages" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition">
+                <i class="ph ph-files text-lg"></i> Landing Pages
+            </a>
+            <a href="/admin/reports" class="flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition">
+                <i class="ph ph-chart-line-up text-lg"></i> Reports
+            </a>
+            <a href="/admin/settings" class="flex items-center gap-3 px-4 py-3 text-sm font-bold bg-blue-50 text-blue-600 rounded-lg">
+                <i class="ph ph-gear text-lg"></i> Settings
+            </a>
+        </nav>
+    </aside>
+
+    <main class="md:ml-64 min-h-screen p-4 md:p-8">
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-800">Pengaturan</h2>
+            <p class="text-gray-500 text-sm mt-1">Konfigurasi API, Integrasi, dan Akun.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="ph ph-globe text-blue-600"></i> Website Global</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Homepage Slug</label>
+                        <div class="flex gap-2">
+                            <input x-model="homepageSlug" type="text" placeholder="Slug halaman utama..." class="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+                            <button @click="saveHomepage" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-black transition">SAVE</button>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-1">Halaman ini akan dibuka saat user mengakses domain utama.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="ph ph-plugs text-green-600"></i> Integrasi API (JSON)</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">Provider Slug</label>
+                        <select x-model="cred.provider" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm mb-2">
+                            <option value="midtrans">midtrans</option>
+                            <option value="rajaongkir">rajaongkir</option>
+                            <option value="cloudinary">cloudinary</option>
+                            <option value="whatsapp">whatsapp</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">JSON Configuration</label>
+                        <textarea x-model="cred.data" rows="5" class="w-full px-4 py-2 bg-gray-900 text-green-400 font-mono border border-gray-700 rounded-lg text-xs focus:outline-none" placeholder='{"server_key": "...", "client_key": "..."}'></textarea>
+                        <p class="text-[10px] text-gray-400 mt-1">Data sensitif akan dienkripsi otomatis di database.</p>
+                    </div>
+                    <button @click="saveCreds" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition">SIMPAN KONFIGURASI</button>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm lg:col-span-2">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="ph ph-code text-purple-600"></i> Edit Template API (Advanced)</h3>
+                <p class="text-sm text-gray-500 mb-4">Ubah cara sistem berkomunikasi dengan pihak ketiga. Berhati-hatilah.</p>
+                <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg text-sm">
+                    Fitur ini memungkinkan Anda mengubah endpoint URL, method, dan struktur JSON body tanpa menyentuh kode program.
+                    <br><strong>Coming Soon.</strong>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        function settingsApp() {
+            return {
+                homepageSlug: '',
+                cred: { provider: 'midtrans', data: '' },
+                token: localStorage.getItem('admin_pass'),
+
+                async init() {
+                    // Load existing homepage slug
+                    try {
+                        const res = await fetch('/api/admin/homepage-slug', { headers: { 'Authorization': this.token } });
+                        const data = await res.json();
+                        if(data.slug) this.homepageSlug = data.slug;
+                    } catch(e) {}
+                },
+
+                async saveHomepage() {
+                    try {
+                        await fetch('/api/admin/set-homepage', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': this.token },
+                            body: JSON.stringify({ slug: this.homepageSlug })
+                        });
+                        alert('Homepage berhasil disimpan!');
+                    } catch(e) { alert('Gagal menyimpan.'); }
+                },
+
+                async saveCreds() {
+                    try {
+                        // Validasi JSON
+                        const parsed = JSON.parse(this.cred.data);
+                        await fetch('/api/admin/credentials', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': this.token },
+                            body: JSON.stringify({ provider: this.cred.provider, data: parsed })
+                        });
+                        alert('Kredensial berhasil disimpan & dienkripsi!');
+                        this.cred.data = '';
+                    } catch(e) {
+                        alert('Error: Pastikan format JSON valid!');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
