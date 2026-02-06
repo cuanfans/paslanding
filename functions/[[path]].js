@@ -61,7 +61,7 @@ if (slug.includes('flashpay')) {
         method: 'POST',
         headers: { 
             "Content-Type": "application/json", 
-            "X-Relay-Secret": "BantarCaringin1" // <-- HARDCODE DISINI, JANGAN PAKE VARIABEL
+            "x-relay-auth": "BantarCaringin1" // <-- HARDCODE DISINI, JANGAN PAKE VARIABEL
         },
         body: JSON.stringify(authPayload)
     });
