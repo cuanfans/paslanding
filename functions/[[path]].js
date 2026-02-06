@@ -39,12 +39,12 @@ const requireAuth = async (c, next) => {
     
     // A. WHITELIST (Jalur Bebas Tanpa Login)
     if (
-        path === '/' ||                          // Homepage Wajib Public
+        path === '/' ||                          // Homepage
         path === '/login' ||                     // Halaman Login
         path === '/admin/login' || 
-        path === '/api/login' ||                 // API Login
-        path === '/api/setup-first-user' ||      // Setup Awal
-        path.startsWith('/api/public/')          // API Publik (Checkout, dll)
+        path === '/api/login' ||                 // API Login (WAJIB DIBUKA)
+        path === '/api/setup-first-user' ||      
+        path.startsWith('/api/public/')          // API Publik
     ) {
         await next(); 
         return;
@@ -103,6 +103,8 @@ app.use('*', requireAuth);
 app.post('/api/login', async (c) => {
     try {
         const { email, password } = await c.req.json();
+        
+        // Cek Tabel USERS (Sesuai Data Anda)
         const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
         if (!user) return c.json({ success: false, message: 'Akun tidak ditemukan' }, 401);
 
@@ -119,7 +121,7 @@ app.post('/api/login', async (c) => {
             exp: Math.floor(Date.now() / 1000) + 86400 
         }, secret);
 
-        // FIX: Deteksi HTTPS agar cookie bisa disimpan di Localhost (HTTP)
+        // FIX FATAL: Deteksi HTTPS agar cookie bisa disimpan di Localhost (HTTP)
         const url = new URL(c.req.url);
         const isSecure = url.protocol === 'https:'; // True di Cloudflare, False di Localhost
 
