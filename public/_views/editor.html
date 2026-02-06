@@ -374,254 +374,107 @@
         </div>
     </div>
 
-    <script>
-    // --- 1. ICONIFY PICKER LOGIC (UNCHANGED) ---
-    (function(){
-      let iconifyPickerState = { model: null };
-      const modal = document.getElementById('iconify-picker-modal');
-      const input = document.getElementById('iconify-picker-search');
-      const results = document.getElementById('iconify-picker-results');
-      const closeBtn = document.getElementById('iconify-picker-close');
-      const clearBtn = document.getElementById('iconify-picker-clear');
+    // --- 1. ICONIFY PICKER LOGIC ---
+(function(){
+    let iconifyPickerState = { model: null };
+    const modal = document.getElementById('iconify-picker-modal');
+    const input = document.getElementById('iconify-picker-search');
+    const results = document.getElementById('iconify-picker-results');
+    const closeBtn = document.getElementById('iconify-picker-close');
+    const clearBtn = document.getElementById('iconify-picker-clear');
 
-      window.openIconifyPicker = function(model){
+    window.openIconifyPicker = function(model){
         iconifyPickerState.model = model || null;
         modal.classList.remove('hidden');
         input.focus();
         try {
-          const cur = model && model.get ? (model.get('attributes') || {}).icon : '';
-          input.value = cur || '';
-          if(cur) doSearch(cur); 
+            const cur = model && model.get ? (model.get('attributes') || {}).icon : '';
+            input.value = cur || '';
+            if(cur) doSearch(cur); 
         } catch(e){ input.value=''; }
-      };
+    };
 
-      function closeIconifyPicker(){
+    function closeIconifyPicker(){
         modal.classList.add('hidden');
         iconifyPickerState.model = null;
         results.innerHTML = '<div class="col-span-full text-center text-gray-400 text-xs py-8">Ketik pencarian di atas...</div>';
-      }
+    }
 
-      function debounce(fn, wait=300){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); }; }
+    function debounce(fn, wait=300){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); }; }
 
-      async function searchIconify(q){
+    async function searchIconify(q){
         if(!q) return [];
         const plain = q.includes(':') ? q.split(':').pop() : q;
         const qEnc = encodeURIComponent(plain);
         try {
-          const res = await fetch(`https://api.iconify.design/search?query=${qEnc}&limit=24`);
-          if(!res.ok) return [];
-          const json = await res.json();
-          if(Array.isArray(json.icons)) return json.icons;
-          return [];
+            const res = await fetch(`https://api.iconify.design/search?query=${qEnc}&limit=24`);
+            if(!res.ok) return [];
+            const json = await res.json();
+            return Array.isArray(json.icons) ? json.icons : [];
         } catch(e){ return []; }
-      }
+    }
 
-      function renderResults(list){
+    function renderResults(list){
         results.innerHTML = '';
         if(!list || list.length===0){
-          results.innerHTML = `<div class="col-span-6 text-sm text-gray-500 text-center">Tidak ada hasil</div>`;
-          return;
+            results.innerHTML = `<div class="col-span-6 text-sm text-gray-500 text-center">Tidak ada hasil</div>`;
+            return;
         }
         list.forEach(iconName=>{
-          const btn = document.createElement('button');
-          btn.className = 'flex flex-col items-center gap-1 p-2 rounded hover:bg-blue-50 border border-transparent hover:border-blue-200 transition';
-          btn.innerHTML = `<iconify-icon icon="${iconName}" width="28" style="color:#333;"></iconify-icon><span class="text-[9px] text-gray-500 truncate w-full text-center">${iconName}</span>`;
-          btn.addEventListener('click', ()=>{
-            applyIconToModel(iconName);
-            closeIconifyPicker();
-          });
-          results.appendChild(btn);
+            const btn = document.createElement('button');
+            btn.className = 'flex flex-col items-center gap-1 p-2 rounded hover:bg-blue-50 border border-transparent hover:border-blue-200 transition';
+            btn.innerHTML = `<iconify-icon icon="${iconName}" width="28" style="color:#333;"></iconify-icon><span class="text-[9px] text-gray-500 truncate w-full text-center">${iconName}</span>`;
+            btn.addEventListener('click', ()=>{
+                if(iconifyPickerState.model) {
+                    iconifyPickerState.model.addAttributes({ icon: iconName });
+                }
+                closeIconifyPicker();
+            });
+            results.appendChild(btn);
         });
-      }
+    }
 
-      function applyIconToModel(iconName){
-        if(iconifyPickerState.model && window.editor){
-           const m = iconifyPickerState.model;
-           if(typeof m.addAttributes === 'function') {
-               m.addAttributes({ icon: iconName });
-               m.view.render();
-           }
-        }
-      }
-
-      const doSearch = debounce(async (q) => {
+    const doSearch = debounce(async (q) => {
         const list = await searchIconify(q.trim());
         renderResults(list);
-      }, 300);
+    }, 300);
 
-      input.addEventListener('input', (e)=> doSearch(e.target.value));
-      closeBtn.addEventListener('click', closeIconifyPicker);
-      clearBtn.addEventListener('click', ()=>{ input.value=''; input.focus(); });
-      modal.addEventListener('click', (e)=>{ if(e.target === modal) closeIconifyPicker(); });
+    closeBtn.addEventListener('click', closeIconifyPicker);
+    input.addEventListener('input', (e)=> doSearch(e.target.value));
+    clearBtn.addEventListener('click', ()=>{ input.value=''; input.focus(); });
+    modal.addEventListener('click', (e)=>{ if(e.target === modal) closeIconifyPicker(); });
+})();
 
-      const initInterval = setInterval(()=>{
-        if(window.editor){
-            window.editor.on('component:dblclick', (model) => {
-                const tag = model.get('tagName');
-                if(tag === 'iconify-icon') openIconifyPicker(model);
-            });
-            clearInterval(initInterval);
-        }
-      }, 500);
-    })();
-
-    // --- 2. MAIN EDITOR APP ---
-    function editorApp() {
+// --- 2. MAIN EDITOR APP ---
+function editorApp() {
     return {
-        loading: false, 
-        showSettings: false, 
-        device: 'desktop', 
-        tab: 'blocks', 
-        mobileTab: '', 
-        mobilePanelOpen: false,
-        notifications: [],
-        paymentProviders: [],
-        page: { 
-            slug: '', 
-            title: '', 
-            product_type: 'physical', 
-            slug_payment: 'whatsapp',
-            config: { 
-                variants: [], 
-                shipping: { weight: 1000 }, 
-                order_bump: { active: false, title: '', price: 0, desc: '' }, 
-                coupons: [], 
-                settings: {} 
-            } 
-        },
+        loading: false, showSettings: false, device: 'desktop', tab: 'blocks', mobileTab: 'blocks', mobilePanelOpen: false,
+        notifications: [], paymentProviders: [],
+        page: { slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', config: { variants: [], shipping: { weight: 1000 }, order_bump: { active: false, title: '', price: 0, desc: '' }, coupons: [], settings: {} } },
         cred: { provider: 'flashpay', data: '' },
-        // AMBIL TOKEN YANG BENAR DARI LOCALSTORAGE
-        authPass: localStorage.getItem('auth_token'), 
+        authPass: localStorage.getItem('auth_token'),
 
         async init() {
             const params = new URLSearchParams(window.location.search);
             this.page.slug = params.get('slug');
-            
-            // CEK TOKEN: Jika tidak ada, tendang ke login
-            if (!this.authPass) {
-                window.location.href = '/login';
-                return;
-            }
-
-            try {
-                await this.fetchPaymentProviders();
-                this.initGrapes();
-            } catch (e) {
-                console.error("Init Error:", e);
-                window.location.href = '/login';
-            }
+            if (!this.authPass) { window.location.href = '/login'; return; }
+            await this.fetchPaymentProviders();
+            this.initGrapes();
         },
 
         async fetchPaymentProviders() {
-            const res = await fetch('/api/admin/templates?type=payment', {
-                headers: { 'Authorization': 'Bearer ' + this.authPass }
-            });
-            if (res.status === 401) throw new Error("Expired");
-            const data = await res.json();
-            this.paymentProviders = data;
-        },
-
-        async saveCreds() {
             try {
-                const res = await fetch('/api/admin/credentials', {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': 'Bearer ' + this.authPass,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        provider: this.cred.provider,
-                        data: JSON.parse(this.cred.data)
-                    })
-                });
-                if (res.ok) this.notify('Berhasil', 'Kredensial tersimpan!');
-                else this.notify('Gagal', 'Gagal menyimpan', 'error');
-            } catch (e) {
-                this.notify('Gagal', 'Format JSON salah', 'error');
-            }
+                const res = await fetch('/api/admin/templates?type=payment', { headers: { 'Authorization': 'Bearer ' + this.authPass } });
+                if (res.status === 401) { window.location.href = '/login'; return; }
+                this.paymentProviders = await res.json();
+            } catch (e) { console.error("Err Providers:", e); }
         },
 
-        async savePage() {
-            this.loading = true;
-            try {
-                const res = await fetch('/api/admin/pages', {
-                    method: 'POST',
-                    headers: { 
-                        'Authorization': 'Bearer ' + this.authPass,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        slug: this.page.slug,
-                        title: this.page.title,
-                        product_type: this.page.product_type,
-                        provider: this.page.slug_payment,
-                        html: window.editor.getHtml(),
-                        css: window.editor.getCss(),
-                        product_config: this.page.config
-                    })
-                });
-                if (res.status === 401) window.location.href = '/login';
-                if (res.ok) this.notify('Sukses', 'Halaman tersimpan!');
-            } catch (e) {
-                this.notify('Error', 'Gagal simpan', 'error');
-            }
-            this.loading = false;
-        },
-
-        initGrapes() {
-            setTimeout(() => {
-                window.editor = grapesjs.init({
-                    container: '#gjs',
-                    height: '100%',
-                    fromElement: false,
-                    storageManager: false,
-                    plugins: [
-                        'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 
-                        'grapesjs-component-countdown', 'grapesjs-tabs', 'grapesjs-custom-code', 
-                        'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 
-                        'grapesjs-typed', 'grapesjs-style-bg'
-                    ],
-                    // ... config lainnya sama ...
-                    blockManager: { appendTo: '#blocks-container' },
-                    layerManager: { appendTo: '#layers-container' },
-                    selectorManager: { appendTo: '#selectors-container' },
-                    traitManager: { appendTo: '#traits-container' },
-                    styleManager: { appendTo: '#styles-container' }
-                });
-
-                if (this.page.slug) {
-                    fetch('/api/admin/pages/' + this.page.slug, {
-                        headers: { 'Authorization': 'Bearer ' + this.authPass }
-                    })
-                    .then(r => {
-                        if (r.status === 401) window.location.href = '/login';
-                        return r.json();
-                    })
-                    .then(d => {
-                        if (d.id) {
-                            this.page.title = d.title;
-                            this.page.product_type = d.product_type || 'physical';
-                            this.page.slug_payment = d.provider || 'whatsapp';
-                            const c = JSON.parse(d.product_config_json || '{}');
-                            this.page.config = {
-                                variants: c.variants || [],
-                                shipping: c.shipping || { weight: 1000 },
-                                order_bump: c.order_bump || { active: false },
-                                coupons: c.coupons || [],
-                                settings: c.settings || {}
-                            };
-                            if (d.html_content) window.editor.setComponents(d.html_content);
-                            if (d.css_content) window.editor.setStyle(d.css_content);
-                        }
-                    });
-                }
-            }, 100);
-        },
-        // ... fungsi toggleMobilePanel & notify tetap ada ...
         toggleMobilePanel(tabName) {
             if (this.mobilePanelOpen && this.mobileTab === tabName) this.mobilePanelOpen = false;
             else { this.mobileTab = tabName; this.mobilePanelOpen = true; }
         },
+
         notify(title, msg, type = 'success') {
             const id = Date.now();
             this.notifications.push({ id, title, msg, type, show: true });
@@ -629,40 +482,21 @@
                 const idx = this.notifications.findIndex(n => n.id === id);
                 if (idx > -1) this.notifications[idx].show = false;
             }, 3000);
-        }
-    }
-}
-
-        setDevice(d) {
-            this.device = d;
-            window.editor.setDevice(d);
         },
 
-        cmd(c) {
-            window.editor.runCommand(c);
-        },
-
-        addVariant() {
-            this.page.config.variants.push({ id: Date.now(), name: '', price: 0 });
-        },
+        setDevice(d) { this.device = d; window.editor.setDevice(d); },
+        cmd(c) { window.editor.runCommand(c); },
+        addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
 
         async saveCreds() {
             try {
                 const res = await fetch('/api/admin/credentials', {
                     method: 'POST',
-                    headers: { 
-                        'Authorization': 'Bearer ' + this.authPass,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        provider: this.cred.provider,
-                        data: JSON.parse(this.cred.data)
-                    })
+                    headers: { 'Authorization': 'Bearer ' + this.authPass, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider: this.cred.provider, data: JSON.parse(this.cred.data) })
                 });
                 if (res.ok) this.notify('Berhasil', 'Kredensial tersimpan!');
-            } catch (e) {
-                this.notify('Gagal', 'Format JSON kredensial tidak valid', 'error');
-            }
+            } catch (e) { this.notify('Gagal', 'Format JSON salah', 'error'); }
         },
 
         async savePage() {
@@ -670,109 +504,84 @@
             try {
                 const res = await fetch('/api/admin/pages', {
                     method: 'POST',
-                    headers: { 
-                        'Authorization': 'Bearer ' + this.authPass,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Authorization': 'Bearer ' + this.authPass, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        slug: this.page.slug,
-                        title: this.page.title,
-                        product_type: this.page.product_type,
-                        provider: this.page.slug_payment, // Menyimpan pilihan payment ke kolom provider
-                        html: window.editor.getHtml(),
-                        css: window.editor.getCss(),
-                        product_config: this.page.config
+                        slug: this.page.slug, title: this.page.title, product_type: this.page.product_type,
+                        provider: this.page.slug_payment, html: window.editor.getHtml(), css: window.editor.getCss(), product_config: this.page.config
                     })
                 });
-                if (res.ok) this.notify('Sukses', 'Halaman berhasil dipublikasikan!');
-            } catch (e) {
-                this.notify('Error', 'Gagal menyimpan halaman', 'error');
-            }
+                if (res.ok) this.notify('Sukses', 'Halaman tersimpan!');
+            } catch (e) { this.notify('Error', 'Gagal simpan', 'error'); }
             this.loading = false;
         },
 
         initGrapes() {
-            setTimeout(() => {
-                window.editor = grapesjs.init({
-                    container: '#gjs',
-                    height: '100%',
-                    fromElement: false,
-                    storageManager: false,
-                    plugins: [
-                        'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 
-                        'grapesjs-component-countdown', 'grapesjs-tabs', 'grapesjs-custom-code', 
-                        'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 
-                        'grapesjs-typed', 'grapesjs-style-bg'
-                    ],
-                    deviceManager: {
-                        devices: [
-                            { id: 'desktop', width: '' },
-                            { id: 'tablet', width: '768px' },
-                            { id: 'mobile', width: '375px' }
-                        ]
-                    },
-                    blockManager: { appendTo: '#blocks-container' },
-                    layerManager: { appendTo: '#layers-container' },
-                    selectorManager: { appendTo: '#selectors-container' },
-                    traitManager: { appendTo: '#traits-container' },
-                    styleManager: { 
-                        appendTo: '#styles-container',
-                        sectors: [
-                            {
-                                name: 'Typography',
-                                open: true,
-                                buildProps: ['font-family', 'font-size', 'font-weight', 'line-height', 'color', 'text-align'],
-                                properties: [{ property: 'color', type: 'color' }]
-                            },
-                            {
-                                name: 'Dimensions',
-                                open: false,
-                                buildProps: ['width', 'height', 'padding', 'margin']
-                            },
-                            {
-                                name: 'Decorations',
-                                open: false,
-                                buildProps: ['background-color', 'border', 'border-radius', 'box-shadow'],
-                                properties: [
-                                    { property: 'background-color', type: 'color' },
-                                    { property: 'border-color', type: 'color' }
-                                ]
-                            }
+            window.editor = grapesjs.init({
+                container: '#gjs', height: '100%', fromElement: false, storageManager: false,
+                plugins: [
+                    'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-component-countdown', 
+                    'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 
+                    'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'
+                ],
+                deviceManager: { devices: [{ id: 'desktop', width: '' }, { id: 'tablet', width: '768px' }, { id: 'mobile', width: '375px' }] },
+                blockManager: { appendTo: '#blocks-container' },
+                layerManager: { appendTo: '#layers-container' },
+                selectorManager: { appendTo: '#selectors-container' },
+                traitManager: { appendTo: '#traits-container' },
+                styleManager: { 
+                    appendTo: '#styles-container',
+                    sectors: [
+                        { name: 'Typography', open: true, buildProps: ['font-family', 'font-size', 'font-weight', 'color', 'text-align'] },
+                        { name: 'Dimensions', open: false, buildProps: ['width', 'height', 'padding', 'margin'] },
+                        { name: 'Decorations', open: false, buildProps: ['background-color', 'border', 'border-radius', 'box-shadow'] }
+                    ]
+                }
+            });
+
+            const domc = window.editor.DomComponents;
+            domc.addType('iconify-icon', {
+                model: {
+                    defaults: {
+                        tagName: 'iconify-icon', droppable: false,
+                        attributes: { icon: 'mdi:home', width: '48', style: 'color:#2563eb' },
+                        traits: [
+                            { type: 'button', text: '🔍 Pilih Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) },
+                            { name: 'width', type: 'number', label: 'Size' },
+                            { name: 'color', type: 'color', label: 'Color' }
                         ]
                     }
-                });
-
-                // Load existing data if slug exists
-                if (this.page.slug) {
-                    fetch('/api/admin/pages/' + this.page.slug, {
-                        headers: { 'Authorization': 'Bearer ' + this.authPass }
-                    })
-                    .then(r => r.json())
-                    .then(d => {
-                        if (d.id) {
-                            this.page.title = d.title;
-                            this.page.product_type = d.product_type || 'physical';
-                            this.page.slug_payment = d.provider || 'whatsapp';
-                            try {
-                                const c = JSON.parse(d.product_config_json || '{}');
-                                this.page.config = {
-                                    variants: c.variants || [],
-                                    shipping: c.shipping || { weight: 1000 },
-                                    order_bump: c.order_bump || { active: false, title: '', price: 0, desc: '' },
-                                    coupons: c.coupons || [],
-                                    settings: c.settings || {}
-                                };
-                            } catch (e) {
-                                console.error("Error parsing config:", e);
-                            }
-                            if (d.html_content) window.editor.setComponents(d.html_content);
-                            if (d.css_content) window.editor.setStyle(d.css_content);
-                        }
-                    });
                 }
-                
-                // Integrasi Iconify & Table tetap di bawah sini (seperti kode Anda)
-            }, 100);
+            });
+
+            window.editor.on('component:dblclick', (model) => {
+                if(model.get('tagName') === 'iconify-icon') window.openIconifyPicker(model);
+            });
+
+            // --- ALL BLOCK MANAGER (BM) DATA ---
+            const bm = window.editor.BlockManager;
+            bm.add('container-fluid', { label: 'Container', category: 'Layout', content: `<div style="width:90%; max-width:1200px; margin:0 auto; padding:20px; min-height:50px;"></div>` });
+            bm.add('section-std', { label: 'Section', category: 'Layout', content: `<section style="padding:60px 20px; background-color:#fff;"><div style="width:90%; max-width:1100px; margin:0 auto; padding:0 20px;"></div></section>` });
+            bm.add('iconify-blk', { label: 'Iconify', category: 'Media', attributes: { class: 'ph ph-star' }, content: { type: 'iconify-icon' } });
+            bm.add('header-1', { label: 'Header Center', category: 'Headers', content: `<header style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:center;"><img src="https://via.placeholder.com/150x50?text=LOGO" style="height:40px;" /></header>` });
+            bm.add('hero-tpl', { label: 'Hero', category: 'Content', content: `<section style="padding:60px 20px; text-align:center; background:#f8fafc;"><h1 style="font-size:3rem; margin-bottom:20px;">Headline</h1><p>Subheadline.</p></section>` });
+            bm.add('pricelist-tpl', { label: 'Pricelist', category: 'Content', content: `<section style="padding:60px 20px; background:#f8fafc;"><div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:30px;"><div style="padding:30px; border:1px solid #e2e8f0; background:#fff; border-radius:8px; text-align:center;"><h3>Plan</h3><p>Rp 99.000</p></div></div></section>` });
+            bm.add('video-yt', { label: 'YouTube', category: 'Media', content: { type: 'video', provider: 'yt', style: { height: '350px', width: '100%' } } });
+            bm.add('checkout-pro', { label: 'Checkout', category: 'E-Commerce', content: `<div data-gjs-type="checkout-widget" style="padding:20px; border:2px dashed #3b82f6; text-align:center;"><strong>[ CHECKOUT ]</strong></div>` });
+
+            if (this.page.slug) {
+                fetch('/api/admin/pages/' + this.page.slug, { headers: { 'Authorization': 'Bearer ' + this.authPass } })
+                .then(r => r.json()).then(d => {
+                    if (d.id) {
+                        this.page.title = d.title; this.page.product_type = d.product_type || 'physical'; this.page.slug_payment = d.provider || 'whatsapp';
+                        try {
+                            const c = JSON.parse(d.product_config_json || '{}');
+                            this.page.config = { variants: c.variants || [], shipping: c.shipping || { weight: 1000 }, order_bump: c.order_bump || { active: false }, coupons: c.coupons || [], settings: c.settings || {} };
+                        } catch (e) {}
+                        if (d.html_content) window.editor.setComponents(d.html_content);
+                        if (d.css_content) window.editor.setStyle(d.css_content);
+                    }
+                });
+            }
         }
     }
 }
