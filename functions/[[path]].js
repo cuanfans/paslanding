@@ -146,6 +146,58 @@ app.get('/api/admin/pages', async (c) => {
     } catch(e) { return c.json({ error: e.message }, 500); }
 });
 
+// API: AMBIL DATA ANALYTICS
+app.get('/api/admin/analytics/data', async (c) => {
+    try {
+        // 1. Total Views
+        const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
+        
+        // 2. Views Hari Ini (SQLite Date Function)
+        const today = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics WHERE date(created_at) = date('now')").first();
+        
+        // 3. Top Pages (Halaman paling banyak dilihat)
+        const topPages = await c.env.DB.prepare(`
+            SELECT p.title, p.slug, COUNT(a.id) as views 
+            FROM pages p 
+            LEFT JOIN analytics a ON p.id = a.page_id 
+            GROUP BY p.id 
+            ORDER BY views DESC 
+            LIMIT 10
+        `).all();
+
+        // 4. Top Referrers (Traffic Source)
+        const referrers = await c.env.DB.prepare(`
+            SELECT referrer, COUNT(*) as count 
+            FROM analytics 
+            WHERE referrer IS NOT NULL AND referrer != ''
+            GROUP BY referrer 
+            ORDER BY count DESC 
+            LIMIT 10
+        `).all();
+
+        // 5. Recent Activity (Log terbaru)
+        const recent = await c.env.DB.prepare(`
+            SELECT p.title, a.referrer, a.created_at 
+            FROM analytics a 
+            JOIN pages p ON a.page_id = p.id 
+            ORDER BY a.created_at DESC 
+            LIMIT 20
+        `).all();
+
+        return c.json({
+            stats: {
+                total_views: total.count,
+                today_views: today.count
+            },
+            top_pages: topPages.results,
+            referrers: referrers.results,
+            recent: recent.results
+        });
+    } catch (e) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
 app.post('/api/admin/pages', async (c) => {
     const { slug, title, html, css, product_config, product_type } = await c.req.json();
     try {
