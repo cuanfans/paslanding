@@ -8,24 +8,19 @@ import { uploadImage } from '../src/modules/cloudinary'
 const app = new Hono()
 const JWT_SECRET = 'BantarCaringin1BantarCaringin2BantarCaringin3'
 
-// --- KONFIGURASI RELAY PROXY ---
 const RELAY_URL = "https://pasdigi-relay.hf.space/proxy";
 const RELAY_SECRET = "BantarCaringin1";
 
 // =============================================================
-// 1. INTERNAL ENGINE (Handling FlashPay via Relay & Generic API)
+// 1. INTERNAL ENGINE
 // =============================================================
 async function executeGenericAPI(c, type, slug, payload) {
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
-    
     const template = await c.env.DB.prepare(`SELECT * FROM ${table} WHERE slug = ?`).bind(slug).first();
     if (!template) throw new Error(`Template '${slug}' tidak ditemukan.`);
 
     const providerSlug = slug.split('-')[0]; 
-    const credRow = await c.env.DB.prepare(
-        `SELECT encrypted_data, iv FROM credentials WHERE provider_slug = ?`
-    ).bind(providerSlug).first();
-
+    const credRow = await c.env.DB.prepare(`SELECT encrypted_data, iv FROM credentials WHERE provider_slug = ?`).bind(providerSlug).first();
     if (!credRow) throw new Error(`Credentials untuk '${providerSlug}' belum disetting.`);
     
     const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
@@ -33,7 +28,6 @@ async function executeGenericAPI(c, type, slug, payload) {
     const creds = typeof decryptedText === 'string' ? JSON.parse(decryptedText) : decryptedText;
 
     let extraHeaders = {};
-    
     if (slug.includes('flashpay')) {
         const authPayload = {
             target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
@@ -41,20 +35,14 @@ async function executeGenericAPI(c, type, slug, payload) {
             target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
             target_payload: { client_key: creds.client_key, server_key: creds.server_key }
         };
-
         const authRes = await fetch(RELAY_URL, {
             method: 'POST',
-            headers: { 
-                "Content-Type": "application/json", 
-                "x-relay-auth": RELAY_SECRET 
-            },
+            headers: { "Content-Type": "application/json", "x-relay-auth": RELAY_SECRET },
             body: JSON.stringify(authPayload)
         });
-        
         const authData = await authRes.json();
         const token = authData?.data?.token;
-        if (!token) throw new Error("Gagal ambil Token FlashPay via Relay: " + JSON.stringify(authData));
-        
+        if (!token) throw new Error("Gagal ambil Token FlashPay");
         extraHeaders['Authorization'] = `Bearer ${token}`;
         extraHeaders['X-Client-Key'] = creds.client_key;
     }
@@ -113,28 +101,17 @@ async function executeGenericAPI(c, type, slug, payload) {
 // 2. GLOBAL HANDLERS
 // ===============================================
 app.onError((err, c) => {
-    console.error(`[ERROR] ${err.message}`);
     return c.json({ success: false, message: err.message }, 500);
 });
-
-async function serveAsset(c, path) {
-    try {
-        const url = new URL(path, c.req.url);
-        const response = await c.env.ASSETS.fetch(url);
-        return response;
-    } catch (e) { return c.text('Not Found', 404); }
-}
 
 const requireAuth = async (c, next) => {
     const path = new URL(c.req.url).pathname;
     const whitelisted = (path === '/' || path === '/login' || path.startsWith('/api/public/') || path.includes('.'));
     if (whitelisted) return await next();
-    
     const token = getCookie(c, 'auth_token');
     if (!token) return c.redirect('/login');
     try {
-        const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
-        await verify(token, secret, 'HS256');
+        await verify(token, c.env.APP_MASTER_KEY || JWT_SECRET, 'HS256');
         await next();
     } catch (e) { return c.redirect('/login'); }
 };
@@ -142,7 +119,7 @@ const requireAuth = async (c, next) => {
 app.use('*', requireAuth);
 
 // ===============================================
-// 4. ADMIN API
+// 4. ADMIN & PUBLIC API
 // ===============================================
 app.post('/api/login', async (c) => {
     const { email, password } = await c.req.json();
@@ -160,44 +137,24 @@ app.post('/api/admin/credentials', async (c) => {
     return c.json({ success: true });
 });
 
-// ===============================================
-// 6. PUBLIC CHECKOUT (REDIRECT FIXED)
-// ===============================================
 app.post('/api/public/checkout', async (c) => {
     try {
         const body = await c.req.json();
-        
-        // 1. Tarik Data Page buat dapetin Harga & Config
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(body.page_id).first();
-        if (!page) return c.json({ error: "Halaman tidak ditemukan" }, 404);
-        
-        const config = JSON.parse(page.product_config_json || '{}');
-        
-        // 2. Perkaya Payload (Wajib buat FlashPay)
+        const config = JSON.parse(page?.product_config_json || '{}');
         body.amount = config.price || 150000;
         body.order_id = "INV-" + Date.now();
         body.customer_name = body.customer?.name || "Customer";
         body.customer_phone = body.customer?.phone || "0812";
-        body.customer_email = "customer@mail.com";
-
-        // 3. Eksekusi API
         const result = await executeGenericAPI(c, 'payment', body.slug_payment, body);
-        
-        // 4. Ambil URL (Cek mapping atau raw)
         const payment_url = result.payment_url || result._raw?.data?.payment_url || result._raw?.payment_url;
-
-        if (!payment_url) {
-            return c.json({ error: "Link pembayaran tidak ditemukan", debug: result._raw }, 400);
-        }
-
+        if (!payment_url) return c.json({ error: "Link tidak ditemukan" }, 400);
         return c.json({ payment_url });
-    } catch (e) {
-        return c.json({ error: e.message }, 500);
-    }
+    } catch (e) { return c.json({ error: e.message }, 500); }
 });
 
 // ===============================================
-// 8. PAGE RENDERING (FRONTEND SCRIPT FIXED)
+// 8. PAGE RENDERING
 // ===============================================
 app.get('/:slug', async (c) => {
     const slug = c.req.param('slug');
@@ -210,68 +167,43 @@ app.get('/:slug', async (c) => {
 async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
     const activePayments = config.active_payments || [];
-    
     const checkoutScript = `
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const container = document.body;
-            if (!container.innerHTML.includes('[ CHECKOUT ]')) return;
-
+            if (!document.body.innerHTML.includes('[ CHECKOUT ]')) return;
             const activeSlugs = ${JSON.stringify(activePayments)};
             let listHTML = activeSlugs.map(s => \`
-                <label class="flex items-center p-3 border rounded-lg mb-2 cursor-pointer hover:bg-gray-50 border-gray-200">
-                    <input type="radio" name="pay_method" value="\${s}" class="mr-3 w-4 h-4">
+                <label class="flex items-center p-3 border rounded-lg mb-2 cursor-pointer border-gray-200">
+                    <input type="radio" name="pay_method" value="\${s}" class="mr-3">
                     <span class="font-bold text-xs uppercase text-gray-700">\${s.replace(/-/g,' ')}</span>
                 </label>\`).join('');
-
             const formHTML = \`
-                <div class="max-w-md mx-auto my-10 p-8 bg-white rounded-2xl shadow-2xl border border-gray-100">
-                    <h2 class="text-xl font-black mb-6 text-gray-800">CHECKOUT</h2>
-                    <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full mb-3 p-3 bg-gray-50 border rounded-lg outline-none focus:border-blue-500">
-                    <input type="tel" id="c_phone" placeholder="Nomor WhatsApp" class="w-full mb-6 p-3 bg-gray-50 border rounded-lg outline-none focus:border-blue-500">
+                <div class="max-w-md mx-auto my-10 p-8 bg-white rounded-2xl shadow-2xl border">
+                    <input type="text" id="c_name" placeholder="Nama" class="w-full mb-3 p-3 bg-gray-50 border rounded-lg">
+                    <input type="tel" id="c_phone" placeholder="WhatsApp" class="w-full mb-6 p-3 bg-gray-50 border rounded-lg">
                     <div class="mb-6">\${listHTML}</div>
-                    <button id="btn-pay" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-700 transition active:scale-95">BAYAR SEKARANG</button>
+                    <button id="btn-pay" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl">BAYAR SEKARANG</button>
                 </div>\`;
-
-            container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', formHTML);
-
+            document.body.innerHTML = document.body.innerHTML.replace('[ CHECKOUT ]', formHTML);
             document.getElementById('btn-pay').onclick = async () => {
                 const method = document.querySelector('input[name="pay_method"]:checked')?.value;
-                const name = document.getElementById('c_name').value;
-                const phone = document.getElementById('c_phone').value;
-
-                if(!name || !phone || !method) return alert('Lengkapi data dan pilih pembayaran!');
-                
+                if(!method) return alert('Pilih pembayaran!');
                 const btn = document.getElementById('btn-pay');
-                btn.disabled = true; btn.innerText = 'MEMPROSES...';
-                
+                btn.disabled = true; btn.innerText = 'PROSES...';
                 try {
                     const res = await fetch('/api/public/checkout', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            page_id: ${page.id},
-                            slug_payment: method,
-                            customer: { name, phone }
-                        })
+                        body: JSON.stringify({ page_id: ${page.id}, slug_payment: method, customer: { name: document.getElementById('c_name').value, phone: document.getElementById('c_phone').value } })
                     });
                     const data = await res.json();
-                    if(data.payment_url) {
-                        window.location.href = data.payment_url;
-                    } else {
-                        alert('Error: ' + (data.error || 'Gagal'));
-                        btn.disabled = false; btn.innerText = 'BAYAR SEKARANG';
-                    }
-                } catch(e) {
-                    alert('Crash: ' + e.message);
-                    btn.disabled = false; btn.innerText = 'BAYAR SEKARANG';
-                }
+                    if(data.payment_url) window.location.href = data.payment_url;
+                    else { alert(data.error || 'Gagal'); btn.disabled = false; btn.innerText = 'BAYAR'; }
+                } catch(e) { alert(e.message); btn.disabled = false; }
             };
         });
     </script>`;
-
-    return c.html(\`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>\${page.title}</title><script src="https://cdn.tailwindcss.com"></script><style>\${page.css_content}</style></head>
-    <body class="antialiased">\${page.html_content}<script>window.PAGE_ID=\${page.id}</script>\${checkoutScript}</body></html>\`);
+    return c.html(`<!DOCTYPE html><html><head><title>${page.title}</title><script src="https://cdn.tailwindcss.com"></script><style>${page.css_content}</style></head><body>${page.html_content}<script>window.PAGE_ID=${page.id}</script>${checkoutScript}</body></html>`);
 }
 
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
