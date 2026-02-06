@@ -1,41 +1,51 @@
-// Cek Auth Client-Side
-if (!localStorage.getItem('admin_pass')) window.location.href = '/login';
+// 1. Proteksi Client-Side: Cek token sebelum render apapun
+if (!localStorage.getItem('admin_pass')) {
+    window.location.href = '/login';
+}
 
-// Setup Store Global Alpine
+// 2. Inisialisasi Store Global AlpineJS
 document.addEventListener('alpine:init', () => {
     Alpine.store('layout', {
         darkMode: localStorage.getItem('theme') === 'dark',
         sidebarOpen: window.innerWidth > 768,
-        title: document.title,
+        title: document.title || 'Admin Dashboard',
+        
         toggleTheme() {
             this.darkMode = !this.darkMode;
             localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
             this.updateClass();
         },
+        
         updateClass() {
             if (this.darkMode) document.documentElement.classList.add('dark');
             else document.documentElement.classList.remove('dark');
         },
+        
         logout() {
-            if(confirm('Keluar dari dashboard?')) {
+            if (confirm('Yakin ingin keluar dari dashboard?')) {
                 localStorage.removeItem('admin_pass');
-                fetch('/api/logout').then(() => window.location.href = '/login');
+                // Panggil logout API untuk hapus cookie di server
+                fetch('/api/logout').finally(() => {
+                    window.location.href = '/login';
+                });
             }
         }
     });
+    
+    // Terapkan tema saat load
     Alpine.store('layout').updateClass();
 });
 
+// 3. Web Component untuk <admin-layout>
 class AdminLayout extends HTMLElement {
     connectedCallback() {
-        // 1. Simpan konten asli halaman (tabel/form)
-        // Kita gunakan fragment agar event listener tidak hilang
+        // Pindahkan konten asli (HTML di dalam <admin-layout>) ke fragment sementara
         const originalContent = document.createDocumentFragment();
         while (this.firstChild) {
             originalContent.appendChild(this.firstChild);
         }
 
-        // 2. Render Kerangka Layout (Sidebar & Header)
+        // Render struktur Dashboard
         this.innerHTML = `
             <div x-data class="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans overflow-hidden">
                 <aside :class="$store.layout.sidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full md:w-20 md:translate-x-0'" 
@@ -55,9 +65,9 @@ class AdminLayout extends HTMLElement {
                     </nav>
 
                     <div class="p-4 border-t dark:border-gray-700 shrink-0">
-                        <button @click="$store.layout.logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded transition">
+                        <button @click="$store.layout.logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors">
                             <i class="ph ph-sign-out text-xl"></i>
-                            <span x-show="$store.layout.sidebarOpen">Keluar</span>
+                            <span x-show="$store.layout.sidebarOpen" class="font-medium">Keluar</span>
                         </button>
                     </div>
                 </aside>
@@ -65,35 +75,37 @@ class AdminLayout extends HTMLElement {
                 <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
                     <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-4 shadow-sm z-20 shrink-0">
                         <div class="flex items-center gap-4">
-                            <button @click="$store.layout.sidebarOpen = !$store.layout.sidebarOpen" class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <button @click="$store.layout.sidebarOpen = !$store.layout.sidebarOpen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                 <i class="ph ph-list text-2xl"></i>
                             </button>
                             <h1 class="font-bold text-lg truncate" x-text="$store.layout.title"></h1>
                         </div>
-                        <button @click="$store.layout.toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600">
+                        <button @click="$store.layout.toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors">
                             <i x-show="!$store.layout.darkMode" class="ph ph-moon text-xl"></i>
                             <i x-show="$store.layout.darkMode" class="ph ph-sun text-xl text-yellow-400"></i>
                         </button>
                     </header>
 
-                    <main id="main-slot" class="flex-1 overflow-y-auto p-4 md:p-8 relative">
-                        </main>
+                    <main id="main-slot" class="flex-1 overflow-y-auto p-4 md:p-8 relative"></main>
                 </div>
                 
-                <div x-show="$store.layout.sidebarOpen" @click="$store.layout.sidebarOpen = false" class="fixed inset-0 bg-black/50 z-20 md:hidden" x-transition></div>
+                <div x-show="$store.layout.sidebarOpen" 
+                     @click="$store.layout.sidebarOpen = false" 
+                     class="fixed inset-0 bg-black/50 z-20 md:hidden" 
+                     x-transition.opacity></div>
             </div>
         `;
 
-        // 3. Masukkan kembali konten asli ke slot yang benar
+        // Masukkan kembali konten asli ke slot main
         this.querySelector('#main-slot').appendChild(originalContent);
 
-        // 4. FIX PENTING: Inisialisasi ulang AlpineJS pada elemen ini
-        // Karena kita memanipulasi DOM, Alpine perlu tahu ada komponen baru
+        // Re-inisialisasi AlpineJS agar x-data di dalam konten terbaca
         setTimeout(() => {
             if (window.Alpine) {
-                window.Alpine.initTree(this);
+                window.Alpine.discover(); // Cari directive baru
+                window.Alpine.initTree(this); // Inisialisasi tree layout ini
             }
-        }, 50);
+        }, 100);
     }
 
     link(href, icon, label) {
