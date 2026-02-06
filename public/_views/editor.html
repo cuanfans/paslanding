@@ -343,15 +343,21 @@
                 <div class="border-t pt-6">
                 <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Metode Pembayaran</h3>
                 <label class="text-[10px] font-bold text-gray-500">Pilih Provider yang Aktif</label>
-                <select x-model="page.slug_payment" class="input-std mt-1 mb-2 bg-white border-blue-200 focus:ring-2 focus:ring-blue-500">
-                    <option value="whatsapp">WhatsApp (Manual)</option>
-                    
-                    <template x-for="p in paymentProviders" :key="p.slug">
-                        <option :value="p.slug" x-text="p.name"></option>
-                    </template>
-                </select>
-                <p class="text-[9px] text-gray-400 italic">*Daftar ini diambil otomatis dari database payment_templates.</p>
-            </div>
+                <div class="border-t pt-6">
+    <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Aktifkan Metode Pembayaran</h3>
+    <div class="space-y-2 bg-gray-50 p-3 rounded-lg border">
+        <template x-for="p in paymentProviders" :key="p.slug">
+            <label class="flex items-center gap-3 cursor-pointer hover:bg-white p-1 rounded transition">
+                <input type="checkbox" 
+                       :value="p.slug" 
+                       x-model="page.config.active_payments" 
+                       class="w-4 h-4 text-blue-600 rounded">
+                <span class="text-xs font-medium text-gray-700" x-text="p.name"></span>
+            </label>
+        </template>
+    </div>
+    <p class="text-[9px] text-gray-400 mt-2 italic">*Pembeli bisa memilih metode ini saat checkout.</p>
+</div>
             
             <div class="border-t pt-6 bg-gray-50 -mx-6 px-6 pb-6">
                 <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider mb-3 pt-4">Integrasi Pihak Ketiga</h3>
