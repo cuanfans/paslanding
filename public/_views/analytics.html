@@ -11,9 +11,14 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         [x-cloak] { display: none !important; }
+        /* Kustomisasi scrollbar agar tipis dan rapi */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200" x-data="analyticsApp()" x-init="init()" :class="darkMode ? 'dark' : ''">
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200 font-sans" x-data="analyticsApp()" x-init="init()" :class="darkMode ? 'dark' : ''">
 
     <div class="flex h-screen overflow-hidden" x-cloak>
         
@@ -62,49 +67,61 @@
                     <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                         <i class="ph ph-list text-2xl"></i>
                     </button>
-                    <h1 class="font-bold text-lg truncate">Traffic Analytics</h1>
+                    <h1 class="font-bold text-lg truncate text-gray-800 dark:text-white">Traffic Analytics</h1>
                 </div>
-                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors">
+                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors text-gray-600 dark:text-gray-300">
                     <i x-show="!darkMode" class="ph ph-moon text-xl"></i>
                     <i x-show="darkMode" class="ph ph-sun text-xl text-yellow-400"></i>
                 </button>
             </header>
 
             <main class="flex-1 overflow-y-auto p-4 md:p-8">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
-                        <h3 class="font-bold mb-4 text-gray-800 dark:text-white">Top 10 Halaman Terlaris</h3>
-                        <canvas id="topPagesChart"></canvas>
-                    </div>
+                <div class="max-w-7xl mx-auto space-y-6">
                     
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
-                        <h3 class="font-bold mb-4 text-gray-800 dark:text-white">Sumber Traffic (Referrer)</h3>
-                        <canvas id="sourceChart"></canvas>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border dark:border-gray-700 flex flex-col">
+                            <h3 class="font-bold text-sm uppercase text-gray-500 mb-4 tracking-wide">Top 10 Halaman</h3>
+                            <div class="relative h-64 w-full">
+                                <canvas id="topPagesChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border dark:border-gray-700 flex flex-col">
+                            <h3 class="font-bold text-sm uppercase text-gray-500 mb-4 tracking-wide">Sumber Traffic</h3>
+                            <div class="relative h-64 w-full flex justify-center">
+                                <canvas id="sourceChart"></canvas>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
-                    <h3 class="font-bold mb-4 text-gray-800 dark:text-white">Log Aktivitas Real-time</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm">
-                            <thead class="border-b dark:border-gray-700 text-[10px] uppercase text-gray-400 font-bold">
-                                <tr>
-                                    <th class="pb-3">Halaman</th>
-                                    <th class="pb-3">Asal (Referrer)</th>
-                                    <th class="pb-3 text-right">Waktu</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y dark:divide-gray-700">
-                                <template x-for="log in recentLogs" :key="log.created_at">
+                    <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border dark:border-gray-700 flex flex-col h-full">
+                        <h3 class="font-bold text-sm uppercase text-gray-500 mb-4 tracking-wide">Aktivitas Terbaru</h3>
+                        
+                        <div class="overflow-auto max-h-80 border rounded-lg dark:border-gray-600">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 sticky top-0 z-10">
                                     <tr>
-                                        <td class="py-3 font-bold text-blue-600" x-text="log.title"></td>
-                                        <td class="py-3 text-gray-500 italic" x-text="log.referrer"></td>
-                                        <td class="py-3 text-right text-[10px] text-gray-400" x-text="new Date(log.created_at).toLocaleString()"></td>
+                                        <th class="px-4 py-3 text-[10px] uppercase text-gray-500 font-bold">Halaman</th>
+                                        <th class="px-4 py-3 text-[10px] uppercase text-gray-500 font-bold">Referrer</th>
+                                        <th class="px-4 py-3 text-[10px] uppercase text-gray-500 font-bold text-right">Waktu</th>
                                     </tr>
-                                </template>
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                                    <template x-for="log in recentLogs" :key="log.created_at">
+                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                            <td class="px-4 py-3 font-medium text-blue-600 truncate max-w-[200px]" x-text="log.title"></td>
+                                            <td class="px-4 py-3 text-gray-500 text-xs truncate max-w-[150px]" x-text="log.referrer"></td>
+                                            <td class="px-4 py-3 text-right text-[10px] text-gray-400 font-mono" x-text="new Date(log.created_at).toLocaleString()"></td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="recentLogs.length === 0">
+                                        <td colspan="3" class="p-8 text-center text-gray-400 text-xs">Belum ada data traffic.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
+
                 </div>
             </main>
         </div>
@@ -118,20 +135,13 @@
             sidebarOpen: window.innerWidth > 768,
             darkMode: localStorage.getItem('theme') === 'dark',
             recentLogs: [],
-            // Ambil token langsung saat objek dibuat
             token: localStorage.getItem('admin_pass'),
 
             async init() {
-                // JIKA TOKEN TIDAK ADA, LANGSUNG TENDANG KE LOGIN
-                if (!this.token) {
-                    window.location.href = '/login';
-                    return;
-                }
-
+                if (!this.token) return window.location.href = '/login';
                 if (this.darkMode) document.documentElement.classList.add('dark');
 
                 try {
-                    // Pastikan header Authorization dikirim dengan benar
                     const res = await fetch('/api/admin/analytics/data', {
                         headers: { 
                             'Authorization': `Bearer ${this.token}`,
@@ -142,10 +152,8 @@
                     if (res.ok) {
                         const data = await res.json();
                         this.recentLogs = data.recent || [];
-                        // Render chart hanya setelah data dipastikan ada
                         this.renderCharts(data);
-                    } else if (res.status === 401 || res.status === 403) {
-                        // Jika server bilang token expired/salah, hapus dan login ulang
+                    } else if (res.status === 401) {
                         localStorage.removeItem('admin_pass');
                         window.location.href = '/login';
                     }
@@ -155,45 +163,53 @@
             },
 
             renderCharts(data) {
-                // Hancurkan chart lama jika ada (mencegah error canvas reused)
-                const existingTopChart = Chart.getChart("topPagesChart");
-                if (existingTopChart) existingTopChart.destroy();
-                
-                const existingSourceChart = Chart.getChart("sourceChart");
-                if (existingSourceChart) existingSourceChart.destroy();
+                // Hancurkan chart lama jika ada
+                if (Chart.getChart("topPagesChart")) Chart.getChart("topPagesChart").destroy();
+                if (Chart.getChart("sourceChart")) Chart.getChart("sourceChart").destroy();
 
-                // 1. Chart Top Pages
-                const topPagesCtx = document.getElementById('topPagesChart').getContext('2d');
-                new Chart(topPagesCtx, {
+                // 1. Chart Top Pages (BAR)
+                new Chart(document.getElementById('topPagesChart').getContext('2d'), {
                     type: 'bar',
                     data: {
                         labels: data.top_pages.map(p => p.title),
                         datasets: [{
                             label: 'Views',
                             data: data.top_pages.map(p => p.views),
-                            backgroundColor: '#2563eb',
-                            borderRadius: 5
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 4,
+                            barThickness: 20 // Batasi tebal bar agar rapi
                         }]
                     },
                     options: { 
                         responsive: true, 
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } } 
+                        maintainAspectRatio: false, // PENTING: Agar ikut tinggi container (h-64)
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { display: false } },
+                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                        }
                     }
                 });
 
-                // 2. Chart Referrer
-                const sourceCtx = document.getElementById('sourceChart').getContext('2d');
-                new Chart(sourceCtx, {
+                // 2. Chart Referrer (DOUGHNUT)
+                new Chart(document.getElementById('sourceChart').getContext('2d'), {
                     type: 'doughnut',
                     data: {
                         labels: data.referrers.map(r => r.referrer || 'Direct'),
                         datasets: [{
                             data: data.referrers.map(r => r.count),
-                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                            borderWidth: 0
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false }
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, // PENTING
+                        cutout: '70%', // Membuat donat lebih tipis elegan
+                        plugins: { 
+                            legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } 
+                        }
+                    }
                 });
             },
 
