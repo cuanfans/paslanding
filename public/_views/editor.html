@@ -374,7 +374,7 @@
         </div>
     </div>
 <script>
-    // --- 1. ICONIFY PICKER LOGIC ---
+   // --- 1. ICONIFY PICKER LOGIC (GLOBAL SCOPE) ---
 (function(){
     let iconifyPickerState = { model: null };
     const modal = document.getElementById('iconify-picker-modal');
@@ -400,7 +400,9 @@
         results.innerHTML = '<div class="col-span-full text-center text-gray-400 text-xs py-8">Ketik pencarian di atas...</div>';
     }
 
-    function debounce(fn, wait=300){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); }; }
+    function debounce(fn, wait=300){ 
+        let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), wait); }; 
+    }
 
     async function searchIconify(q){
         if(!q) return [];
@@ -439,40 +441,63 @@
         renderResults(list);
     }, 300);
 
-    closeBtn.addEventListener('click', closeIconifyPicker);
-    input.addEventListener('input', (e)=> doSearch(e.target.value));
-    clearBtn.addEventListener('click', ()=>{ input.value=''; input.focus(); });
-    modal.addEventListener('click', (e)=>{ if(e.target === modal) closeIconifyPicker(); });
+    if(closeBtn) closeBtn.addEventListener('click', closeIconifyPicker);
+    if(input) input.addEventListener('input', (e)=> doSearch(e.target.value));
+    if(clearBtn) clearBtn.addEventListener('click', ()=>{ input.value=''; input.focus(); });
+    if(modal) modal.addEventListener('click', (e)=>{ if(e.target === modal) closeIconifyPicker(); });
 })();
 
-// --- 2. MAIN EDITOR APP ---
+// --- 2. MAIN EDITOR APP (FIXED SYNTAX & FULL LOGIC) ---
 function editorApp() {
     return {
-        loading: false, showSettings: false, device: 'desktop', tab: 'blocks', mobileTab: 'blocks', mobilePanelOpen: false,
-        notifications: [], paymentProviders: [],
-        page: { slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', config: { variants: [], shipping: { weight: 1000 }, order_bump: { active: false, title: '', price: 0, desc: '' }, coupons: [], settings: {} } },
+        loading: false, 
+        showSettings: false, 
+        device: 'desktop', 
+        tab: 'blocks', 
+        mobileTab: 'blocks', 
+        mobilePanelOpen: false,
+        notifications: [], 
+        paymentProviders: [],
+        page: { 
+            slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', 
+            config: { variants: [], shipping: { weight: 1000 }, order_bump: { active: false, title: '', price: 0, desc: '' }, coupons: [], settings: {} } 
+        },
         cred: { provider: 'flashpay', data: '' },
         authPass: localStorage.getItem('auth_token'),
 
         async init() {
             const params = new URLSearchParams(window.location.search);
             this.page.slug = params.get('slug');
-            if (!this.authPass) { window.location.href = '/login'; return; }
+            if (!this.authPass) { 
+                window.location.href = '/login'; 
+                return; 
+            }
             await this.fetchPaymentProviders();
             this.initGrapes();
         },
 
         async fetchPaymentProviders() {
             try {
-                const res = await fetch('/api/admin/templates?type=payment', { headers: { 'Authorization': 'Bearer ' + this.authPass } });
-                if (res.status === 401) { window.location.href = '/login'; return; }
+                const res = await fetch('/api/admin/templates?type=payment', {
+                    headers: { 'Authorization': 'Bearer ' + this.authPass }
+                });
+                if (res.status === 401) { 
+                    window.location.href = '/login'; 
+                    return; 
+                }
                 this.paymentProviders = await res.json();
-            } catch (e) { console.error("Err Providers:", e); }
+            } catch (e) { 
+                console.error("Gagal memuat provider:", e); 
+            }
         },
 
         toggleMobilePanel(tabName) {
-            if (this.mobilePanelOpen && this.mobileTab === tabName) this.mobilePanelOpen = false;
-            else { this.mobileTab = tabName; this.mobilePanelOpen = true; }
+            if (this.mobilePanelOpen && this.mobileTab === tabName) {
+                this.mobilePanelOpen = false;
+            } else {
+                this.mobileTab = tabName;
+                this.mobilePanelOpen = true;
+            }
         },
 
         notify(title, msg, type = 'success') {
@@ -484,19 +509,36 @@ function editorApp() {
             }, 3000);
         },
 
-        setDevice(d) { this.device = d; window.editor.setDevice(d); },
-        cmd(c) { window.editor.runCommand(c); },
-        addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
+        setDevice(d) { 
+            this.device = d; 
+            window.editor.setDevice(d); 
+        },
+
+        cmd(c) { 
+            window.editor.runCommand(c); 
+        },
+
+        addVariant() { 
+            this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); 
+        },
 
         async saveCreds() {
             try {
                 const res = await fetch('/api/admin/credentials', {
                     method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + this.authPass, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ provider: this.cred.provider, data: JSON.parse(this.cred.data) })
+                    headers: { 
+                        'Authorization': 'Bearer ' + this.authPass, 
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify({ 
+                        provider: this.cred.provider, 
+                        data: JSON.parse(this.cred.data) 
+                    })
                 });
                 if (res.ok) this.notify('Berhasil', 'Kredensial tersimpan!');
-            } catch (e) { this.notify('Gagal', 'Format JSON salah', 'error'); }
+            } catch (e) { 
+                this.notify('Gagal', 'Format JSON salah', 'error'); 
+            }
         },
 
         async savePage() {
@@ -504,26 +546,46 @@ function editorApp() {
             try {
                 const res = await fetch('/api/admin/pages', {
                     method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + this.authPass, 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Authorization': 'Bearer ' + this.authPass, 
+                        'Content-Type': 'application/json' 
+                    },
                     body: JSON.stringify({
-                        slug: this.page.slug, title: this.page.title, product_type: this.page.product_type,
-                        provider: this.page.slug_payment, html: window.editor.getHtml(), css: window.editor.getCss(), product_config: this.page.config
+                        slug: this.page.slug, 
+                        title: this.page.title, 
+                        product_type: this.page.product_type,
+                        provider: this.page.slug_payment, 
+                        html: window.editor.getHtml(), 
+                        css: window.editor.getCss(), 
+                        product_config: this.page.config
                     })
                 });
                 if (res.ok) this.notify('Sukses', 'Halaman tersimpan!');
-            } catch (e) { this.notify('Error', 'Gagal simpan', 'error'); }
+            } catch (e) { 
+                this.notify('Error', 'Gagal simpan', 'error'); 
+            }
             this.loading = false;
         },
 
         initGrapes() {
             window.editor = grapesjs.init({
-                container: '#gjs', height: '100%', fromElement: false, storageManager: false,
+                container: '#gjs',
+                height: '100%',
+                fromElement: false,
+                storageManager: false,
                 plugins: [
-                    'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-component-countdown', 
-                    'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 
-                    'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'
+                    'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 
+                    'grapesjs-component-countdown', 'grapesjs-tabs', 'grapesjs-custom-code', 
+                    'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 
+                    'grapesjs-typed', 'grapesjs-style-bg'
                 ],
-                deviceManager: { devices: [{ id: 'desktop', width: '' }, { id: 'tablet', width: '768px' }, { id: 'mobile', width: '375px' }] },
+                deviceManager: { 
+                    devices: [
+                        { id: 'desktop', width: '' }, 
+                        { id: 'tablet', width: '768px' }, 
+                        { id: 'mobile', width: '375px' }
+                    ] 
+                },
                 blockManager: { appendTo: '#blocks-container' },
                 layerManager: { appendTo: '#layers-container' },
                 selectorManager: { appendTo: '#selectors-container' },
@@ -539,10 +601,12 @@ function editorApp() {
             });
 
             const domc = window.editor.DomComponents;
+
             domc.addType('iconify-icon', {
                 model: {
                     defaults: {
-                        tagName: 'iconify-icon', droppable: false,
+                        tagName: 'iconify-icon', 
+                        droppable: false,
                         attributes: { icon: 'mdi:home', width: '48', style: 'color:#2563eb' },
                         traits: [
                             { type: 'button', text: '🔍 Pilih Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) },
@@ -557,33 +621,57 @@ function editorApp() {
                 if(model.get('tagName') === 'iconify-icon') window.openIconifyPicker(model);
             });
 
-            // --- ALL BLOCK MANAGER (BM) DATA ---
             const bm = window.editor.BlockManager;
+            // LAYOUT
             bm.add('container-fluid', { label: 'Container', category: 'Layout', content: `<div style="width:90%; max-width:1200px; margin:0 auto; padding:20px; min-height:50px;"></div>` });
             bm.add('section-std', { label: 'Section', category: 'Layout', content: `<section style="padding:60px 20px; background-color:#fff;"><div style="width:90%; max-width:1100px; margin:0 auto; padding:0 20px;"></div></section>` });
+            
+            // MEDIA
             bm.add('iconify-blk', { label: 'Iconify', category: 'Media', attributes: { class: 'ph ph-star' }, content: { type: 'iconify-icon' } });
+            bm.add('video-yt', { label: 'YouTube', category: 'Media', content: { type: 'video', provider: 'yt', style: { height: '350px', width: '100%' } } });
+            
+            // HEADERS
             bm.add('header-1', { label: 'Header Center', category: 'Headers', content: `<header style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:center;"><img src="https://via.placeholder.com/150x50?text=LOGO" style="height:40px;" /></header>` });
+            
+            // CONTENT
             bm.add('hero-tpl', { label: 'Hero', category: 'Content', content: `<section style="padding:60px 20px; text-align:center; background:#f8fafc;"><h1 style="font-size:3rem; margin-bottom:20px;">Headline</h1><p>Subheadline.</p></section>` });
             bm.add('pricelist-tpl', { label: 'Pricelist', category: 'Content', content: `<section style="padding:60px 20px; background:#f8fafc;"><div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:30px;"><div style="padding:30px; border:1px solid #e2e8f0; background:#fff; border-radius:8px; text-align:center;"><h3>Plan</h3><p>Rp 99.000</p></div></div></section>` });
-            bm.add('video-yt', { label: 'YouTube', category: 'Media', content: { type: 'video', provider: 'yt', style: { height: '350px', width: '100%' } } });
+            
+            // E-COMMERCE
             bm.add('checkout-pro', { label: 'Checkout', category: 'E-Commerce', content: `<div data-gjs-type="checkout-widget" style="padding:20px; border:2px dashed #3b82f6; text-align:center;"><strong>[ CHECKOUT ]</strong></div>` });
 
             if (this.page.slug) {
-                fetch('/api/admin/pages/' + this.page.slug, { headers: { 'Authorization': 'Bearer ' + this.authPass } })
-                .then(r => r.json()).then(d => {
+                fetch('/api/admin/pages/' + this.page.slug, { 
+                    headers: { 'Authorization': 'Bearer ' + this.authPass } 
+                })
+                .then(r => {
+                    if (r.status === 401) { window.location.href = '/login'; return; }
+                    return r.json();
+                })
+                .then(d => {
                     if (d.id) {
-                        this.page.title = d.title; this.page.product_type = d.product_type || 'physical'; this.page.slug_payment = d.provider || 'whatsapp';
+                        this.page.title = d.title; 
+                        this.page.product_type = d.product_type || 'physical'; 
+                        this.page.slug_payment = d.provider || 'whatsapp';
                         try {
                             const c = JSON.parse(d.product_config_json || '{}');
-                            this.page.config = { variants: c.variants || [], shipping: c.shipping || { weight: 1000 }, order_bump: c.order_bump || { active: false }, coupons: c.coupons || [], settings: c.settings || {} };
-                        } catch (e) {}
+                            this.page.config = { 
+                                variants: c.variants || [], 
+                                shipping: c.shipping || { weight: 1000 }, 
+                                order_bump: c.order_bump || { active: false, title: '', price: 0, desc: '' }, 
+                                coupons: c.coupons || [], 
+                                settings: c.settings || {} 
+                            };
+                        } catch (e) {
+                            console.error("Config Parse Error");
+                        }
                         if (d.html_content) window.editor.setComponents(d.html_content);
                         if (d.css_content) window.editor.setStyle(d.css_content);
                     }
                 });
             }
         }
-    }
+    };
 }
 </script>
 </body>
