@@ -196,19 +196,32 @@ app.post('/api/admin/credentials', async (c) => {
 app.post('/api/public/checkout', async (c) => {
     try {
         const body = await c.req.json();
-        const { slug_payment, customer } = body;
-
-        if (!slug_payment || !customer?.phone) return c.json({ error: "Data tidak lengkap" }, 400);
-
-        // Panggil Engine Blok 1
-        const result = await executeGenericAPI(c, 'payment', slug_payment, body);
         
-        // Cari Link Bayar (Mapping atau Raw)
-        const payment_url = result.payment_url || result._raw?.data?.payment_url || result._raw?.payment_url;
+        // --- AMBIL DATA HARGA DARI DB BIAR PAYLOAD GAK KOSONG ---
+        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(body.page_id).first();
+        const config = JSON.parse(page?.product_config_json || '{}');
+        
+        // Injeksi data tambahan ke body sebelum ke engine
+        body.amount = config.price || 150000; // Harga dari database
+        body.order_id = "INV-" + Date.now();
+        body.customer_name = body.customer?.name || "Customer";
+        body.customer_phone = body.customer?.phone || "0812";
 
-        if (!payment_url) return c.json({ error: "Gagal dapet link bayar", debug: result._raw }, 400);
-        return c.json({ payment_url });
-    } catch (e) { return c.json({ error: e.message }, 500); }
+        const result = await executeGenericAPI(c, 'payment', body.slug_payment, body);
+        
+        // Cari URL di mapping utama atau di data mentah (_raw)
+        const finalUrl = result.payment_url || result._raw?.data?.payment_url || result._raw?.payment_url;
+
+        if (!finalUrl) {
+            return c.json({ error: "Backend OK tapi Link Bayar Kosong", debug: result._raw }, 400);
+        }
+
+        // KIRIM DENGAN UNDERSCORE
+        return c.json({ payment_url: finalUrl });
+
+    } catch (e) {
+        return c.json({ error: e.message }, 500);
+    }
 });
 
 // ===============================================
@@ -247,25 +260,46 @@ async function renderPage(c, page) {
 
             document.body.innerHTML = document.body.innerHTML.replace('[ CHECKOUT ]', formHTML);
 
-            document.getElementById('btn-pay').onclick = async () => {
-                const method = document.querySelector('input[name="pay_method"]:checked')?.value;
-                if(!method) return alert('Pilih pembayaran!');
-                const btn = document.getElementById('btn-pay');
-                btn.disabled = true; btn.innerText = 'PROSES...';
-                
-                const res = await fetch('/api/public/checkout', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        page_id: ${page.id},
-                        slug_payment: method,
-                        customer: { name: document.getElementById('c_name').value, phone: document.getElementById('c_phone').value }
-                    })
-                });
-                const data = await res.json();
-                if(data.payment_url) window.location.href = data.payment_url;
-                else { alert(data.error || 'Gagal'); btn.disabled = false; btn.innerText = 'BAYAR SEKARANG'; }
-            };
+            // Di dalam renderPage -> checkoutScript
+document.getElementById('btn-pay').onclick = async () => {
+    const method = document.querySelector('input[name="pay_method"]:checked')?.value;
+    if(!method) return alert('Pilih pembayaran!');
+
+    const btn = document.getElementById('btn-pay');
+    btn.disabled = true; 
+    btn.innerText = 'MEMPROSES...';
+    
+    try {
+        const res = await fetch('/api/public/checkout', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                page_id: window.PAGE_ID,
+                slug_payment: method,
+                customer: { 
+                    name: document.getElementById('c_name').value, 
+                    phone: document.getElementById('c_phone').value 
+                }
+            })
+        });
+
+        const data = await res.json();
+        console.log("Response dari Backend:", data); // LIHAT DI INSPECT ELEMENT -> CONSOLE
+
+        if (data.payment_url) {
+            // REDIRECT SEKARANG!
+            window.location.href = data.payment_url;
+        } else {
+            alert('Gagal: ' + (data.error || 'Cek Console'));
+            btn.disabled = false;
+            btn.innerText = 'BAYAR SEKARANG';
+        }
+    } catch (err) {
+        alert('Crash: ' + err.message);
+        btn.disabled = false;
+        btn.innerText = 'BAYAR SEKARANG';
+    }
+};
         });
     </script>`;
 
