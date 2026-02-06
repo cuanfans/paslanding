@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Traffic Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="/js/layout.js"></script>
+</head>
+<body>
+    <admin-layout>
+        <h2 class="text-2xl font-bold mb-6">Web Analytics & Trackers</h2>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow border dark:border-gray-700">
+                <h3 class="font-bold mb-4">Pengunjung (7 Hari Terakhir)</h3>
+                <canvas id="visitorChart"></canvas>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow border dark:border-gray-700">
+                <h3 class="font-bold mb-4">Sumber Traffic (Referrer)</h3>
+                <canvas id="sourceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="mt-6 bg-white dark:bg-gray-800 p-6 rounded-xl shadow border dark:border-gray-700">
+            <h3 class="font-bold mb-4">Pixel & Events Tracker</h3>
+            <p class="text-gray-500">Data event dari Facebook Pixel / TikTok Pixel akan direkap di sini.</p>
+        </div>
+
+        <script>
+            // Init Chart.js
+            const ctx = document.getElementById('visitorChart');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
+                    datasets: [{
+                        label: 'Page Views',
+                        data: [120, 190, 300, 250, 200, 350, 400],
+                        borderColor: '#2563eb',
+                        tension: 0.4
+                    }]
+                }
+            });
+        </script>
+    </admin-layout>
+</body>
+</html>
