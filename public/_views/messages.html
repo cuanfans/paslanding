@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Pesan - BlinkSite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900" x-data="messagesApp()" x-init="init()">
+
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col">
+            <div class="h-16 flex items-center justify-center border-b dark:border-gray-700">
+                <span class="text-xl font-black text-blue-600">BlinkSite</span>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-100"><i class="ph ph-squares-four text-xl"></i> Dashboard</a>
+                <a href="/admin/pages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-100"><i class="ph ph-files text-xl"></i> Halaman</a>
+                <a href="/admin/messages" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md"><i class="ph ph-envelope-simple text-xl"></i> Pesan Masuk</a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-8">
+                <h1 class="font-bold text-lg">Inbox Pesan</h1>
+            </header>
+
+            <div class="flex-1 overflow-y-auto p-8">
+                <div class="flex gap-2 mb-6">
+                    <button @click="filter='all'" :class="filter=='all'?'bg-blue-600 text-white':'bg-white text-gray-600'" class="px-4 py-2 rounded-lg text-sm font-bold border transition">Semua</button>
+                    <button @click="filter='unread'" :class="filter=='unread'?'bg-blue-600 text-white':'bg-white text-gray-600'" class="px-4 py-2 rounded-lg text-sm font-bold border transition">Belum Dibaca</button>
+                    <button @click="filter='followed_up'" :class="filter=='followed_up'?'bg-blue-600 text-white':'bg-white text-gray-600'" class="px-4 py-2 rounded-lg text-sm font-bold border transition">Selesai</button>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Tanggal</th>
+                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Pengirim</th>
+                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Perihal</th>
+                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Pesan</th>
+                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                                <th class="p-4 text-xs font-bold text-gray-500 uppercase text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                            <template x-for="msg in filteredMessages" :key="msg.id">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                                    <td class="p-4 text-xs text-gray-500" x-text="new Date(msg.created_at).toLocaleDateString()"></td>
+                                    <td class="p-4">
+                                        <div class="font-bold text-sm text-gray-800 dark:text-white" x-text="msg.name"></div>
+                                        <div class="text-xs text-gray-400" x-text="msg.email"></div>
+                                        <div class="text-xs text-gray-400" x-text="msg.phone"></div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="px-2 py-1 rounded text-[10px] font-bold uppercase bg-gray-100 text-gray-600" x-text="msg.subject"></span>
+                                    </td>
+                                    <td class="p-4 text-sm text-gray-600 dark:text-gray-300 max-w-xs truncate" :title="msg.message" x-text="msg.message"></td>
+                                    <td class="p-4">
+                                        <span :class="{
+                                            'bg-red-100 text-red-600': msg.status === 'unread',
+                                            'bg-yellow-100 text-yellow-600': msg.status === 'read',
+                                            'bg-green-100 text-green-600': msg.status === 'followed_up'
+                                        }" class="px-2 py-1 rounded text-xs font-bold uppercase" x-text="msg.status"></span>
+                                    </td>
+                                    <td class="p-4 text-right flex justify-end gap-2">
+                                        <select @change="updateStatus(msg.id, $event.target.value)" class="text-xs border rounded p-1 bg-white dark:bg-gray-700 dark:text-white outline-none">
+                                            <option value="unread" :selected="msg.status=='unread'">Baru</option>
+                                            <option value="read" :selected="msg.status=='read'">Dibaca</option>
+                                            <option value="followed_up" :selected="msg.status=='followed_up'">Selesai</option>
+                                        </select>
+                                        <button @click="deleteMsg(msg.id)" class="text-red-500 hover:text-red-700 p-1"><i class="ph ph-trash text-lg"></i></button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr x-show="messages.length === 0">
+                                <td colspan="6" class="p-8 text-center text-gray-400 italic">Belum ada pesan masuk.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function messagesApp() {
+            return {
+                messages: [],
+                filter: 'all',
+                
+                get filteredMessages() {
+                    if(this.filter === 'all') return this.messages;
+                    return this.messages.filter(m => m.status === this.filter);
+                },
+
+                async init() {
+                    try {
+                        const res = await fetch('/api/admin/messages');
+                        if(res.ok) {
+                            this.messages = await res.json();
+                        } else if(res.status === 401) {
+                            window.location.href = '/login';
+                        }
+                    } catch(e) { console.error(e); }
+                },
+
+                async updateStatus(id, newStatus) {
+                    await fetch('/api/admin/messages/' + id, {
+                        method: 'PATCH',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    this.init(); // Refresh data
+                },
+
+                async deleteMsg(id) {
+                    if(!confirm('Yakin ingin menghapus pesan ini?')) return;
+                    await fetch('/api/admin/messages/' + id, { method: 'DELETE' });
+                    this.init();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
