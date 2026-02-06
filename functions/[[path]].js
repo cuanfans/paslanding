@@ -1,4 +1,3 @@
-Maksudku perbaiki dan tulis lengkap file ini!
 import { Hono } from 'hono'
 import { handle } from 'hono/cloudflare-pages'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
@@ -33,12 +32,12 @@ async function serveAsset(c, path) {
 }
 
 // ===============================================
-// 1. MIDDLEWARE AUTH (PERBAIKAN TOTAL)
+// 1. MIDDLEWARE AUTH (PERBAIKAN MINIMAL)
 // ===============================================
 const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
     const path = url.pathname;
-    
+
     // LEVEL 1: WHITELIST (Bebas Akses)
     // Pastikan API Login dan Setup ada di sini!
     if (
@@ -53,13 +52,33 @@ const requireAuth = async (c, next) => {
     }
 
     // LEVEL 2: STATIC ASSETS (File .js, .css, .png)
-    // Izinkan file berekstensi, TAPI blokir jika itu file HTML admin
+    // Perbaikan: izinkan hanya asset dari folder publik yang biasa dipakai.
+    // Jangan otomatis izinkan semua path yang mengandung titik.
     if (path.includes('.')) {
-        // Jika file ada di folder _views atau admin, JANGAN loloskan (harus cek token)
-        if (!path.startsWith('/_views') && !path.startsWith('/admin/')) {
-             await next(); 
-             return;
+        // Whitelist folder publik / umum (tambahkan sesuai struktur deploy Anda)
+        const publicAssetPrefixes = [
+            '/assets/',
+            '/public/',
+            '/static/',
+            '/css/',
+            '/js/',
+            '/images/',
+            '/fonts/'
+        ];
+
+        const isPublicAsset = publicAssetPrefixes.some(p => path.startsWith(p)) ||
+                              path === '/favicon.ico' ||
+                              path === '/robots.txt' ||
+                              path === '/sitemap.xml';
+
+        if (isPublicAsset) {
+            // Ini asset publik, tidak perlu auth
+            await next();
+            return;
         }
+
+        // Jika file ada di folder _views atau admin, JANGAN loloskan (harus cek token)
+        // Jika bukan di folder publik, lanjut ke pengecekan token
     }
 
     // LEVEL 3: PROTECTED ROUTES (Cek Token)
