@@ -339,43 +339,31 @@
                 <div class="border-t pt-6"><h3 class="text-xs font-bold text-purple-600 uppercase tracking-wider mb-3">Order Bump</h3><div class="flex items-center gap-2 mb-2"><input type="checkbox" x-model="page.config.order_bump.active"><span class="text-xs">Aktif</span></div><div x-show="page.config.order_bump.active" class="space-y-3 bg-purple-50 p-4 rounded-lg border border-purple-100"><input x-model="page.config.order_bump.title" class="input-std" placeholder="Title"><input x-model="page.config.order_bump.price" type="number" class="input-std" placeholder="Price"><textarea x-model="page.config.order_bump.desc" class="input-std" rows="2" placeholder="Desc"></textarea></div></div>
                 <div class="border-t pt-6"><h3 class="text-xs font-bold text-red-500 uppercase tracking-wider mb-3">Coupons</h3><template x-for="(c, i) in page.config.coupons"><div class="bg-red-50 p-2 mb-2 rounded border border-red-100 flex gap-2"><input x-model="c.code" class="input-std" placeholder="CODE"><input x-model="c.value" type="number" class="input-std w-20" placeholder="Val"><button @click="page.config.coupons.splice(i,1)" class="text-red-500"><i class="ph ph-x"></i></button></div></template><button @click="page.config.coupons.push({code:'', type:'percent', value:0})" class="w-full py-2 text-xs font-bold text-red-500 border border-red-200 rounded hover:bg-red-50 transition">+ Add Coupon</button></div>
                 <div class="border-t pt-6 space-y-4"><h3 class="text-xs font-bold text-green-600 uppercase tracking-wider">SEO</h3><div><label class="text-[10px] font-bold text-gray-500">Title</label><input x-model="page.config.settings.seo_title" class="input-std"></div><div><label class="text-[10px] font-bold text-gray-500">Desc</label><textarea x-model="page.config.settings.seo_description" class="input-std" rows="2"></textarea></div><div class="grid grid-cols-2 gap-2"><div><label class="text-[10px] font-bold text-gray-500">Favicon</label><input x-model="page.config.settings.favicon" class="input-std"></div><div><label class="text-[10px] font-bold text-gray-500">OG Image</label><input x-model="page.config.settings.og_image" class="input-std"></div></div></div>
-                <div class="border-t pt-6 bg-gray-50 -mx-6 px-6 pb-6"><h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider mb-3 pt-4">API</h3><select x-model="cred.provider" class="input-std mb-2 bg-white"><option value="midtrans">Midtrans</option><option value="cloudinary">Cloudinary</option></select><textarea x-model="cred.data" class="input-std font-mono text-[10px] bg-white" rows="3" placeholder='JSON Config'></textarea><button @click="saveCreds" class="w-full bg-gray-800 text-white py-2 rounded mt-3 text-xs font-bold hover:bg-black transition">Save</button></div>
+
+                <!-- PAYMENT GATEWAY SECTION (UPDATED) -->
                 <div class="border-t pt-6">
-                <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Metode Pembayaran</h3>
-                <label class="text-[10px] font-bold text-gray-500">Pilih Provider yang Aktif</label>
-                <div class="border-t pt-6">
-    <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Aktifkan Metode Pembayaran</h3>
-    <div class="space-y-2 bg-gray-50 p-3 rounded-lg border">
-        <template x-for="p in paymentProviders" :key="p.slug">
-            <label class="flex items-center gap-3 cursor-pointer hover:bg-white p-1 rounded transition">
-                <input type="checkbox" 
-                       :value="p.slug" 
-                       x-model="page.config.active_payments" 
-                       class="w-4 h-4 text-blue-600 rounded">
-                <span class="text-xs font-medium text-gray-700" x-text="p.name"></span>
-            </label>
-        </template>
-    </div>
-    <p class="text-[9px] text-gray-400 mt-2 italic">*Pembeli bisa memilih metode ini saat checkout.</p>
-</div>
-            
-            <div class="border-t pt-6 bg-gray-50 -mx-6 px-6 pb-6">
-                <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider mb-3 pt-4">Integrasi Pihak Ketiga</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-[10px] font-bold text-gray-500">Pilih Service</label>
-                        <select x-model="cred.provider" class="input-std mb-2 bg-white">
-                            <option value="flashpay">FlashPay (Global Keys)</option>
-                            <option value="cloudinary">Cloudinary (Image Storage)</option>
-                        </select>
+                    <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Metode Pembayaran</h3>
+
+                    <label class="text-[10px] font-bold text-gray-500">Default Payment Provider</label>
+                    <select x-model="page.slug_payment" class="input-std mt-1 mb-3 bg-white border-blue-200 focus:ring-2 focus:ring-blue-500">
+                        <option value="whatsapp">WhatsApp (Manual)</option>
+                        <template x-for="p in paymentProviders" :key="p.slug">
+                            <option :value="p.slug" x-text="p.name"></option>
+                        </template>
+                    </select>
+
+                    <h4 class="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Aktifkan Metode Pembayaran</h4>
+                    <div class="space-y-2 bg-gray-50 p-3 rounded-lg border">
+                        <template x-for="p in paymentProviders" :key="p.slug">
+                            <label class="flex items-center gap-3 cursor-pointer hover:bg-white p-1 rounded transition">
+                                <input type="checkbox" :value="p.slug" x-model="page.config.active_payments" class="w-4 h-4 text-blue-600 rounded">
+                                <span class="text-xs font-medium text-gray-700" x-text="p.name"></span>
+                            </label>
+                        </template>
                     </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-gray-500">JSON Config</label>
-                        <textarea x-model="cred.data" class="input-std font-mono text-[10px] bg-white" rows="3" placeholder='{"key": "value"}'></textarea>
-                    </div>
-                    <button @click="saveCreds" class="w-full bg-gray-800 text-white py-2 rounded text-xs font-bold hover:bg-black transition shadow-lg">Save Configuration</button>
+                    <p class="text-[9px] text-gray-400 mt-2 italic">*Pembeli bisa memilih metode ini saat checkout. Pilih juga default provider di atas.</p>
                 </div>
-            </div>
+
             </div>
         </div>
     </div>
@@ -464,9 +452,15 @@ function editorApp() {
         paymentProviders: [],
         page: { 
             slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', 
-            config: { variants: [], shipping: { weight: 1000 }, order_bump: { active: false, title: '', price: 0, desc: '' }, coupons: [], settings: {} } 
+            config: { 
+                variants: [], 
+                shipping: { weight: 1000 }, 
+                order_bump: { active: false, title: '', price: 0, desc: '' }, 
+                coupons: [], 
+                settings: {}, 
+                active_payments: [] 
+            } 
         },
-        cred: { provider: 'flashpay', data: '' },
 
         async init() {
             const params = new URLSearchParams(window.location.search);
@@ -524,24 +518,6 @@ function editorApp() {
         setDevice(d) { this.device = d; if (window.editor) window.editor.setDevice(d); },
         cmd(c) { if (window.editor) window.editor.runCommand(c); },
         addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
-
-        async saveCreds() {
-            try {
-                // cred.data expected to be JSON string; handle gracefully
-                let parsed = {};
-                try { parsed = JSON.parse(this.cred.data); } catch(e) { this.notify('Gagal', 'Format JSON salah', 'error'); return; }
-
-                const res = await fetch('/api/admin/credentials', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ provider: this.cred.provider, data: parsed })
-                });
-                if (res.status === 401) { window.location.href = '/login'; return; }
-                if (res.ok) this.notify('Berhasil', 'Kredensial tersimpan!');
-                else this.notify('Gagal', 'Gagal simpan kredensial', 'error');
-            } catch (e) { this.notify('Gagal', 'Format JSON salah', 'error'); }
-        },
 
         async savePage() {
             this.loading = true;
@@ -630,7 +606,14 @@ function editorApp() {
                         this.page.title = d.title; this.page.product_type = d.product_type || 'physical'; this.page.slug_payment = d.provider || 'whatsapp';
                         try {
                             const c = JSON.parse(d.product_config_json || '{}');
-                            this.page.config = { variants: c.variants || [], shipping: c.shipping || { weight: 1000 }, order_bump: c.order_bump || { active: false, title:'', price:0, desc:'' }, coupons: c.coupons || [], settings: c.settings || {} };
+                            this.page.config = { 
+                                variants: c.variants || [], 
+                                shipping: c.shipping || { weight: 1000 }, 
+                                order_bump: c.order_bump || { active: false, title:'', price:0, desc:'' }, 
+                                coupons: c.coupons || [], 
+                                settings: c.settings || {},
+                                active_payments: c.active_payments || []
+                            };
                         } catch (e) {}
                         if (d.html_content) window.editor.setComponents(d.html_content);
                         if (d.css_content) window.editor.setStyle(d.css_content);
