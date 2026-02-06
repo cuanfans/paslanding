@@ -74,26 +74,29 @@
                     <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
                         <i class="ph ph-key text-yellow-500"></i> API Credentials
                     </h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Kelola kunci rahasia untuk semua integrasi layanan.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Kelola kunci rahasia untuk layanan yang aktif.</p>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">Pilih Integrasi</label>
-                            <div class="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                            <div class="space-y-2 max-h-[300px] overflow-y-auto pr-2 border dark:border-gray-600 rounded-lg p-2 min-h-[100px]">
                                 <template x-for="p in allProviders" :key="p">
                                     <button @click="cred.provider=p" 
-                                            :class="cred.provider==p ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'" 
-                                            class="w-full text-left px-4 py-3 border rounded-lg text-sm font-bold transition flex items-center gap-3 capitalize">
+                                            :class="cred.provider==p ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'" 
+                                            class="w-full text-left px-3 py-2 border rounded-md text-sm font-bold transition flex items-center gap-2 capitalize">
                                         <i class="ph" :class="getIcon(p)"></i> 
                                         <span x-text="p"></span>
                                     </button>
                                 </template>
+                                <div x-show="allProviders.length === 0" class="text-center text-xs text-gray-400 py-4 italic">
+                                    Tidak ada integrasi aktif.<br>Buat template di bawah dulu.
+                                </div>
                             </div>
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">
-                                JSON Configuration <span x-text="'(' + cred.provider + ')'" class="normal-case text-blue-500"></span>
+                                JSON Configuration <span x-show="cred.provider" x-text="'(' + cred.provider + ')'" class="normal-case text-blue-500"></span>
                             </label>
                             <textarea x-model="cred.data" rows="8" class="w-full px-4 py-3 bg-gray-900 text-green-400 font-mono text-xs rounded-lg border border-gray-700 outline-none focus:border-green-500 mb-4" placeholder='{ "server_key": "...", "client_key": "..." }'></textarea>
                             <div class="flex justify-end">
@@ -143,7 +146,7 @@
                             <h3 class="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2">
                                 <i class="ph ph-brackets-curly text-purple-500"></i> Integrasi API (Advanced)
                             </h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Buat dan atur template integrasi baru di sini.</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Buat template integrasi baru (Payment/Shipping) di sini agar muncul di daftar kredensial.</p>
                         </div>
                         <div class="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-lg">
                             <button @click="tplType='payment'; fetchTemplates()" :class="tplType=='payment' ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-white' : 'text-gray-500'" class="px-4 py-1.5 rounded-md text-sm font-bold transition">Payment</button>
@@ -172,7 +175,7 @@
                             <div class="space-y-4">
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Slug (ID)</label>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Slug (ID Database)</label>
                                         <input x-model="tpl.slug" :disabled="isEditing" placeholder="cth: paspay" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-xs disabled:opacity-50">
                                     </div>
                                     <div>
@@ -228,14 +231,14 @@
                 darkMode: localStorage.getItem('theme') === 'dark',
                 
                 // STATE
-                cred: { provider: 'midtrans', data: '' },
+                cred: { provider: '', data: '' }, // Provider default kosong
                 security: { old_pass: '', new_pass: '', confirm_pass: '' },
                 tplType: 'payment',
                 templates: [],
                 isEditing: false,
                 tpl: { slug: '', name: '', api_endpoint: '', method: 'POST', headers_json: '{}', body_json: '{}', response_mapping: '{}' },
                 
-                // SATU DAFTAR UNIFIED
+                // SATU DAFTAR UNIFIED (MURNI DATABASE)
                 allProviders: [],
                 
                 token: localStorage.getItem('admin_pass'),
@@ -248,11 +251,9 @@
                     await this.refreshProviderList(); 
                 },
 
-                // Logic: Gabungkan standar + database, lalu urutkan
+                // Logic: HANYA AMBIL DARI DATABASE (TANPA HARDCODE DEFAULT)
                 async refreshProviderList() {
-                    const standards = ['midtrans', 'rajaongkir', 'cloudinary', 'whatsapp'];
                     const dbSlugs = [];
-
                     try {
                         const resPay = await fetch('/api/admin/templates?type=payment', { headers: { 'Authorization': `Bearer ${this.token}` } });
                         const resShip = await fetch('/api/admin/templates?type=shipping', { headers: { 'Authorization': `Bearer ${this.token}` } });
@@ -261,11 +262,13 @@
                         if(resShip.ok) { const d = await resShip.json(); dbSlugs.push(...d.map(i => i.slug)); }
                     } catch(e) { console.error("Gagal load provider list"); }
 
-                    // Gabung dan Hapus Duplikat
-                    const merged = [...new Set([...standards, ...dbSlugs])];
-                    
                     // Sort A-Z
-                    this.allProviders = merged.sort();
+                    this.allProviders = [...new Set(dbSlugs)].sort();
+                    
+                    // Set default selection jika belum ada yang dipilih dan list tidak kosong
+                    if (!this.cred.provider && this.allProviders.length > 0) {
+                        this.cred.provider = this.allProviders[0];
+                    }
                 },
 
                 toggleTheme() {
@@ -276,19 +279,21 @@
 
                 logout() { localStorage.removeItem('admin_pass'); window.location.href = '/login'; },
                 
-                // Icon Mapping (Generic fallback for custom)
+                // Icon Mapping (Generic)
                 getIcon(p) { 
                     const icons = {
                         'midtrans': 'ph-credit-card', 
                         'rajaongkir': 'ph-truck', 
                         'cloudinary': 'ph-image', 
-                        'whatsapp': 'ph-whatsapp-logo'
+                        'whatsapp': 'ph-whatsapp-logo',
+                        'paspay': 'ph-qr-code'
                     }; 
-                    return icons[p] || 'ph-plugs-connected'; // Fallback icon
+                    return icons[p] || 'ph-plugs-connected'; 
                 },
 
                 // --- 1. CREDENTIALS ---
                 async saveCreds() {
+                    if (!this.cred.provider) return alert("Pilih integrasi dulu/buat template baru.");
                     try {
                         const parsed = JSON.parse(this.cred.data);
                         const res = await fetch('/api/admin/credentials', {
@@ -344,7 +349,7 @@
                         if(res.ok) { 
                             alert('Template tersimpan!'); 
                             await this.fetchTemplates();
-                            await this.refreshProviderList(); // REFRESH DROPDOWN CREDENTIALS JUGA
+                            await this.refreshProviderList(); // REFRESH LIST DROPDOWN
                         }
                         else { const e = await res.json(); alert('Gagal: ' + e.error); }
                     } catch(e) { alert('Format JSON salah!'); }
@@ -359,7 +364,7 @@
                         if(res.ok) { 
                             alert('Terhapus'); 
                             await this.fetchTemplates();
-                            await this.refreshProviderList(); // REFRESH DROPDOWN CREDENTIALS JUGA
+                            await this.refreshProviderList(); // REFRESH LIST DROPDOWN
                         }
                     } catch(e) { alert('Gagal'); }
                 }
