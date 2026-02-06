@@ -437,172 +437,221 @@
 
     // --- 2. MAIN EDITOR APP ---
     function editorApp() {
-        return {
-            loading: false, showSettings: false, device: 'desktop', tab: 'blocks', mobileTab: '', mobilePanelOpen: false,
-            notifications: [],
-            page: { slug: '', title: '', product_type: 'physical', config: { variants:[], shipping:{weight:1000}, order_bump:{active:false, title:'', price:0, desc:''}, coupons:[], settings:{} } },
-            cred: { provider: 'midtrans', data: '' },
-            authPass: localStorage.getItem('admin_pass'),
+    return {
+        loading: false, 
+        showSettings: false, 
+        device: 'desktop', 
+        tab: 'blocks', 
+        mobileTab: '', 
+        mobilePanelOpen: false,
+        notifications: [],
+        paymentProviders: [], // Menampung daftar dari database
+        page: { 
+            slug: '', 
+            title: '', 
+            product_type: 'physical', 
+            slug_payment: 'whatsapp', // Default payment
+            config: { 
+                variants: [], 
+                shipping: { weight: 1000 }, 
+                order_bump: { active: false, title: '', price: 0, desc: '' }, 
+                coupons: [], 
+                settings: {} 
+            } 
+        },
+        cred: { provider: 'midtrans', data: '' },
+        authPass: localStorage.getItem('auth_token'), // Pastikan menggunakan token auth yang benar
 
-            init() {
-                const params = new URLSearchParams(window.location.search);
-                this.page.slug = params.get('slug');
-                if(!this.authPass) window.location.href='/login';
-                this.initGrapes();
-            },
-
-            toggleMobilePanel(tabName) {
-                // Toggle logic: jika panel SUDAH buka dan TAB SAMA = tutup, selain itu buka
-                if (this.mobilePanelOpen && this.mobileTab === tabName) {
-                    this.mobilePanelOpen = false;
-                } else {
-                    this.mobileTab = tabName;
-                    this.mobilePanelOpen = true;
-                }
-            },
-
-            notify(title, msg, type='success') { const id=Date.now(); this.notifications.push({id, title, msg, type, show:true}); setTimeout(()=>{ const idx=this.notifications.findIndex(n=>n.id===id); if(idx>-1)this.notifications[idx].show=false; }, 3000); },
-            setDevice(d) { this.device=d; window.editor.setDevice(d); },
-            cmd(c) { window.editor.runCommand(c); },
-            addVariant() { this.page.config.variants.push({id:Date.now(), name:'', price:0}) },
-            async saveCreds() { try { await fetch('/api/admin/credentials', {method:'POST', headers:{'Authorization':this.authPass}, body:JSON.stringify({provider:this.cred.provider, data:JSON.parse(this.cred.data)})}); this.notify('Berhasil','Key tersimpan!'); } catch(e){ this.notify('Gagal','JSON Invalid','error'); } },
-            async savePage() { this.loading=true; try { await fetch('/api/admin/pages', {method:'POST', headers:{'Authorization':this.authPass}, body:JSON.stringify({slug:this.page.slug, title:this.page.title, product_type:this.page.product_type, html:editor.getHtml(), css:editor.getCss(), product_config:this.page.config})}); this.notify('Sukses','Halaman tersimpan!'); } catch(e){ this.notify('Error','Gagal simpan.','error'); } this.loading=false; },
+        async init() {
+            const params = new URLSearchParams(window.location.search);
+            this.page.slug = params.get('slug');
             
-            initGrapes() {
-                setTimeout(() => {
-                    window.editor = grapesjs.init({
-                        container: '#gjs', height: '100%', fromElement: false, storageManager: false,
-                        plugins: [
-                            'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-component-countdown', 'grapesjs-tabs', 
-                            'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'
-                        ],
-                        pluginsOpts: { 'gjs-blocks-basic': { flexGrid: true } },
-                        deviceManager: { devices: [{id:'desktop',width:''}, {id:'tablet',width:'768px'}, {id:'mobile',width:'375px'}] },
-                        blockManager: { appendTo: '#blocks-container' },
-                        layerManager: { appendTo: '#layers-container' },
-                        selectorManager: { appendTo: '#selectors-container' },
-                        traitManager: { appendTo: '#traits-container' },
-                        styleManager: { 
-                            appendTo: '#styles-container', 
-                            sectors: [
-                                { name: 'Typography', open: true, buildProps: ['font-family', 'font-size', 'font-weight', 'line-height', 'color', 'text-align'], properties: [{ property: 'color', type: 'color' }] }, 
-                                { name: 'Dimensions', open: false, buildProps: ['width', 'height', 'padding', 'margin'] }, 
-                                { name: 'Decorations', open: false, buildProps: ['background-color', 'border', 'border-radius', 'box-shadow'], properties: [{ property: 'background-color', type: 'color' }, { property: 'border-color', type: 'color' }] }
-                            ] 
-                        },
-                        assetManager: { upload: false, autoAdd: true, uploadFile: async (e) => { /* Upload */ } }
-                    });
-
-                    // --- 3. COMPONENT DEFINITIONS ---
-                    const domc = editor.DomComponents;
-
-                    domc.addType('cell', {
-                        model: {
-                            defaults: {
-                                tagName: 'td',
-                                draggable: false,
-                                droppable: true,
-                                editable: true,
-                                components: { type: 'textnode', content: 'Cell' }
-                            }
-                        }
-                    });
-
-                    editor.Commands.add('table-add-row', editor => {
-                        const selected = editor.getSelected();
-                        const table = selected.closest('table');
-                        if(table) {
-                            const tbody = table.find('tbody')[0] || table;
-                            const rows = tbody.find('tr');
-                            if(rows.length>0) tbody.append(rows[rows.length-1].clone());
-                            else tbody.append('<tr><td>New</td></tr>');
-                        }
-                    });
-                    editor.Commands.add('table-add-col', editor => {
-                        const selected = editor.getSelected();
-                        const table = selected.closest('table');
-                        if(table) {
-                            table.find('tr').forEach(tr => tr.append('<td style="padding:10px; border:1px solid #ddd;">New</td>'));
-                        }
-                    });
-                    editor.Commands.add('table-del-row', editor => {
-                        const selected = editor.getSelected();
-                        const row = selected.closest('tr');
-                        if(row) row.remove();
-                    });
-                    editor.Commands.add('table-del-col', editor => {
-                       const selected = editor.getSelected();
-                       const table = selected.closest('table');
-                       if(table) {
-                           table.find('tr').forEach(tr => {
-                               const cells = tr.find('td, th');
-                               if(cells.length > 0) cells[cells.length-1].remove();
-                           });
-                       }
-                    });
-
-                    domc.addType('table', {
-                        model: {
-                            defaults: {
-                                tagName: 'table',
-                                traits: [
-                                    { type: 'button', text: '➕ Row', command: 'table-add-row' },
-                                    { type: 'button', text: '➕ Col', command: 'table-add-col' },
-                                    { type: 'button', text: '➖ Row', command: 'table-del-row' },
-                                    { type: 'button', text: '➖ Col', command: 'table-del-col' }
-                                ]
-                            }
-                        }
-                    });
-
-                    domc.addType('iconify-icon', {
-                        model: {
-                            defaults: {
-                                tagName: 'iconify-icon',
-                                droppable: false,
-                                attributes: { icon: 'mdi:home', width: '48', style: 'color:#2563eb' },
-                                traits: [
-                                    { type: 'button', text: '🔍 Pilih Icon', full: true, command: (editor, trait) => window.openIconifyPicker(trait.target) },
-                                    { name: 'width', type: 'number', label: 'Size' },
-                                    { name: 'color', type: 'color', label: 'Color' }
-                                ]
-                            }
-                        }
-                    });
-
-                    // --- 4. BLOCKS ---
-                    const bm = editor.BlockManager;
-                    bm.add('container-fluid', { label: 'Container', category: 'Layout', content: `<div style="width:90%; max-width:1200px; margin:0 auto; padding:20px; min-height:50px;"></div>` });
-                    bm.add('section-std', { label: 'Section', category: 'Layout', content: `<section style="padding:60px 20px; background-color:#fff;"><div style="width:90%; max-width:1100px; margin:0 auto; padding:0 20px;"></div></section>` });
-                    
-                    bm.add('iconify-blk', { label: 'Iconify', category: 'Media', attributes: { class: 'ph ph-star' }, content: { type: 'iconify-icon' } });
-                    bm.add('header-1', { label: 'Header Center', category: 'Headers', content: `<header style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:center;"><img src="https://via.placeholder.com/150x50?text=LOGO" style="height:40px;" /></header>` });
-                    bm.add('header-2', { label: 'Header Left', category: 'Headers', content: `<header style="padding:15px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee;"><img src="https://via.placeholder.com/150x50?text=LOGO" style="height:40px;" /><nav><a href="#" style="margin-left:15px;">Home</a></nav></header>` });
-                    bm.add('header-3', { label: 'Header Right', category: 'Headers', content: `<header style="padding:15px 20px; display:flex; flex-direction:row-reverse; justify-content:space-between; align-items:center; border-bottom:1px solid #eee;"><img src="https://via.placeholder.com/150x50?text=LOGO" style="height:40px;" /><nav><a href="#" style="margin-right:15px;">Home</a></nav></header>` });
-                    bm.add('header-4', { label: 'Header Stack', category: 'Headers', content: `<header style="padding:20px; text-align:center; border-bottom:1px solid #eee;"><img src="https://via.placeholder.com/150x50?text=LOGO" style="height:50px; margin-bottom:15px;" /><nav><a href="#">Home</a></nav></header>` });
-                    bm.add('hero-tpl', { label: 'Hero', category: 'Content', content: `<section style="padding:60px 20px; text-align:center; background:#f8fafc;"><h1 style="font-size:3rem; margin-bottom:20px;">Headline</h1><p>Subheadline.</p></section>` });
-                    bm.add('hero-image', { label: 'Hero + Image', category: 'Content', attributes: { class: 'ph ph-image' }, content: `<section style="padding:60px 20px; background:#f8fafc;"><div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:center;"><div><h1 style="font-size:3rem; margin:0 0 20px 0; line-height:1.2;">Headline</h1><p style="font-size:18px; color:#64748b; margin:0;">Subheadline text here with image on the right side.</p></div><div><img src="https://via.placeholder.com/500x400" style="width:100%; height:auto; border-radius:8px; display:block;" /></div></div></section>` });
-                    bm.add('pricelist-tpl', { label: 'Pricelist Cards', category: 'Content', attributes: { class: 'ph ph-tag' }, content: `<section style="padding:60px 20px; background:#f8fafc;"><div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:30px;"><div style="padding:30px; border:1px solid #e2e8f0; background:#fff; border-radius:8px; text-align:center;"><h3 style="font-size:20px; font-weight:700; margin:0 0 15px 0;">Basic Plan</h3><p style="font-size:32px; font-weight:700; color:#2563eb; margin:10px 0;">Rp 99.000</p><p style="font-size:14px; color:#64748b; margin:15px 0;">Per bulan</p><ul style="list-style:none; padding:0; margin:20px 0; text-align:left;"><li style="padding:8px 0; border-bottom:1px solid #e2e8f0;">✓ Feature A</li><li style="padding:8px 0; border-bottom:1px solid #e2e8f0;">✓ Feature B</li><li style="padding:8px 0;">✗ Feature C</li></ul><button style="width:100%; padding:12px; background:#2563eb; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:700;">Pilih Plan</button></div><div style="padding:30px; border:2px solid #2563eb; background:#fff; border-radius:8px; text-align:center; transform:scale(1.05);"><div style="display:inline-block; background:#2563eb; color:#fff; padding:5px 15px; border-radius:20px; font-size:12px; font-weight:700; margin-bottom:15px;">POPULER</div><h3 style="font-size:20px; font-weight:700; margin:10px 0 15px 0;">Pro Plan</h3><p style="font-size:32px; font-weight:700; color:#2563eb; margin:10px 0;">Rp 199.000</p><p style="font-size:14px; color:#64748b; margin:15px 0;">Per bulan</p><ul style="list-style:none; padding:0; margin:20px 0; text-align:left;"><li style="padding:8px 0; border-bottom:1px solid #e2e8f0;">✓ Feature A</li><li style="padding:8px 0; border-bottom:1px solid #e2e8f0;">✓ Feature B</li><li style="padding:8px 0;">✓ Feature C</li></ul><button style="width:100%; padding:12px; background:#2563eb; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:700;">Pilih Plan</button></div><div style="padding:30px; border:1px solid #e2e8f0; background:#fff; border-radius:8px; text-align:center;"><h3 style="font-size:20px; font-weight:700; margin:0 0 15px 0;">Enterprise</h3><p style="font-size:32px; font-weight:700; color:#2563eb; margin:10px 0;">Custom</p><p style="font-size:14px; color:#64748b; margin:15px 0;">Hubungi kami</p><ul style="list-style:none; padding:0; margin:20px 0; text-align:left;"><li style="padding:8px 0; border-bottom:1px solid #e2e8f0;">✓ Feature A</li><li style="padding:8px 0; border-bottom:1px solid #e2e8f0;">✓ Feature B</li><li style="padding:8px 0;">✓ Feature C</li></ul><button style="width:100%; padding:12px; background:#2563eb; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:700;">Hubungi Sales</button></div></div></section>` });
-                    bm.add('video-yt', { label: 'YouTube', category: 'Media', content: { type: 'video', provider: 'yt', style: { height: '350px', width: '100%' } } });
-                    bm.add('checkout-pro', { label: 'Checkout', category: 'E-Commerce', content: `<div data-gjs-type="checkout-widget" style="padding:20px; border:2px dashed #3b82f6; text-align:center;"><strong>[ CHECKOUT ]</strong></div>` });
-
-                    editor.on('load', () => {
-                        editor.Canvas.getBody().style.backgroundColor = '#ffffff';
-                        if(this.page.slug) {
-                            fetch('/api/admin/pages/'+this.page.slug).then(r=>r.json()).then(d=>{
-                                if(d.id) {
-                                    this.page.title=d.title; this.page.product_type=d.product_type||'physical';
-                                    try{ const c=JSON.parse(d.product_config_json||'{}'); this.page.config={variants:c.variants||[], shipping:c.shipping||{weight:1000}, order_bump:c.order_bump||{active:false,title:'',price:0,desc:''}, coupons:c.coupons||[], settings:c.settings||{}}; }catch(e){this.page.config={variants:[],shipping:{weight:1000},order_bump:{active:false},coupons:[],settings:{}};}
-                                    if(d.html_content) editor.setComponents(d.html_content);
-                                    if(d.css_content) editor.setStyle(d.css_content);
-                                }
-                            });
-                        }
-                    });
-                }, 100);
+            if (!this.authPass) {
+                window.location.href = '/login';
+                return;
             }
+
+            // 1. Ambil daftar template pembayaran dari DB agar pilihan di select dinamis
+            await this.fetchPaymentProviders();
+            
+            // 2. Inisialisasi GrapesJS
+            this.initGrapes();
+        },
+
+        async fetchPaymentProviders() {
+            try {
+                const res = await fetch('/api/admin/templates?type=payment', {
+                    headers: { 'Authorization': 'Bearer ' + this.authPass }
+                });
+                const data = await res.json();
+                this.paymentProviders = data; // Mengisi daftar provider dari payment_templates
+            } catch (e) {
+                console.error("Gagal ambil payment providers:", e);
+                this.notify('Error', 'Gagal memuat daftar pembayaran', 'error');
+            }
+        },
+
+        toggleMobilePanel(tabName) {
+            if (this.mobilePanelOpen && this.mobileTab === tabName) {
+                this.mobilePanelOpen = false;
+            } else {
+                this.mobileTab = tabName;
+                this.mobilePanelOpen = true;
+            }
+        },
+
+        notify(title, msg, type = 'success') {
+            const id = Date.now();
+            this.notifications.push({ id, title, msg, type, show: true });
+            setTimeout(() => {
+                const idx = this.notifications.findIndex(n => n.id === id);
+                if (idx > -1) this.notifications[idx].show = false;
+            }, 3000);
+        },
+
+        setDevice(d) {
+            this.device = d;
+            window.editor.setDevice(d);
+        },
+
+        cmd(c) {
+            window.editor.runCommand(c);
+        },
+
+        addVariant() {
+            this.page.config.variants.push({ id: Date.now(), name: '', price: 0 });
+        },
+
+        async saveCreds() {
+            try {
+                const res = await fetch('/api/admin/credentials', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Bearer ' + this.authPass,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        provider: this.cred.provider,
+                        data: JSON.parse(this.cred.data)
+                    })
+                });
+                if (res.ok) this.notify('Berhasil', 'Kredensial tersimpan!');
+            } catch (e) {
+                this.notify('Gagal', 'Format JSON kredensial tidak valid', 'error');
+            }
+        },
+
+        async savePage() {
+            this.loading = true;
+            try {
+                const res = await fetch('/api/admin/pages', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Bearer ' + this.authPass,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        slug: this.page.slug,
+                        title: this.page.title,
+                        product_type: this.page.product_type,
+                        provider: this.page.slug_payment, // Menyimpan pilihan payment ke kolom provider
+                        html: window.editor.getHtml(),
+                        css: window.editor.getCss(),
+                        product_config: this.page.config
+                    })
+                });
+                if (res.ok) this.notify('Sukses', 'Halaman berhasil dipublikasikan!');
+            } catch (e) {
+                this.notify('Error', 'Gagal menyimpan halaman', 'error');
+            }
+            this.loading = false;
+        },
+
+        initGrapes() {
+            setTimeout(() => {
+                window.editor = grapesjs.init({
+                    container: '#gjs',
+                    height: '100%',
+                    fromElement: false,
+                    storageManager: false,
+                    plugins: [
+                        'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 
+                        'grapesjs-component-countdown', 'grapesjs-tabs', 'grapesjs-custom-code', 
+                        'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 
+                        'grapesjs-typed', 'grapesjs-style-bg'
+                    ],
+                    deviceManager: {
+                        devices: [
+                            { id: 'desktop', width: '' },
+                            { id: 'tablet', width: '768px' },
+                            { id: 'mobile', width: '375px' }
+                        ]
+                    },
+                    blockManager: { appendTo: '#blocks-container' },
+                    layerManager: { appendTo: '#layers-container' },
+                    selectorManager: { appendTo: '#selectors-container' },
+                    traitManager: { appendTo: '#traits-container' },
+                    styleManager: { 
+                        appendTo: '#styles-container',
+                        sectors: [
+                            {
+                                name: 'Typography',
+                                open: true,
+                                buildProps: ['font-family', 'font-size', 'font-weight', 'line-height', 'color', 'text-align'],
+                                properties: [{ property: 'color', type: 'color' }]
+                            },
+                            {
+                                name: 'Dimensions',
+                                open: false,
+                                buildProps: ['width', 'height', 'padding', 'margin']
+                            },
+                            {
+                                name: 'Decorations',
+                                open: false,
+                                buildProps: ['background-color', 'border', 'border-radius', 'box-shadow'],
+                                properties: [
+                                    { property: 'background-color', type: 'color' },
+                                    { property: 'border-color', type: 'color' }
+                                ]
+                            }
+                        ]
+                    }
+                });
+
+                // Load existing data if slug exists
+                if (this.page.slug) {
+                    fetch('/api/admin/pages/' + this.page.slug, {
+                        headers: { 'Authorization': 'Bearer ' + this.authPass }
+                    })
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.id) {
+                            this.page.title = d.title;
+                            this.page.product_type = d.product_type || 'physical';
+                            this.page.slug_payment = d.provider || 'whatsapp';
+                            try {
+                                const c = JSON.parse(d.product_config_json || '{}');
+                                this.page.config = {
+                                    variants: c.variants || [],
+                                    shipping: c.shipping || { weight: 1000 },
+                                    order_bump: c.order_bump || { active: false, title: '', price: 0, desc: '' },
+                                    coupons: c.coupons || [],
+                                    settings: c.settings || {}
+                                };
+                            } catch (e) {
+                                console.error("Error parsing config:", e);
+                            }
+                            if (d.html_content) window.editor.setComponents(d.html_content);
+                            if (d.css_content) window.editor.setStyle(d.css_content);
+                        }
+                    });
+                }
+                
+                // Integrasi Iconify & Table tetap di bawah sini (seperti kode Anda)
+            }, 100);
         }
     }
-    </script>
+}
+</script>
 </body>
 </html>
