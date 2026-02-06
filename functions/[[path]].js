@@ -52,7 +52,7 @@ async function executeGenericAPI(c, type, slug, payload) {
             target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
             target_payload: { client_key: creds.client_key, server_key: creds.server_key }
         };
-
+    
         const authRes = await fetch(RELAY_URL, {
             method: 'POST',
             headers: { "Content-Type": "application/json", "X-Relay-Secret": RELAY_SECRET },
@@ -60,9 +60,14 @@ async function executeGenericAPI(c, type, slug, payload) {
         });
         
         const authData = await authRes.json();
-        const token = authData?.data?.token;
-        if (!token) throw new Error("Gagal ambil Token FlashPay via Relay");
         
+        // DEBUG: Lihat pesan error asli dari FlashPay via Relay
+        if (!authRes.ok || !authData?.data?.token) {
+            const errorMsg = authData?.message || JSON.stringify(authData);
+            throw new Error("Relay Error: " + errorMsg);
+        }
+        
+        const token = authData.data.token;
         extraHeaders['Authorization'] = `Bearer ${token}`;
         extraHeaders['X-Client-Key'] = creds.client_key;
     }
