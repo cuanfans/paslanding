@@ -74,19 +74,28 @@
                     <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
                         <i class="ph ph-key text-yellow-500"></i> API Credentials
                     </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Isi kunci rahasia untuk provider bawaan maupun template custom Anda.</p>
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">Pilih Layanan</label>
-                            <div class="space-y-2">
-                                <template x-for="p in ['midtrans', 'rajaongkir', 'cloudinary', 'whatsapp']">
-                                    <button @click="cred.provider=p" :class="cred.provider==p ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'" class="w-full text-left px-4 py-3 border rounded-lg text-sm font-bold transition flex items-center gap-3 capitalize">
-                                        <i class="ph" :class="getIcon(p)"></i> <span x-text="p"></span>
+                            <div class="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                                <template x-for="p in providerList" :key="p">
+                                    <button @click="cred.provider=p" 
+                                            :class="cred.provider==p ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'" 
+                                            class="w-full text-left px-4 py-3 border rounded-lg text-sm font-bold transition flex items-center gap-3 capitalize">
+                                        <i class="ph" :class="getIcon(p)"></i> 
+                                        <span x-text="p"></span>
+                                        <span x-show="isCustom(p)" class="ml-auto text-[10px] bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-500">Custom</span>
                                     </button>
                                 </template>
                             </div>
                         </div>
+
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">JSON Configuration</label>
+                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">
+                                JSON Configuration <span x-text="'(' + cred.provider + ')'" class="normal-case text-blue-500"></span>
+                            </label>
                             <textarea x-model="cred.data" rows="8" class="w-full px-4 py-3 bg-gray-900 text-green-400 font-mono text-xs rounded-lg border border-gray-700 outline-none focus:border-green-500 mb-4" placeholder='{ "server_key": "...", "client_key": "..." }'></textarea>
                             <div class="flex justify-end">
                                 <button @click="saveCreds" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow-lg flex items-center gap-2">
@@ -104,7 +113,6 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="text-xs text-gray-500 dark:text-gray-400">
                             <p class="mb-2">Ganti password secara berkala untuk menjaga keamanan akun admin Anda.</p>
-                            <p>Password baru akan langsung aktif setelah disimpan dan Anda akan diminta login ulang.</p>
                         </div>
                         <div class="md:col-span-2 space-y-4">
                             <div>
@@ -117,7 +125,7 @@
                                     <input type="password" x-model="security.new_pass" class="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500 transition">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Ulangi Password Baru</label>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Ulangi Password</label>
                                     <input type="password" x-model="security.confirm_pass" class="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-red-500 transition">
                                 </div>
                             </div>
@@ -136,7 +144,7 @@
                             <h3 class="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2">
                                 <i class="ph ph-brackets-curly text-purple-500"></i> API Templates
                             </h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Atur endpoint payment & shipping dinamis.</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Buat integrasi baru (Payment/Shipping).</p>
                         </div>
                         <div class="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-lg">
                             <button @click="tplType='payment'; fetchTemplates()" :class="tplType=='payment' ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-white' : 'text-gray-500'" class="px-4 py-1.5 rounded-md text-sm font-bold transition">Payment</button>
@@ -147,7 +155,7 @@
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div class="lg:col-span-1 border-r dark:border-gray-700 pr-6">
                             <div class="flex justify-between items-center mb-3">
-                                <label class="text-xs font-bold text-gray-500 uppercase">Daftar Template</label>
+                                <label class="text-xs font-bold text-gray-500 uppercase">List Template</label>
                                 <button @click="resetTpl()" class="text-xs text-blue-600 hover:underline">+ Buat Baru</button>
                             </div>
                             <div class="space-y-2 max-h-[400px] overflow-y-auto">
@@ -165,20 +173,18 @@
                             <div class="space-y-4">
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Slug</label>
-                                        <input x-model="tpl.slug" :disabled="isEditing" placeholder="cth: midtrans-qris" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-xs disabled:opacity-50">
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Slug (ID Unik)</label>
+                                        <input x-model="tpl.slug" :disabled="isEditing" placeholder="cth: paspay" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-xs disabled:opacity-50">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-bold text-gray-500 mb-1">Nama</label>
-                                        <input x-model="tpl.name" placeholder="cth: Midtrans QRIS" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-xs">
+                                        <input x-model="tpl.name" placeholder="cth: Paspay QRIS" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-xs">
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-4 gap-4">
                                     <div class="col-span-1">
                                         <label class="block text-xs font-bold text-gray-500 mb-1">Method</label>
-                                        <select x-model="tpl.method" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-xs font-bold">
-                                            <option>POST</option><option>GET</option>
-                                        </select>
+                                        <select x-model="tpl.method" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-xs font-bold"><option>POST</option><option>GET</option></select>
                                     </div>
                                     <div class="col-span-3">
                                         <label class="block text-xs font-bold text-gray-500 mb-1">API Endpoint</label>
@@ -187,22 +193,22 @@
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Headers JSON</label>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Headers</label>
                                         <textarea x-model="tpl.headers_json" rows="4" class="w-full px-3 py-2 bg-gray-900 text-blue-300 font-mono text-[10px] rounded border border-gray-700"></textarea>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Body JSON</label>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Body</label>
                                         <textarea x-model="tpl.body_json" rows="4" class="w-full px-3 py-2 bg-gray-900 text-yellow-300 font-mono text-[10px] rounded border border-gray-700"></textarea>
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Response Mapping JSON</label>
-                                    <textarea x-model="tpl.response_mapping" rows="2" class="w-full px-3 py-2 bg-gray-900 text-green-300 font-mono text-[10px] rounded border border-gray-700" placeholder='{"token": "data.token"}'></textarea>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Response Mapping</label>
+                                    <textarea x-model="tpl.response_mapping" rows="2" class="w-full px-3 py-2 bg-gray-900 text-green-300 font-mono text-[10px] rounded border border-gray-700"></textarea>
                                 </div>
                                 <div class="flex justify-between pt-2 border-t dark:border-gray-700 mt-4">
-                                    <button x-show="isEditing" @click="deleteTemplate" class="text-red-500 text-xs font-bold hover:underline">Hapus Template</button>
+                                    <button x-show="isEditing" @click="deleteTemplate" class="text-red-500 text-xs font-bold hover:underline">Hapus</button>
                                     <button @click="saveTemplate" class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700 transition shadow-lg flex items-center gap-2">
-                                        <i class="ph ph-floppy-disk"></i> Simpan Template
+                                        <i class="ph ph-floppy-disk"></i> Simpan
                                     </button>
                                 </div>
                             </div>
@@ -222,22 +228,56 @@
                 sidebarOpen: window.innerWidth > 768,
                 darkMode: localStorage.getItem('theme') === 'dark',
                 
-                // Kredensial & Security
+                // DATA
                 cred: { provider: 'midtrans', data: '' },
                 security: { old_pass: '', new_pass: '', confirm_pass: '' },
-                
-                // Template
                 tplType: 'payment',
                 templates: [],
                 isEditing: false,
                 tpl: { slug: '', name: '', api_endpoint: '', method: 'POST', headers_json: '{}', body_json: '{}', response_mapping: '{}' },
+                
+                // PROVIDER LIST (Defaults + Custom)
+                defaultProviders: ['midtrans', 'rajaongkir', 'cloudinary', 'whatsapp'],
+                customProviders: [],
                 
                 token: localStorage.getItem('admin_pass'),
                 
                 async init() {
                     if (!this.token) return window.location.href = '/login';
                     if (this.darkMode) document.documentElement.classList.add('dark');
-                    this.fetchTemplates();
+                    
+                    await this.fetchTemplates(); // Load templates dulu
+                    await this.refreshProviderList(); // Baru update list provider
+                },
+
+                // GABUNGKAN DEFAULT + CUSTOM
+                get providerList() {
+                    return [...this.defaultProviders, ...this.customProviders];
+                },
+
+                // Cek apakah provider ini custom (template)
+                isCustom(p) {
+                    return !this.defaultProviders.includes(p);
+                },
+
+                // Ambil semua template untuk mengisi dropdown Credentials
+                async refreshProviderList() {
+                    this.customProviders = [];
+                    try {
+                        const resPay = await fetch('/api/admin/templates?type=payment', { headers: { 'Authorization': `Bearer ${this.token}` } });
+                        const resShip = await fetch('/api/admin/templates?type=shipping', { headers: { 'Authorization': `Bearer ${this.token}` } });
+                        
+                        if(resPay.ok) {
+                            const data = await resPay.json();
+                            this.customProviders.push(...data.map(d => d.slug));
+                        }
+                        if(resShip.ok) {
+                            const data = await resShip.json();
+                            this.customProviders.push(...data.map(d => d.slug));
+                        }
+                        // Hapus duplikat jika ada slug yg sama dgn default
+                        this.customProviders = this.customProviders.filter(p => !this.defaultProviders.includes(p));
+                    } catch(e) { console.error("Gagal load provider list"); }
                 },
 
                 toggleTheme() {
@@ -247,7 +287,11 @@
                 },
 
                 logout() { localStorage.removeItem('admin_pass'); window.location.href = '/login'; },
-                getIcon(p) { const i={'midtrans':'ph-credit-card','rajaongkir':'ph-truck','cloudinary':'ph-image','whatsapp':'ph-whatsapp-logo'}; return i[p]||'ph-gear'; },
+                
+                getIcon(p) { 
+                    const i={'midtrans':'ph-credit-card','rajaongkir':'ph-truck','cloudinary':'ph-image','whatsapp':'ph-whatsapp-logo'}; 
+                    return i[p]||'ph-plugs-connected'; 
+                },
 
                 // --- 1. CREDENTIALS ---
                 async saveCreds() {
@@ -263,30 +307,20 @@
                     } catch(e) { alert('JSON Kredensial Tidak Valid!'); }
                 },
 
-                // --- 2. SECURITY (CHANGE PASSWORD) ---
+                // --- 2. SECURITY ---
                 async changePassword() {
-                    if(!this.security.old_pass || !this.security.new_pass) return alert('Mohon isi password lama dan baru');
-                    if(this.security.new_pass !== this.security.confirm_pass) return alert('Konfirmasi password tidak cocok');
-
+                    if(!this.security.old_pass || !this.security.new_pass) return alert('Lengkapi form password');
+                    if(this.security.new_pass !== this.security.confirm_pass) return alert('Konfirmasi password beda');
                     try {
                         const res = await fetch('/api/admin/change-password', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
-                            body: JSON.stringify({
-                                current_password: this.security.old_pass,
-                                new_password: this.security.new_pass
-                            })
+                            body: JSON.stringify({ current_password: this.security.old_pass, new_password: this.security.new_pass })
                         });
-                        
-                        const data = await res.json();
-                        
-                        if(res.ok) {
-                            alert('Password berhasil diubah! Silakan login kembali.');
-                            this.logout();
-                        } else {
-                            alert('Gagal: ' + (data.message || 'Error server'));
-                        }
-                    } catch(e) { alert('Terjadi kesalahan koneksi'); }
+                        const d = await res.json();
+                        if(res.ok) { alert('Sukses! Login ulang.'); this.logout(); }
+                        else alert('Gagal: ' + d.message);
+                    } catch(e) { alert('Error koneksi'); }
                 },
 
                 // --- 3. TEMPLATES ---
@@ -298,7 +332,7 @@
                             headers: { 'Authorization': `Bearer ${this.token}` }
                         });
                         if(res.ok) this.templates = await res.json();
-                    } catch(e) { console.error("Gagal load templates"); }
+                    } catch(e) {}
                 },
 
                 loadTpl(t) { this.tpl = { ...t }; this.isEditing = true; },
@@ -313,7 +347,11 @@
                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
                             body: JSON.stringify({ type: this.tplType, data: this.tpl })
                         });
-                        if(res.ok) { alert('Template tersimpan!'); this.fetchTemplates(); }
+                        if(res.ok) { 
+                            alert('Template tersimpan!'); 
+                            await this.fetchTemplates();
+                            await this.refreshProviderList(); // Update dropdown provider di atas
+                        }
                         else { const e = await res.json(); alert('Gagal: ' + e.error); }
                     } catch(e) { alert('Format JSON salah!'); }
                 },
@@ -324,7 +362,11 @@
                         const res = await fetch(`/api/admin/templates?type=${this.tplType}&slug=${this.tpl.slug}`, {
                             method: 'DELETE', headers: { 'Authorization': `Bearer ${this.token}` }
                         });
-                        if(res.ok) { alert('Terhapus'); this.fetchTemplates(); }
+                        if(res.ok) { 
+                            alert('Terhapus'); 
+                            await this.fetchTemplates();
+                            await this.refreshProviderList(); // Update dropdown provider di atas
+                        }
                     } catch(e) { alert('Gagal'); }
                 }
             }
