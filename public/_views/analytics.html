@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Traffic Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="/js/layout.js"></script>
+</head>
+<body>
+    <admin-layout>
+        <div x-data="analyticsApp()" x-init="init()">
+            
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Traffic Analytics</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Pantau performa kunjungan landing page Anda.</p>
+                </div>
+                <button @click="init()" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Refresh Data">
+                    <i class="ph ph-arrows-clockwise text-xl" :class="loading ? 'animate-spin' : ''"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700 flex items-center justify-between relative overflow-hidden">
+                    <div class="relative z-10">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Views Hari Ini</p>
+                        <h3 class="text-4xl font-black text-blue-600 dark:text-blue-400 mt-2" x-text="data.stats.today_views">0</h3>
+                    </div>
+                    <div class="absolute right-0 top-0 h-full w-24 bg-gradient-to-l from-blue-50 to-transparent dark:from-blue-900/20"></div>
+                    <i class="ph ph-trend-up text-4xl text-blue-200 dark:text-blue-800 relative z-10"></i>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Views (All Time)</p>
+                        <h3 class="text-4xl font-black text-gray-800 dark:text-white mt-2" x-text="data.stats.total_views">0</h3>
+                    </div>
+                    <i class="ph ph-eye text-4xl text-gray-200 dark:text-gray-700"></i>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 flex flex-col">
+                    <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 rounded-t-xl">
+                        <h3 class="font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                            <i class="ph ph-trophy text-yellow-500"></i> Halaman Terpopuler
+                        </h3>
+                    </div>
+                    <div class="flex-1 overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white dark:bg-gray-800 text-gray-400 text-xs border-b dark:border-gray-700">
+                                <tr>
+                                    <th class="p-4">Halaman</th>
+                                    <th class="p-4 text-right">Views</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y dark:divide-gray-700">
+                                <template x-for="(page, index) in data.top_pages" :key="index">
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                                        <td class="p-4">
+                                            <div class="font-bold text-gray-800 dark:text-gray-200" x-text="page.title"></div>
+                                            <a :href="'/'+page.slug" target="_blank" class="text-xs text-blue-500 hover:underline flex items-center gap-1">
+                                                <span x-text="'/'+page.slug"></span> <i class="ph ph-arrow-square-out"></i>
+                                            </a>
+                                        </td>
+                                        <td class="p-4 text-right font-mono font-bold text-gray-600 dark:text-gray-300" x-text="page.views"></td>
+                                    </tr>
+                                </template>
+                                <tr x-show="data.top_pages.length === 0">
+                                    <td colspan="2" class="p-6 text-center text-gray-400 text-xs">Belum ada data traffic.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 flex flex-col">
+                    <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 rounded-t-xl">
+                        <h3 class="font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                            <i class="ph ph-signpost text-green-500"></i> Sumber Traffic
+                        </h3>
+                    </div>
+                    <div class="flex-1 overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white dark:bg-gray-800 text-gray-400 text-xs border-b dark:border-gray-700">
+                                <tr>
+                                    <th class="p-4">Referrer (Asal)</th>
+                                    <th class="p-4 text-right">Jml</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y dark:divide-gray-700">
+                                <template x-for="(ref, index) in data.referrers" :key="index">
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                                        <td class="p-4 text-gray-700 dark:text-gray-300 truncate max-w-[200px]" x-text="ref.referrer || 'Direct / Unknown'"></td>
+                                        <td class="p-4 text-right font-mono font-bold text-gray-600 dark:text-gray-300" x-text="ref.count"></td>
+                                    </tr>
+                                </template>
+                                <tr x-show="data.referrers.length === 0">
+                                    <td colspan="2" class="p-6 text-center text-gray-400 text-xs">Belum ada data referrer.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700">
+                <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 rounded-t-xl">
+                    <h3 class="font-bold text-gray-700 dark:text-gray-200">Aktivitas Terakhir</h3>
+                    <span class="text-xs text-gray-400">20 Log Terakhir</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-white dark:bg-gray-800 text-gray-400 text-xs uppercase tracking-wider border-b dark:border-gray-700">
+                            <tr>
+                                <th class="p-4">Waktu</th>
+                                <th class="p-4">Halaman</th>
+                                <th class="p-4">Referrer</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y dark:divide-gray-700 text-gray-600 dark:text-gray-400">
+                            <template x-for="(log, i) in data.recent" :key="i">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                                    <td class="p-4 whitespace-nowrap text-xs font-mono" x-text="formatDate(log.created_at)"></td>
+                                    <td class="p-4 font-medium text-gray-800 dark:text-gray-200" x-text="log.title"></td>
+                                    <td class="p-4 text-xs truncate max-w-[200px]" x-text="log.referrer || '-'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <script>
+            function analyticsApp() {
+                return {
+                    loading: false,
+                    data: {
+                        stats: { total_views: 0, today_views: 0 },
+                        top_pages: [],
+                        referrers: [],
+                        recent: []
+                    },
+                    
+                    async init() {
+                        this.loading = true;
+                        try {
+                            const res = await fetch('/api/admin/analytics/data');
+                            if(res.ok) {
+                                this.data = await res.json();
+                            }
+                        } catch(e) {
+                            console.error("Gagal load analytics", e);
+                        }
+                        this.loading = false;
+                    },
+
+                    formatDate(dateStr) {
+                        if(!dateStr) return '-';
+                        const d = new Date(dateStr);
+                        return d.toLocaleString('id-ID', { 
+                            day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' 
+                        });
+                    }
+                }
+            }
+        </script>
+    </admin-layout>
+</body>
+</html>
