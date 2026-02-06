@@ -231,6 +231,64 @@ app.post('/api/admin/credentials', async (c) => {
 
 app.post('/api/admin/upload-image', uploadImage);
 
+// --- ENDPOINT BARU: GANTI PASSWORD ---
+app.post('/api/admin/change-password', async (c) => {
+    try {
+        const user = c.get('user');
+        const { current_password, new_password } = await c.req.json();
+        
+        // Ambil data user dari DB
+        const dbUser = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first();
+        if(!dbUser) return c.json({ success: false, message: 'User tidak ditemukan' }, 404);
+        
+        // Cek password lama
+        const currentHash = await sha256(current_password);
+        if(currentHash !== dbUser.password) {
+            return c.json({ success: false, message: 'Password lama salah' }, 401);
+        }
+        
+        // Update password baru
+        const newHash = await sha256(new_password);
+        await c.env.DB.prepare("UPDATE users SET password = ? WHERE id = ?").bind(newHash, user.id).run();
+        
+        return c.json({ success: true });
+    } catch(e) { return c.json({ success: false, message: e.message }, 500); }
+});
+
+// --- ENDPOINT BARU: TEMPLATE API (Payment & Shipping) ---
+app.get('/api/admin/templates', async (c) => {
+    const type = c.req.query('type') === 'shipping' ? 'shipping_templates' : 'payment_templates';
+    try {
+        const res = await c.env.DB.prepare(`SELECT * FROM ${type}`).all();
+        return c.json(res.results);
+    } catch(e) { return c.json([], 200); } // Return empty array if table not found/empty
+});
+
+app.post('/api/admin/templates', async (c) => {
+    const { type, data } = await c.req.json();
+    const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
+    
+    try {
+        await c.env.DB.prepare(
+            `INSERT INTO ${table} (slug, name, api_endpoint, method, headers_json, body_json, response_mapping) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(slug) DO UPDATE SET 
+             name=excluded.name, api_endpoint=excluded.api_endpoint, method=excluded.method, 
+             headers_json=excluded.headers_json, body_json=excluded.body_json, response_mapping=excluded.response_mapping`
+        ).bind(data.slug, data.name, data.api_endpoint, data.method, data.headers_json, data.body_json, data.response_mapping).run();
+        return c.json({ success: true });
+    } catch(e) { return c.json({ error: e.message }, 500); }
+});
+
+app.delete('/api/admin/templates', async (c) => {
+    const type = c.req.query('type') === 'shipping' ? 'shipping_templates' : 'payment_templates';
+    const slug = c.req.query('slug');
+    try {
+        await c.env.DB.prepare(`DELETE FROM ${type} WHERE slug = ?`).bind(slug).run();
+        return c.json({ success: true });
+    } catch(e) { return c.json({ error: e.message }, 500); }
+});
+
 // Generic API Gateways
 app.post('/api/shipping/check', async (c) => {
     try {
