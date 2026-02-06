@@ -277,14 +277,30 @@ app.get('/api/admin/templates', async (c) => {
 app.post('/api/admin/templates', async (c) => {
     const { type, data } = await c.req.json();
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
+    
     try {
+        // PERBAIKAN: Menambahkan kolom webhook_config
         await c.env.DB.prepare(
-            `INSERT INTO ${table} (slug, name, api_endpoint, method, headers_json, body_json, response_mapping) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)
+            `INSERT INTO ${table} (slug, name, api_endpoint, method, headers_json, body_json, response_mapping, webhook_config) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(slug) DO UPDATE SET 
-             name=excluded.name, api_endpoint=excluded.api_endpoint, method=excluded.method, 
-             headers_json=excluded.headers_json, body_json=excluded.body_json, response_mapping=excluded.response_mapping`
-        ).bind(data.slug, data.name, data.api_endpoint, data.method, data.headers_json, data.body_json, data.response_mapping).run();
+             name=excluded.name, 
+             api_endpoint=excluded.api_endpoint, 
+             method=excluded.method, 
+             headers_json=excluded.headers_json, 
+             body_json=excluded.body_json, 
+             response_mapping=excluded.response_mapping,
+             webhook_config=excluded.webhook_config`
+        ).bind(
+            data.slug, 
+            data.name, 
+            data.api_endpoint, 
+            data.method, 
+            data.headers_json, 
+            data.body_json, 
+            data.response_mapping,
+            data.webhook_config || '{}' // Default JSON kosong jika null
+        ).run();
         return c.json({ success: true });
     } catch(e) { return c.json({ error: e.message }, 500); }
 });
