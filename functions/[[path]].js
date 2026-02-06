@@ -164,13 +164,19 @@ app.get('/api/admin/pages/:slug', async (c) => {
 });
 
 // --- B. REPORTS (FIX: Menggunakan Tabel TRANSACTIONS) ---
+// --- B. REPORTS (FIX: JOIN dengan Pages untuk dapat Product Type) ---
 app.get('/api/admin/reports', async (c) => {
     try {
-        // Ambil data dari tabel TRANSACTIONS
-        const txs = await c.env.DB.prepare("SELECT * FROM transactions ORDER BY created_at DESC LIMIT 100").all();
+        // PERBAIKAN: Join dengan tabel pages agar kita tahu ini produk fisik atau digital
+        const txs = await c.env.DB.prepare(`
+            SELECT t.*, p.product_type, p.title as page_title
+            FROM transactions t
+            LEFT JOIN pages p ON t.page_id = p.id
+            ORDER BY t.created_at DESC 
+            LIMIT 100
+        `).all();
         
-        // Format ulang data agar sesuai dgn tampilan frontend
-        // Kita extract nama & email dari kolom JSON customer_info
+        // Format ulang data
         const formattedOrders = txs.results.map(t => {
             let customer = { name: 'Guest', email: '-', phone: '-' };
             try { 
@@ -181,9 +187,12 @@ app.get('/api/admin/reports', async (c) => {
             return {
                 id: t.id,
                 order_id: t.order_id,
-                customer_name: customer.name, // Mapping utk frontend
+                page_title: t.page_title || 'Unknown Product',
+                product_type: t.product_type || 'physical', // Default ke physical jika null
+                customer_name: customer.name,
+                customer_email: customer.email,
                 customer_phone: customer.phone,
-                total_amount: t.amount,       // Mapping utk frontend
+                total_amount: t.amount,
                 status: t.status,
                 created_at: t.created_at
             };
