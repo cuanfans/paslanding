@@ -113,78 +113,102 @@
     </div>
 
     <script>
-        function analyticsApp() {
-            return {
-                sidebarOpen: window.innerWidth > 768,
-                darkMode: localStorage.getItem('theme') === 'dark',
-                recentLogs: [],
-                token: localStorage.getItem('admin_pass'),
+    function analyticsApp() {
+        return {
+            sidebarOpen: window.innerWidth > 768,
+            darkMode: localStorage.getItem('theme') === 'dark',
+            recentLogs: [],
+            // Ambil token langsung saat objek dibuat
+            token: localStorage.getItem('admin_pass'),
 
-                async init() {
-                    if (!this.token) return window.location.href = '/login';
-                    if (this.darkMode) document.documentElement.classList.add('dark');
-
-                    try {
-                        const res = await fetch('/api/admin/analytics/data', {
-                            headers: { 'Authorization': `Bearer ${this.token}` }
-                        });
-                        
-                        if (res.ok) {
-                            const data = await res.json();
-                            this.recentLogs = data.recent || [];
-                            this.renderCharts(data);
-                        } else if (res.status === 401) {
-                            window.location.href = '/login';
-                        }
-                    } catch (e) {
-                        console.error("Gagal load analytics:", e);
-                    }
-                },
-
-                renderCharts(data) {
-                    // 1. Chart Top Pages
-                    const topPagesCtx = document.getElementById('topPagesChart').getContext('2d');
-                    new Chart(topPagesCtx, {
-                        type: 'bar',
-                        data: {
-                            labels: data.top_pages.map(p => p.title),
-                            datasets: [{
-                                label: 'Total Views',
-                                data: data.top_pages.map(p => p.views),
-                                backgroundColor: '#2563eb',
-                                borderRadius: 5
-                            }]
-                        },
-                        options: { responsive: true, plugins: { legend: { display: false } } }
-                    });
-
-                    // 2. Chart Referrer
-                    const sourceCtx = document.getElementById('sourceChart').getContext('2d');
-                    new Chart(sourceCtx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: data.referrers.map(r => r.referrer),
-                            datasets: [{
-                                data: data.referrers.map(r => r.count),
-                                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
-                            }]
-                        },
-                        options: { responsive: true }
-                    });
-                },
-
-                toggleTheme() {
-                    this.darkMode = !this.darkMode;
-                    localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
-                    document.documentElement.classList.toggle('dark');
-                },
-
-                logout() {
-                    localStorage.removeItem('admin_pass');
+            async init() {
+                // JIKA TOKEN TIDAK ADA, LANGSUNG TENDANG KE LOGIN
+                if (!this.token) {
                     window.location.href = '/login';
+                    return;
                 }
+
+                if (this.darkMode) document.documentElement.classList.add('dark');
+
+                try {
+                    // Pastikan header Authorization dikirim dengan benar
+                    const res = await fetch('/api/admin/analytics/data', {
+                        headers: { 
+                            'Authorization': `Bearer ${this.token}`,
+                            'Cache-Control': 'no-cache'
+                        }
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.recentLogs = data.recent || [];
+                        // Render chart hanya setelah data dipastikan ada
+                        this.renderCharts(data);
+                    } else if (res.status === 401 || res.status === 403) {
+                        // Jika server bilang token expired/salah, hapus dan login ulang
+                        localStorage.removeItem('admin_pass');
+                        window.location.href = '/login';
+                    }
+                } catch (e) {
+                    console.error("Gagal load analytics:", e);
+                }
+            },
+
+            renderCharts(data) {
+                // Hancurkan chart lama jika ada (mencegah error canvas reused)
+                const existingTopChart = Chart.getChart("topPagesChart");
+                if (existingTopChart) existingTopChart.destroy();
+                
+                const existingSourceChart = Chart.getChart("sourceChart");
+                if (existingSourceChart) existingSourceChart.destroy();
+
+                // 1. Chart Top Pages
+                const topPagesCtx = document.getElementById('topPagesChart').getContext('2d');
+                new Chart(topPagesCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.top_pages.map(p => p.title),
+                        datasets: [{
+                            label: 'Views',
+                            data: data.top_pages.map(p => p.views),
+                            backgroundColor: '#2563eb',
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } } 
+                    }
+                });
+
+                // 2. Chart Referrer
+                const sourceCtx = document.getElementById('sourceChart').getContext('2d');
+                new Chart(sourceCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.referrers.map(r => r.referrer || 'Direct'),
+                        datasets: [{
+                            data: data.referrers.map(r => r.count),
+                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            },
+
+            toggleTheme() {
+                this.darkMode = !this.darkMode;
+                localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+                document.documentElement.classList.toggle('dark');
+            },
+
+            logout() {
+                localStorage.removeItem('admin_pass');
+                window.location.href = '/login';
             }
         }
-    </script>
+    }
+</script>
 </body>
 </html>
