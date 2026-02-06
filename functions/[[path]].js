@@ -399,13 +399,124 @@ async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
     const settings = config.settings || {}; 
     let headScripts = '';
+    
+    // Pixel Tracking (Tetap seperti kode lo)
     if (settings.fb_pixel_id) headScripts += `<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window, document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init', '${settings.fb_pixel_id}');fbq('track', 'PageView');</script>`;
     if (settings.tiktok_pixel_id) headScripts += `<script>!function (w, d, t) { w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq.methods[i],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};ttq.load('${settings.tiktok_pixel_id}');ttq.page();}(window, document, 'ttq');</script>`;
+
+    // Ambil list provider yang dicentang di editor
+    const activePayments = config.active_payments || [];
     
+    // SCRIPT INJECTOR CHECKOUT
+    const checkoutScript = `
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.body;
+            if (!container.innerHTML.includes('[ CHECKOUT ]')) return;
+
+            const activeSlugs = ${JSON.stringify(activePayments)};
+            
+            // Generate HTML Pilihan Pembayaran
+            let paymentListHTML = activeSlugs.map(slug => \`
+                <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200">
+                    <input type="radio" name="pay_method" value="\${slug}" class="mr-3 w-4 h-4 text-blue-600">
+                    <span class="text-sm font-bold text-gray-700 uppercase">\${slug.split('-').join(' ')}</span>
+                </label>
+            \`).join('');
+
+            const formHTML = \`
+                <div id="checkout-form-real" class="max-w-md mx-auto my-8 p-6 bg-white rounded-2xl shadow-xl border border-gray-100">
+                    <h2 class="text-xl font-bold text-gray-800 mb-6">Konfirmasi Pesanan</h2>
+                    
+                    <div class="space-y-4 mb-8">
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase">Informasi Pengiriman</label>
+                            <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-blue-500">
+                            <input type="tel" id="c_phone" placeholder="No. WhatsApp (Aktif)" class="w-full mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase block mb-2">Metode Pembayaran</label>
+                        <div class="grid gap-2">
+                            \${paymentListHTML || '<p class="text-red-500 text-[10px]">Pilih metode pembayaran di editor!</p>'}
+                        </div>
+                    </div>
+
+                    <button id="btn-submit-order" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition transform active:scale-95">
+                        BAYAR SEKARANG
+                    </button>
+                    <p class="text-[9px] text-center text-gray-400 mt-4">Pesanan Anda akan diproses secara otomatis.</p>
+                </div>
+            \`;
+
+            // GANTI PLACEHOLDER [ CHECKOUT ] DENGAN FORM ASLI
+            container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', formHTML);
+
+            // LOGIKA PEMBAYARAN
+            document.getElementById('btn-submit-order')?.addEventListener('click', async () => {
+                const selectedMethod = document.querySelector('input[name="pay_method"]:checked')?.value;
+                const name = document.getElementById('c_name').value;
+                const phone = document.getElementById('c_phone').value;
+
+                if(!name || !phone) return alert('Lengkapi data pengiriman!');
+                if(!selectedMethod) return alert('Pilih metode pembayaran!');
+
+                const btn = document.getElementById('btn-submit-order');
+                btn.disabled = true;
+                btn.innerText = 'MEMPROSES...';
+
+                try {
+                    const res = await fetch('/api/public/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            page_id: ${page.id},
+                            slug_payment: selectedMethod,
+                            customer: { name, phone }
+                        })
+                    });
+                    const data = await res.json();
+                    if(data.payment_url) window.location.href = data.payment_url;
+                    else if(data.error) alert(data.error);
+                } catch(e) {
+                    alert('Gagal membuat pesanan. Coba lagi.');
+                    btn.disabled = false;
+                    btn.innerText = 'BAYAR SEKARANG';
+                }
+            });
+        });
+    </script>`;
+
     const appScript = `<script>window.PAGE_ID=${page.id};window.PRODUCT_TYPE="${page.product_type||'physical'}";window.PRODUCT_VARIANTS=${JSON.stringify(config.variants||[])};window.ORDER_BUMP=${JSON.stringify(config.order_bump||{active:false})};window.SHIPPING_CONFIG=${JSON.stringify(config.shipping||{weight:1000})};</script>`;
     
-    return c.html(`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${settings.seo_title||page.title}</title><meta name="description" content="${settings.seo_description||''}">${settings.favicon?`<link rel="icon" href="${settings.favicon}">`:''}<script src="https://cdn.tailwindcss.com"></script><script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script><style>html,body{margin:0!important;padding:0!important;width:100%;height:100%;overflow-x:hidden}body::before{content:"";display:table}${page.css_content}[x-cloak]{display:none!important}</style>${headScripts}</head><body class="antialiased">${page.html_content}${appScript}${settings.custom_footer||''}</body></html>`);
+    return c.html(`
+        <!DOCTYPE html>
+        <html lang="id">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${settings.seo_title||page.title}</title>
+            <meta name="description" content="${settings.seo_description||''}">
+            ${settings.favicon?`<link rel="icon" href="${settings.favicon}">`:''}
+            <script src="https://cdn.tailwindcss.com"></script>
+            <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+            <style>
+                html,body{margin:0!important;padding:0!important;width:100%;height:100%;overflow-x:hidden}
+                body::before{content:"";display:table}
+                ${page.css_content}
+                [x-cloak]{display:none!important}
+            </style>
+            ${headScripts}
+        </head>
+        <body class="antialiased">
+            ${page.html_content}
+            ${appScript}
+            ${checkoutScript}
+            ${settings.custom_footer||''}
+        </body>
+        </html>
+    `);
 }
-
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 export const onRequest = handle(app);
