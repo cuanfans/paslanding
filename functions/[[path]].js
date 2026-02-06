@@ -319,77 +319,33 @@ app.delete('/api/admin/templates', async (c) => {
 // ===============================================
 // 6. PUBLIC CUSTOMER API
 // ===============================================
-app.post('/api/public/submit-form', async (c) => {
-    const body = await c.req.parseBody();
-    await c.env.DB.prepare("INSERT INTO leads (name, email, message, created_at) VALUES (?, ?, ?, datetime('now'))").bind(body['name']||'Anon', body['email']||'-', body['message']||JSON.stringify(body)).run();
-    return c.redirect((c.req.header('Referer') || '/') + '?status=success');
-});
+// ===============================================
+// 6. PUBLIC CUSTOMER API
+// ===============================================
 
 app.post('/api/public/checkout', async (c) => {
     try {
         const body = await c.req.json();
-        const { slug_payment, customer, page_id } = body;
+        const { slug_payment, customer } = body;
 
-        // 1. Validasi Input Dasar
+        // Validasi input minimal
         if (!slug_payment || !customer?.phone) {
-            return c.json({ error: "Data pesanan tidak lengkap!" }, 400);
+            return c.json({ error: "Data pesanan atau nomor HP tidak lengkap!" }, 400);
         }
 
-        // 2. Ambil Kredensial dari Tabel Credentials (BERDASARKAN PROVIDER YANG DIPILIH PEMBELI)
-        // Kita asumsikan di dropdown/checkbox slug-nya adalah 'flashpay-bri', 
-        // tapi di tabel credentials kita simpan sebagai 'flashpay'
-        const providerKey = slug_payment.includes('flashpay') ? 'flashpay' : slug_payment;
+        // --- PANGGIL ENGINE DI BLOK 1 ---
+        // Fungsi ini sudah otomatis menangani Dekripsi, Relay Proxy, dan FlashPay
+        const result = await executeGenericAPI(c, 'payment', slug_payment, body);
         
-        const credRow = await c.env.DB.prepare(
-            `SELECT data FROM credentials WHERE provider = ?`
-        ).bind(providerKey).first();
-
-        if (!credRow) {
-            return c.json({ error: `Kredensial API untuk ${providerKey} belum diatur di menu Settings!` }, 400);
-        }
-
-        const creds = JSON.parse(credRow.data);
-        // Pastikan key ada
-        if (!creds.client_key || !creds.server_key) {
-            return c.json({ error: "API Key (Client/Server) tidak ditemukan dalam JSON Config!" }, 400);
-        }
-
-        // 3. Logika Hit ke Relay Proxy FlashPay
-        const timestamp = Math.floor(Date.now() / 1000);
-        const orderId = `INV-${timestamp}-${Math.floor(Math.random() * 1000)}`;
-        
-        // Sesuaikan dengan endpoint Relay Proxy Anda
-        const proxyUrl = "https://your-relay-proxy.com/api/v1/payment"; 
-
-        const response = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Client-Key': creds.client_key,
-                'X-Timestamp': timestamp.toString(),
-                'X-Signature': btoa(`${creds.client_key}:${timestamp}:${creds.server_key}`) // Contoh simple signature
-            },
-            body: JSON.stringify({
-                order_id: orderId,
-                amount: 199000, // Harusnya ambil dari data Page/Variant
-                customer_name: customer.name,
-                customer_phone: customer.phone,
-                payment_method: slug_payment // e.g. 'flashpay-bri'
-            })
+        // Kirim link pembayaran yang sudah di-mapping oleh engine
+        // Pastikan mapping di template lo sudah benar (misal payment_url)
+        return c.json({ 
+            payment_url: result.payment_url || result.redirect_url || result._raw?.data?.payment_url 
         });
 
-        const result = await response.json();
-
-        if (response.ok && result.payment_url) {
-            return c.json({ payment_url: result.payment_url });
-        } else {
-            return c.json({ error: result.message || "Gagal mendapatkan link pembayaran dari FlashPay" }, 400);
-        }
-
-    } catch (err) {
-        console.error("CRITICAL ERROR CHECKOUT:", err);
-        // Ini yang mencegah Error 500 tanpa info
-        return c.json({ error: "Internal Server Error: " + err.message }, 500);
+    } catch (e) { 
+        console.error("Checkout Error:", e.message);
+        return c.json({ error: "Gagal memproses pesanan: " + e.message }, 500); 
     }
 });
 
