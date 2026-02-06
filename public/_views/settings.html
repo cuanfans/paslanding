@@ -214,6 +214,20 @@
                                         <input x-model="tpl.name" placeholder="cth: Paspay QRIS" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-xs">
                                     </div>
                                 </div>
+                                
+                                <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800" x-show="tpl.slug">
+                                    <label class="block text-[10px] font-bold text-blue-600 dark:text-blue-300 uppercase mb-1 flex items-center gap-2">
+                                        <i class="ph ph-link"></i> Webhook URL (Otomatis)
+                                    </label>
+                                    <div class="flex items-center gap-2">
+                                        <code class="flex-1 bg-white dark:bg-gray-900 px-3 py-2 rounded border dark:border-gray-700 text-xs font-mono text-gray-600 dark:text-gray-300 select-all" x-text="webhookUrl"></code>
+                                        <button @click="copyWebhook" class="bg-blue-600 text-white px-3 py-2 rounded text-xs font-bold hover:bg-blue-700 transition">
+                                            Copy
+                                        </button>
+                                    </div>
+                                    <p class="text-[9px] text-gray-400 mt-1">Gunakan URL ini di dashboard provider pembayaran Anda.</p>
+                                </div>
+
                                 <div class="grid grid-cols-4 gap-4">
                                     <div class="col-span-1">
                                         <label class="block text-xs font-bold text-gray-500 mb-1">Method</label>
@@ -234,7 +248,6 @@
                                         <textarea x-model="tpl.body_json" rows="4" class="w-full px-3 py-2 bg-gray-900 text-yellow-300 font-mono text-[10px] rounded border border-gray-700"></textarea>
                                     </div>
                                 </div>
-                                
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-xs font-bold text-gray-500 mb-1">Response Mapping JSON</label>
@@ -243,7 +256,6 @@
                                     <div>
                                         <label class="block text-xs font-bold text-gray-500 mb-1">Webhook Security Config (JSON)</label>
                                         <textarea x-model="tpl.webhook_config" rows="4" class="w-full px-3 py-2 bg-gray-900 text-pink-300 font-mono text-[10px] rounded border border-gray-700" placeholder='{"mode": "header_match", "header_key": "Authorization"}'></textarea>
-                                        <p class="text-[9px] text-gray-400 mt-1">Konfigurasi validasi keamanan Webhook.</p>
                                     </div>
                                 </div>
 
@@ -276,7 +288,6 @@
                 tplType: 'payment',
                 templates: [],
                 isEditing: false,
-                // TAMBAHAN: webhook_config di object tpl
                 tpl: { slug: '', name: '', api_endpoint: '', method: 'POST', headers_json: '{}', body_json: '{}', response_mapping: '{}', webhook_config: '{}' },
                 
                 allProviders: [],
@@ -297,6 +308,20 @@
                     if (!this.token) return window.location.href = '/login';
                     if (this.darkMode) document.documentElement.classList.add('dark');
                     await this.fetchTemplates(); await this.refreshProviderList(); 
+                },
+
+                // WEBHOOK URL COMPUTED PROPERTY
+                get webhookUrl() {
+                    if (!this.tpl.slug) return '';
+                    // window.location.origin otomatis mendeteksi http/https dan domain/localhost
+                    return `${window.location.origin}/api/webhook/${this.tpl.slug}`;
+                },
+
+                copyWebhook() {
+                    if(!this.webhookUrl) return;
+                    navigator.clipboard.writeText(this.webhookUrl).then(() => {
+                        alert('URL Webhook berhasil disalin!');
+                    });
                 },
 
                 async refreshProviderList() {
@@ -378,7 +403,6 @@
                     if(!this.tpl.slug) return alert('Slug wajib diisi!');
                     try {
                         JSON.parse(this.tpl.headers_json); JSON.parse(this.tpl.body_json); JSON.parse(this.tpl.response_mapping);
-                        // Validasi Webhook Config
                         JSON.parse(this.tpl.webhook_config);
 
                         const res = await fetch('/api/admin/templates', {
