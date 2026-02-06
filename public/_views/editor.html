@@ -340,6 +340,36 @@
                 <div class="border-t pt-6"><h3 class="text-xs font-bold text-red-500 uppercase tracking-wider mb-3">Coupons</h3><template x-for="(c, i) in page.config.coupons"><div class="bg-red-50 p-2 mb-2 rounded border border-red-100 flex gap-2"><input x-model="c.code" class="input-std" placeholder="CODE"><input x-model="c.value" type="number" class="input-std w-20" placeholder="Val"><button @click="page.config.coupons.splice(i,1)" class="text-red-500"><i class="ph ph-x"></i></button></div></template><button @click="page.config.coupons.push({code:'', type:'percent', value:0})" class="w-full py-2 text-xs font-bold text-red-500 border border-red-200 rounded hover:bg-red-50 transition">+ Add Coupon</button></div>
                 <div class="border-t pt-6 space-y-4"><h3 class="text-xs font-bold text-green-600 uppercase tracking-wider">SEO</h3><div><label class="text-[10px] font-bold text-gray-500">Title</label><input x-model="page.config.settings.seo_title" class="input-std"></div><div><label class="text-[10px] font-bold text-gray-500">Desc</label><textarea x-model="page.config.settings.seo_description" class="input-std" rows="2"></textarea></div><div class="grid grid-cols-2 gap-2"><div><label class="text-[10px] font-bold text-gray-500">Favicon</label><input x-model="page.config.settings.favicon" class="input-std"></div><div><label class="text-[10px] font-bold text-gray-500">OG Image</label><input x-model="page.config.settings.og_image" class="input-std"></div></div></div>
                 <div class="border-t pt-6 bg-gray-50 -mx-6 px-6 pb-6"><h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider mb-3 pt-4">API</h3><select x-model="cred.provider" class="input-std mb-2 bg-white"><option value="midtrans">Midtrans</option><option value="cloudinary">Cloudinary</option></select><textarea x-model="cred.data" class="input-std font-mono text-[10px] bg-white" rows="3" placeholder='JSON Config'></textarea><button @click="saveCreds" class="w-full bg-gray-800 text-white py-2 rounded mt-3 text-xs font-bold hover:bg-black transition">Save</button></div>
+                <div class="border-t pt-6">
+                <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Metode Pembayaran</h3>
+                <label class="text-[10px] font-bold text-gray-500">Pilih Provider yang Aktif</label>
+                <select x-model="page.slug_payment" class="input-std mt-1 mb-2 bg-white border-blue-200 focus:ring-2 focus:ring-blue-500">
+                    <option value="whatsapp">WhatsApp (Manual)</option>
+                    
+                    <template x-for="p in paymentProviders" :key="p.slug">
+                        <option :value="p.slug" x-text="p.name"></option>
+                    </template>
+                </select>
+                <p class="text-[9px] text-gray-400 italic">*Daftar ini diambil otomatis dari database payment_templates.</p>
+            </div>
+            
+            <div class="border-t pt-6 bg-gray-50 -mx-6 px-6 pb-6">
+                <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider mb-3 pt-4">Integrasi Pihak Ketiga</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500">Pilih Service</label>
+                        <select x-model="cred.provider" class="input-std mb-2 bg-white">
+                            <option value="flashpay">FlashPay (Global Keys)</option>
+                            <option value="cloudinary">Cloudinary (Image Storage)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-500">JSON Config</label>
+                        <textarea x-model="cred.data" class="input-std font-mono text-[10px] bg-white" rows="3" placeholder='{"key": "value"}'></textarea>
+                    </div>
+                    <button @click="saveCreds" class="w-full bg-gray-800 text-white py-2 rounded text-xs font-bold hover:bg-black transition shadow-lg">Save Configuration</button>
+                </div>
+            </div>
             </div>
         </div>
     </div>
