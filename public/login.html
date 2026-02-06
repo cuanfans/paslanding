@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - BlinkSite Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        body { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4" x-data="loginApp()">
+
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        <div class="bg-blue-600 p-8 text-center relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-700 opacity-90"></div>
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-10 rounded-full"></div>
+            
+            <div class="relative z-10">
+                <i class="ph ph-rocket-launch text-4xl text-white mb-2 inline-block"></i>
+                <h1 class="text-2xl font-black text-white tracking-tight">BlinkSite</h1>
+                <p class="text-blue-100 text-sm mt-1">Masuk untuk mengelola landing page.</p>
+            </div>
+        </div>
+
+        <div class="p-8">
+            <form @submit.prevent="submitLogin" class="space-y-5">
+                <div x-show="errorMsg" x-cloak class="p-3 rounded-lg bg-red-50 border border-red-100 flex items-center gap-3 text-red-600 text-sm">
+                    <i class="ph ph-warning-circle text-lg"></i>
+                    <span x-text="errorMsg"></span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Email Address</label>
+                    <div class="relative">
+                        <i class="ph ph-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                        <input x-model="form.email" type="email" required placeholder="admin@example.com" 
+                            class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:bg-white transition text-gray-800 font-medium">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Password</label>
+                    <div class="relative">
+                        <i class="ph ph-lock-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                        <input x-model="form.password" :type="showPass ? 'text' : 'password'" required placeholder="••••••••" 
+                            class="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:bg-white transition text-gray-800 font-medium">
+                        <button type="button" @click="showPass = !showPass" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <i class="ph" :class="showPass ? 'ph-eye-slash' : 'ph-eye'"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" :disabled="loading" 
+                    class="w-full bg-gray-900 hover:bg-black text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-gray-200 transition-all active:scale-[0.98] flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                    <i x-show="loading" class="ph ph-spinner animate-spin text-lg"></i>
+                    <span x-text="loading ? 'MEMPROSES...' : 'MASUK DASHBOARD'"></span>
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <p class="text-xs text-gray-400">Lupa password? Hubungi developer.</p>
+            </div>
+        </div>
+        
+        <div class="bg-yellow-50 p-3 text-center border-t border-yellow-100">
+            <p class="text-[10px] text-yellow-700">
+                <strong>First Setup?</strong> Gunakan endpoint <code>/api/setup-first-user</code> via Postman untuk membuat admin pertama jika database kosong.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function loginApp() {
+            return {
+                form: { email: '', password: '' },
+                loading: false,
+                errorMsg: '',
+                showPass: false,
+
+                async submitLogin() {
+                    this.loading = true;
+                    this.errorMsg = '';
+
+                    try {
+                        const res = await fetch('/api/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.form)
+                        });
+
+                        const data = await res.json();
+
+                        if (res.ok && data.success) {
+                            // SIMPAN TOKEN KE LOCALSTORAGE
+                            // Ini penting agar halaman dashboard.html, pages.html, dll bisa membaca tokennya
+                            localStorage.setItem('admin_pass', data.token);
+                            
+                            // Redirect ke Dashboard
+                            window.location.href = '/admin/dashboard';
+                        } else {
+                            this.errorMsg = data.message || 'Login gagal. Cek kredensial Anda.';
+                        }
+                    } catch (e) {
+                        this.errorMsg = 'Terjadi kesalahan jaringan. Coba lagi.';
+                        console.error(e);
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
