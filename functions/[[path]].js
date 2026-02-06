@@ -2,17 +2,18 @@ import { Hono } from 'hono'
 import { handle } from 'hono/cloudflare-pages'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
 import { sign, verify } from 'hono/jwt'
-import { decryptJSON, encryptJSON } from '../src/utils' // Keep utils if present, but sha256 is inlined below
+import { encryptJSON, decryptJSON } from '../src/utils'
+import { uploadImage } from '../src/modules/cloudinary'
 
 const app = new Hono()
 const JWT_SECRET = 'BantarCaringin1BantarCaringin2BantarCaringin3'
 
-// --- KONFIGURASI RELAY PROXY ---
+// --- KONFIGURASI RELAY ---
 const RELAY_URL = "https://pasdigi-relay.hf.space/proxy";
 const RELAY_SECRET = "BantarCaringin1";
 
 // ===============================================
-// 0. UTILS (INLINED FOR SAFETY)
+// 0. UTILS (Keamanan & Hashing)
 // ===============================================
 async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
@@ -22,7 +23,7 @@ async function sha256(message) {
 }
 
 // ===============================================
-// 1. INTERNAL ENGINE (FlashPay & Generic)
+// 1. ENGINE PEMBAYARAN (FlashPay & Generic)
 // ===============================================
 async function executeGenericAPI(c, type, slug, payload) {
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
@@ -33,10 +34,7 @@ async function executeGenericAPI(c, type, slug, payload) {
 
     // 2. Ambil Credentials
     const providerSlug = slug.split('-')[0]; 
-    const credRow = await c.env.DB.prepare(
-        `SELECT encrypted_data, iv FROM credentials WHERE provider_slug = ?`
-    ).bind(providerSlug).first();
-
+    const credRow = await c.env.DB.prepare(`SELECT encrypted_data, iv FROM credentials WHERE provider_slug = ?`).bind(providerSlug).first();
     if (!credRow) throw new Error(`Credentials untuk '${providerSlug}' belum disetting.`);
 
     // 3. Dekripsi Data
@@ -45,35 +43,31 @@ async function executeGenericAPI(c, type, slug, payload) {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
         const decrypted = await decryptJSON(credRow.encrypted_data, credRow.iv, secret);
         creds = typeof decrypted === 'string' ? JSON.parse(decrypted) : decrypted;
-    } catch (e) {
-        throw new Error("Gagal dekripsi kredensial: " + e.message);
-    }
+    } catch (e) { throw new Error("Gagal dekripsi kredensial."); }
 
     let extraHeaders = {};
     
-    // --- LOGIKA KHUSUS FLASHPAY ---
+    // --- AUTH RELAY (FLASHPAY) ---
     if (slug.includes('flashpay')) {
-        const authPayload = {
-            target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
-            target_method: "POST",
-            target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
-            target_payload: { client_key: creds.client_key, server_key: creds.server_key }
-        };
-
         const authRes = await fetch(RELAY_URL, {
             method: 'POST',
             headers: { "Content-Type": "application/json", "x-relay-auth": RELAY_SECRET },
-            body: JSON.stringify(authPayload)
+            body: JSON.stringify({
+                target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
+                target_method: "POST",
+                target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                target_payload: { client_key: creds.client_key, server_key: creds.server_key }
+            })
         });
         
         const authData = await authRes.json();
-        if (!authRes.ok || !authData?.data?.token) throw new Error(`Relay Auth Fail: ` + JSON.stringify(authData));
+        if (!authRes.ok || !authData?.data?.token) throw new Error("Auth Relay Gagal");
         
         extraHeaders['Authorization'] = `Bearer ${authData.data.token}`;
         extraHeaders['X-Client-Key'] = creds.client_key;
     }
 
-    // Replace Variable
+    // Replace Variable {{...}}
     const replaceVars = (str) => {
         return str.replace(/{{(.*?)}}/g, (match, key) => {
             const keys = key.trim().split('.');
@@ -125,11 +119,11 @@ async function executeGenericAPI(c, type, slug, payload) {
 }
 
 // ===============================================
-// 2. GLOBAL HANDLER & ASSETS
+// 2. GLOBAL HANDLER
 // ===============================================
 app.onError((err, c) => {
-    console.error(`[ERROR] ${err.message}`, err.stack);
-    return c.json({ success: false, message: 'Internal Server Error: ' + err.message }, 500);
+    console.error(`[ERROR] ${err.message}`);
+    return c.json({ success: false, message: err.message }, 500);
 });
 
 async function serveAsset(c, path) {
@@ -137,16 +131,16 @@ async function serveAsset(c, path) {
         const url = new URL(path, c.req.url);
         const response = await c.env.ASSETS.fetch(url);
         if (path.endsWith('.html')) {
-            const newResponse = new Response(response.body, response);
-            newResponse.headers.set('Cache-Control', 'no-store, max-age=0');
-            return newResponse;
+            const newRes = new Response(response.body, response);
+            newRes.headers.set('Cache-Control', 'no-store, max-age=0');
+            return newRes;
         }
         return response;
-    } catch (e) { return c.text('Asset Not Found', 404); }
+    } catch (e) { return c.text('Not Found', 404); }
 }
 
 // ===============================================
-// 3. MIDDLEWARE AUTH
+// 3. MIDDLEWARE
 // ===============================================
 const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
@@ -169,18 +163,15 @@ const requireAuth = async (c, next) => {
     const authHeader = c.req.header('Authorization');
     if (!token && authHeader && authHeader.startsWith('Bearer ')) token = authHeader.split(' ')[1];
 
-    if (!token) {
-        if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized' }, 401);
-        return c.redirect('/login');
-    }
+    if (!token) return c.redirect('/login');
 
     try {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
-        await verify(token, secret, 'HS256');
+        const payload = await verify(token, secret, 'HS256');
+        c.set('user', payload);
         await next();
     } catch (e) {
         deleteCookie(c, 'auth_token');
-        if (path.startsWith('/api/')) return c.json({ error: 'Invalid Token' }, 401);
         return c.redirect('/login');
     }
 };
@@ -188,7 +179,7 @@ const requireAuth = async (c, next) => {
 app.use('*', requireAuth); 
 
 // ===============================================
-// 4. AUTH ROUTES (FIXED LOGIN LOGIC)
+// 4. AUTH ROUTES (Login Fix + Auto Migrate)
 // ===============================================
 app.post('/api/login', async (c) => {
     try {
@@ -197,34 +188,25 @@ app.post('/api/login', async (c) => {
         
         if (!user) return c.json({ success: false, message: 'Email tidak ditemukan' }, 401);
         
-        // --- LOGIKA CERDAS: CEK DUA TIPE PASSWORD ---
         const inputHash = await sha256(password);
         let isValid = false;
         let needMigration = false;
 
         if (user.password === inputHash) {
-            // 1. Cocok dengan SHA-256 (User modern)
             isValid = true;
         } else if (user.password === password) {
-            // 2. Cocok dengan Plain Text (User lama)
             isValid = true;
-            needMigration = true; // Tandai untuk upgrade keamanan
+            needMigration = true; 
         }
 
-        if (!isValid) {
-            return c.json({ success: false, message: 'Password salah' }, 401);
-        }
+        if (!isValid) return c.json({ success: false, message: 'Password salah' }, 401);
 
-        // AUTO-MIGRASI KEAMANAN
         if (needMigration) {
-            await c.env.DB.prepare("UPDATE users SET password = ? WHERE id = ?")
-                .bind(inputHash, user.id).run();
-            console.log(`[SECURITY] Password user ${user.id} di-upgrade ke SHA-256.`);
+            await c.env.DB.prepare("UPDATE users SET password = ? WHERE id = ?").bind(inputHash, user.id).run();
         }
 
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
         const token = await sign({ id: user.id, email: user.email, role: user.role, exp: Math.floor(Date.now() / 1000) + 86400 }, secret, 'HS256');
-        
         setCookie(c, 'auth_token', token, { path: '/', secure: true, httpOnly: true, maxAge: 86400, sameSite: 'Lax' });
         return c.json({ success: true, token });
 
@@ -243,7 +225,7 @@ app.post('/api/setup-first-user', async (c) => {
 app.get('/api/logout', (c) => { deleteCookie(c, 'auth_token'); return c.redirect('/login'); });
 
 // ===============================================
-// 5. ADMIN ROUTES
+// 5. ADMIN ROUTES (Dashboard, Pages, Analytics)
 // ===============================================
 app.get('/login', (c) => serveAsset(c, '/login.html'));
 app.get('/admin', (c) => c.redirect('/admin/dashboard'));
@@ -252,6 +234,22 @@ app.get('/admin/*', (c) => serveAsset(c, '/_views' + c.req.path.replace('/admin'
 app.get('/api/admin/pages', async (c) => {
     const res = await c.env.DB.prepare("SELECT id, slug, title, product_type, created_at FROM pages ORDER BY created_at DESC").all();
     return c.json(res.results);
+});
+
+// --- API ANALYTICS (INI YANG KEMAREN HILANG) ---
+app.get('/api/admin/analytics/data', async (c) => {
+    try {
+        const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
+        const today = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics WHERE date(created_at) = date('now')").first();
+        const topPages = await c.env.DB.prepare(`SELECT p.title, p.slug, COUNT(a.id) as views FROM pages p LEFT JOIN analytics a ON p.id = a.page_id GROUP BY p.id ORDER BY views DESC LIMIT 10`).all();
+        const recent = await c.env.DB.prepare(`SELECT p.title, a.referrer, a.created_at FROM analytics a JOIN pages p ON a.page_id = p.id ORDER BY a.created_at DESC LIMIT 20`).all();
+        
+        return c.json({ 
+            stats: { total_views: total?.count||0, today_views: today?.count||0 }, 
+            top_pages: topPages.results||[], 
+            recent: recent.results||[] 
+        });
+    } catch(e) { return c.json({ error: e.message }); }
 });
 
 app.post('/api/admin/pages', async (c) => {
@@ -294,7 +292,7 @@ app.delete('/api/admin/templates', async (c) => {
 });
 
 // ===============================================
-// 6. PUBLIC API
+// 6. PUBLIC CUSTOMER API
 // ===============================================
 app.post('/api/public/checkout', async (c) => {
     try {
@@ -316,6 +314,10 @@ app.get('/:slug', async (c) => {
         if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
         if(!page) return c.text('404 Not Found', 404);
+
+        // --- TRACKING ANALYTICS (INI JUGA KEMAREN HILANG) ---
+        c.env.DB.prepare("INSERT INTO analytics (page_id, event_type, referrer) VALUES (?, 'view', ?)").bind(page.id, c.req.header('Referer') || 'direct').run().catch(()=>{});
+
         return renderPage(c, page);
     } catch(e) { return c.env.ASSETS.fetch(c.req.raw); }
 });
