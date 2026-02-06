@@ -18,11 +18,9 @@ const RELAY_SECRET = "BantarCaringin1";
 async function executeGenericAPI(c, type, slug, payload) {
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
     
-    // Ambil Template
     const template = await c.env.DB.prepare(`SELECT * FROM ${table} WHERE slug = ?`).bind(slug).first();
     if (!template) throw new Error(`Template '${slug}' tidak ditemukan.`);
 
-    // Ambil Credentials (Decrypted)
     const providerSlug = slug.split('-')[0]; 
     const credRow = await c.env.DB.prepare(
         `SELECT encrypted_data, iv FROM credentials WHERE provider_slug = ?`
@@ -36,7 +34,6 @@ async function executeGenericAPI(c, type, slug, payload) {
 
     let extraHeaders = {};
     
-    // --- LOGIKA KHUSUS FLASHPAY (AUTO AUTH VIA RELAY) ---
     if (slug.includes('flashpay')) {
         const authPayload = {
             target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
@@ -49,7 +46,7 @@ async function executeGenericAPI(c, type, slug, payload) {
             method: 'POST',
             headers: { 
                 "Content-Type": "application/json", 
-                "x-relay-auth": RELAY_SECRET // Sesuai hasil test PHP lo
+                "x-relay-auth": RELAY_SECRET 
             },
             body: JSON.stringify(authPayload)
         });
@@ -62,7 +59,6 @@ async function executeGenericAPI(c, type, slug, payload) {
         extraHeaders['X-Client-Key'] = creds.client_key;
     }
 
-    // Replace Variable {{...}}
     const replaceVars = (str) => {
         return str.replace(/{{(.*?)}}/g, (match, key) => {
             const keys = key.trim().split('.');
@@ -74,7 +70,6 @@ async function executeGenericAPI(c, type, slug, payload) {
 
     let bodyRaw = template.body_json || '{}';
     if (slug.includes('flashpay')) {
-        // Tambahkan phone_clean & customer_id otomatis untuk FlashPay VA
         payload.customer.phone_clean = payload.customer?.phone?.replace(/[^0-9]/g, '') || '08123456789';
         payload.customer.customer_id = payload.customer.phone_clean; 
     }
@@ -83,7 +78,6 @@ async function executeGenericAPI(c, type, slug, payload) {
     let headersFinal = JSON.parse(template.headers_json || '{}');
     headersFinal = { ...headersFinal, ...extraHeaders }; 
 
-    // KIRIM REQUEST (Via Relay jika FlashPay)
     let res;
     if (slug.includes('flashpay')) {
         res = await fetch(RELAY_URL, {
@@ -116,73 +110,49 @@ async function executeGenericAPI(c, type, slug, payload) {
 }
 
 // ===============================================
-// 2. GLOBAL ERROR & ASSETS HANDLER
+// 2. GLOBAL HANDLERS
 // ===============================================
 app.onError((err, c) => {
-    console.error(`[ERROR] ${err.message}`, err.stack);
-    return c.json({ success: false, message: 'Internal Server Error: ' + err.message }, 500);
+    console.error(`[ERROR] ${err.message}`);
+    return c.json({ success: false, message: err.message }, 500);
 });
 
 async function serveAsset(c, path) {
     try {
         const url = new URL(path, c.req.url);
         const response = await c.env.ASSETS.fetch(url);
-        if (path.endsWith('.html')) {
-            const newResponse = new Response(response.body, response);
-            newResponse.headers.set('Cache-Control', 'no-store, max-age=0');
-            return newResponse;
-        }
         return response;
-    } catch (e) { return c.text('Asset Not Found', 404); }
+    } catch (e) { return c.text('Not Found', 404); }
 }
 
-// ===============================================
-// 3. MIDDLEWARE AUTHENTICATION
-// ===============================================
 const requireAuth = async (c, next) => {
-    const url = new URL(c.req.url);
-    const path = url.pathname;
-    const whitelisted = (
-        path === '/' || path === '/login' || path === '/api/login' ||
-        path === '/api/setup-first-user' || path.startsWith('/api/public/') || 
-        path.startsWith('/api/webhook/') || path.includes('.')
-    );
-
-    if (whitelisted && !path.startsWith('/_views')) {
-        await next();
-        return;
-    }
-
-    let token = getCookie(c, 'auth_token') || c.req.header('Authorization')?.split(' ')[1];
-    if (!token) return path.startsWith('/api/') ? c.json({ error: 'Unauthorized' }, 401) : c.redirect('/login');
-
+    const path = new URL(c.req.url).pathname;
+    const whitelisted = (path === '/' || path === '/login' || path.startsWith('/api/public/') || path.includes('.'));
+    if (whitelisted) return await next();
+    
+    const token = getCookie(c, 'auth_token');
+    if (!token) return c.redirect('/login');
     try {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
-        const payload = await verify(token, secret, 'HS256');
-        c.set('user', payload);
+        await verify(token, secret, 'HS256');
         await next();
-    } catch (e) {
-        deleteCookie(c, 'auth_token');
-        return path.startsWith('/api/') ? c.json({ error: 'Invalid Token' }, 401) : c.redirect('/login');
-    }
+    } catch (e) { return c.redirect('/login'); }
 };
 
-app.use('*', requireAuth); 
+app.use('*', requireAuth);
 
 // ===============================================
-// 4. AUTH & ADMIN API (Gue Skip Detail biar cukup space)
+// 4. ADMIN API
 // ===============================================
 app.post('/api/login', async (c) => {
     const { email, password } = await c.req.json();
     const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
-    if (!user || await sha256(password) !== user.password) return c.json({ success: false, message: 'Auth Gagal' }, 401);
-    const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
-    const token = await sign({ id: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 86400 }, secret, 'HS256');
+    if (!user || await sha256(password) !== user.password) return c.json({ success: false }, 401);
+    const token = await sign({ id: user.id, exp: Math.floor(Date.now() / 1000) + 86400 }, c.env.APP_MASTER_KEY || JWT_SECRET, 'HS256');
     setCookie(c, 'auth_token', token, { path: '/', secure: true, httpOnly: true });
     return c.json({ success: true, token });
 });
 
-// --- API: CREDENTIALS (Wajib Pakai encryptJSON) ---
 app.post('/api/admin/credentials', async (c) => {
     const { provider, data } = await c.req.json();
     const { encrypted, iv } = await encryptJSON(data, c.env.APP_MASTER_KEY || JWT_SECRET);
@@ -191,41 +161,43 @@ app.post('/api/admin/credentials', async (c) => {
 });
 
 // ===============================================
-// 6. PUBLIC CUSTOMER API (CHECKOUT DINAMIS)
+// 6. PUBLIC CHECKOUT (REDIRECT FIXED)
 // ===============================================
 app.post('/api/public/checkout', async (c) => {
     try {
         const body = await c.req.json();
         
-        // --- AMBIL DATA HARGA DARI DB BIAR PAYLOAD GAK KOSONG ---
+        // 1. Tarik Data Page buat dapetin Harga & Config
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(body.page_id).first();
-        const config = JSON.parse(page?.product_config_json || '{}');
+        if (!page) return c.json({ error: "Halaman tidak ditemukan" }, 404);
         
-        // Injeksi data tambahan ke body sebelum ke engine
-        body.amount = config.price || 150000; // Harga dari database
+        const config = JSON.parse(page.product_config_json || '{}');
+        
+        // 2. Perkaya Payload (Wajib buat FlashPay)
+        body.amount = config.price || 150000;
         body.order_id = "INV-" + Date.now();
         body.customer_name = body.customer?.name || "Customer";
         body.customer_phone = body.customer?.phone || "0812";
+        body.customer_email = "customer@mail.com";
 
+        // 3. Eksekusi API
         const result = await executeGenericAPI(c, 'payment', body.slug_payment, body);
         
-        // Cari URL di mapping utama atau di data mentah (_raw)
-        const finalUrl = result.payment_url || result._raw?.data?.payment_url || result._raw?.payment_url;
+        // 4. Ambil URL (Cek mapping atau raw)
+        const payment_url = result.payment_url || result._raw?.data?.payment_url || result._raw?.payment_url;
 
-        if (!finalUrl) {
-            return c.json({ error: "Backend OK tapi Link Bayar Kosong", debug: result._raw }, 400);
+        if (!payment_url) {
+            return c.json({ error: "Link pembayaran tidak ditemukan", debug: result._raw }, 400);
         }
 
-        // KIRIM DENGAN UNDERSCORE
-        return c.json({ payment_url: finalUrl });
-
+        return c.json({ payment_url });
     } catch (e) {
         return c.json({ error: e.message }, 500);
     }
 });
 
 // ===============================================
-// 8. PUBLIC PAGE RENDERING
+// 8. PAGE RENDERING (FRONTEND SCRIPT FIXED)
 // ===============================================
 app.get('/:slug', async (c) => {
     const slug = c.req.param('slug');
@@ -242,69 +214,64 @@ async function renderPage(c, page) {
     const checkoutScript = `
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if (!document.body.innerHTML.includes('[ CHECKOUT ]')) return;
+            const container = document.body;
+            if (!container.innerHTML.includes('[ CHECKOUT ]')) return;
+
             const activeSlugs = ${JSON.stringify(activePayments)};
             let listHTML = activeSlugs.map(s => \`
-                <label class="flex items-center p-3 border rounded-lg mb-2 cursor-pointer hover:bg-gray-50">
-                    <input type="radio" name="pay_method" value="\${s}" class="mr-3">
-                    <span class="font-bold text-sm uppercase">\${s.replace(/-/g,' ')}</span>
+                <label class="flex items-center p-3 border rounded-lg mb-2 cursor-pointer hover:bg-gray-50 border-gray-200">
+                    <input type="radio" name="pay_method" value="\${s}" class="mr-3 w-4 h-4">
+                    <span class="font-bold text-xs uppercase text-gray-700">\${s.replace(/-/g,' ')}</span>
                 </label>\`).join('');
 
             const formHTML = \`
-                <div class="max-w-md mx-auto p-6 bg-white rounded-xl shadow-lg border">
-                    <input type="text" id="c_name" placeholder="Nama" class="w-full mb-2 p-2 border rounded">
-                    <input type="tel" id="c_phone" placeholder="WhatsApp" class="w-full mb-4 p-2 border rounded">
-                    <div class="mb-4">\${listHTML}</div>
-                    <button id="btn-pay" class="w-full p-3 bg-blue-600 text-white font-bold rounded">BAYAR SEKARANG</button>
+                <div class="max-w-md mx-auto my-10 p-8 bg-white rounded-2xl shadow-2xl border border-gray-100">
+                    <h2 class="text-xl font-black mb-6 text-gray-800">CHECKOUT</h2>
+                    <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full mb-3 p-3 bg-gray-50 border rounded-lg outline-none focus:border-blue-500">
+                    <input type="tel" id="c_phone" placeholder="Nomor WhatsApp" class="w-full mb-6 p-3 bg-gray-50 border rounded-lg outline-none focus:border-blue-500">
+                    <div class="mb-6">\${listHTML}</div>
+                    <button id="btn-pay" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-700 transition active:scale-95">BAYAR SEKARANG</button>
                 </div>\`;
 
-            document.body.innerHTML = document.body.innerHTML.replace('[ CHECKOUT ]', formHTML);
+            container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', formHTML);
 
-            // Di dalam renderPage -> checkoutScript
-document.getElementById('btn-pay').onclick = async () => {
-    const method = document.querySelector('input[name="pay_method"]:checked')?.value;
-    if(!method) return alert('Pilih pembayaran!');
+            document.getElementById('btn-pay').onclick = async () => {
+                const method = document.querySelector('input[name="pay_method"]:checked')?.value;
+                const name = document.getElementById('c_name').value;
+                const phone = document.getElementById('c_phone').value;
 
-    const btn = document.getElementById('btn-pay');
-    btn.disabled = true; 
-    btn.innerText = 'MEMPROSES...';
-    
-    try {
-        const res = await fetch('/api/public/checkout', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                page_id: window.PAGE_ID,
-                slug_payment: method,
-                customer: { 
-                    name: document.getElementById('c_name').value, 
-                    phone: document.getElementById('c_phone').value 
+                if(!name || !phone || !method) return alert('Lengkapi data dan pilih pembayaran!');
+                
+                const btn = document.getElementById('btn-pay');
+                btn.disabled = true; btn.innerText = 'MEMPROSES...';
+                
+                try {
+                    const res = await fetch('/api/public/checkout', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            page_id: ${page.id},
+                            slug_payment: method,
+                            customer: { name, phone }
+                        })
+                    });
+                    const data = await res.json();
+                    if(data.payment_url) {
+                        window.location.href = data.payment_url;
+                    } else {
+                        alert('Error: ' + (data.error || 'Gagal'));
+                        btn.disabled = false; btn.innerText = 'BAYAR SEKARANG';
+                    }
+                } catch(e) {
+                    alert('Crash: ' + e.message);
+                    btn.disabled = false; btn.innerText = 'BAYAR SEKARANG';
                 }
-            })
-        });
-
-        const data = await res.json();
-        console.log("Response dari Backend:", data); // LIHAT DI INSPECT ELEMENT -> CONSOLE
-
-        if (data.payment_url) {
-            // REDIRECT SEKARANG!
-            window.location.href = data.payment_url;
-        } else {
-            alert('Gagal: ' + (data.error || 'Cek Console'));
-            btn.disabled = false;
-            btn.innerText = 'BAYAR SEKARANG';
-        }
-    } catch (err) {
-        alert('Crash: ' + err.message);
-        btn.disabled = false;
-        btn.innerText = 'BAYAR SEKARANG';
-    }
-};
+            };
         });
     </script>`;
 
-    return c.html(\`<!DOCTYPE html><html><head><title>\${page.title}</title><script src="https://cdn.tailwindcss.com"></script></head>
-    <body>\${page.html_content}<script>window.PAGE_ID=\${page.id}</script>\${checkoutScript}</body></html>\`);
+    return c.html(\`<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>\${page.title}</title><script src="https://cdn.tailwindcss.com"></script><style>\${page.css_content}</style></head>
+    <body class="antialiased">\${page.html_content}<script>window.PAGE_ID=\${page.id}</script>\${checkoutScript}</body></html>\`);
 }
 
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
