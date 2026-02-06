@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LandingBuilder - Pro Editor</title>
+    <title>LandingBuilder - Ultimate Pro</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -11,18 +11,26 @@
     
     <link rel="stylesheet" href="https://unpkg.com/grapesjs@0.21.2/dist/css/grapes.min.css">
     <script src="https://unpkg.com/grapesjs@0.21.2/dist/grapes.min.js"></script>
+    
     <script src="https://unpkg.com/grapesjs-blocks-basic@1.0.1"></script>
     <script src="https://unpkg.com/grapesjs-plugin-forms@2.0.5"></script>
     <script src="https://unpkg.com/grapesjs-navbar@1.0.1"></script>
     <script src="https://unpkg.com/grapesjs-component-countdown@1.0.1"></script>
+    <script src="https://unpkg.com/grapesjs-tabs@1.0.6"></script>
+    <script src="https://unpkg.com/grapesjs-custom-code@1.0.1"></script>
+    <script src="https://unpkg.com/grapesjs-tooltip@0.1.7"></script>
+    <script src="https://unpkg.com/grapesjs-blocks-flexbox@0.1.1"></script>
+    <script src="https://unpkg.com/grapesjs-plugin-export@1.0.11"></script>
+    <script src="https://unpkg.com/grapesjs-typed@1.0.5"></script>
+    <script src="https://unpkg.com/grapesjs-style-bg@2.0.1"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
-        /* RESET & BASE */
-        body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; }
+        /* BASE RESET */
+        body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
         [x-cloak] { display: none !important; }
         
-        /* FIX CANVAS LAYOUT (Agar tidak tertutup Header) */
+        /* EDITOR CANVAS FIX */
         .gjs-cv-canvas { 
             width: calc(100% - 320px) !important; 
             height: calc(100% - 60px) !important; 
@@ -31,12 +39,12 @@
             background-color: #f1f5f9; 
         }
 
-        /* UI Overrides */
+        /* UI TWEAKS */
         .gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views { display: none !important; }
         .gjs-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; }
         .gjs-dashed * { outline: 1px dashed rgba(0,0,0,0.1); }
         
-        /* Sidebar Panel */
+        /* SIDEBAR */
         .sidebar-desktop {
             position: fixed; top: 56px; right: 0; bottom: 0; width: 320px;
             background: white; border-left: 1px solid #e2e8f0;
@@ -44,27 +52,16 @@
             box-shadow: -4px 0 15px rgba(0,0,0,0.02);
         }
         
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; } 
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-
-        /* Block Manager Grid */
-        .gjs-blocks-c { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 12px; }
-        .gjs-block { 
-            width: 100% !important; min-height: auto !important; padding: 15px 5px !important; margin: 0 !important;
-            background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            display: flex; flex-direction: column; align-items: center; gap: 6px; transition: all 0.2s;
-        }
-        .gjs-block:hover { border-color: #3b82f6; color: #2563eb; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.15); }
-        .gjs-block-label { font-size: 10px; font-weight: 600; text-align: center; color: #475569; }
-        .gjs-block-category .gjs-title { background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 8px 12px; font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; }
-
-        /* Icon Picker Modal */
+        /* ICON PICKER FIX */
         #iconify-picker-modal { z-index: 99999; }
         
+        /* INPUTS */
         .input-std { width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; transition: border-color 0.2s; }
         .input-std:focus { border-color: #2563eb; }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width: 6px; } 
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     </style>
 </head>
 
@@ -84,14 +81,12 @@
         <div class="flex items-center justify-between p-4 border-b bg-gray-50">
           <div class="flex items-center gap-2 w-full">
             <i class="ph ph-magnifying-glass text-lg text-gray-500"></i>
-            <input id="iconify-picker-search" placeholder="Cari icon, mis. 'check', 'star', 'arrow'" class="w-full bg-transparent outline-none text-sm ml-2" />
+            <input id="iconify-picker-search" placeholder="Cari icon..." class="w-full bg-transparent outline-none text-sm ml-2" />
             <button id="iconify-picker-clear" class="ml-2 text-xs font-bold text-gray-400 hover:text-red-500">CLEAR</button>
           </div>
           <button id="iconify-picker-close" class="ml-4 text-gray-400 hover:text-gray-600"><i class="ph ph-x text-xl"></i></button>
         </div>
-        <div id="iconify-picker-results" class="p-4 grid grid-cols-6 gap-3 max-h-[300px] overflow-y-auto">
-            <div class="col-span-full text-center text-gray-400 text-xs py-8">Ketik pencarian di atas...</div>
-        </div>
+        <div id="iconify-picker-results" class="p-4 grid grid-cols-6 gap-3 max-h-[300px] overflow-y-auto"></div>
       </div>
     </div>
 
@@ -99,13 +94,14 @@
         <div class="flex items-center gap-4">
             <a href="/admin/pages" class="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-gray-100 transition"><i class="ph ph-arrow-left text-xl"></i></a>
             <div>
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Slug Halaman</span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Page Slug</span>
                 <input x-model="page.slug" class="bg-transparent font-mono font-bold text-sm text-gray-700 outline-none w-48 placeholder-gray-300 focus:text-blue-600 transition" placeholder="nama-halaman">
             </div>
         </div>
         
         <div class="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
             <button @click="setDevice('desktop')" :class="device=='desktop'?'bg-white shadow text-blue-600':'text-gray-400'" class="p-1.5 rounded-md transition"><i class="ph ph-desktop"></i></button>
+            <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-blue-600':'text-gray-400'" class="p-1.5 rounded-md transition"><i class="ph ph-device-tablet"></i></button>
             <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-blue-600':'text-gray-400'" class="p-1.5 rounded-md transition"><i class="ph ph-device-mobile"></i></button>
             <div class="w-px h-4 bg-gray-300 mx-2"></div>
             <button @click="cmd('core:preview')" class="p-1.5 hover:text-blue-600 text-gray-500"><i class="ph ph-eye"></i></button>
@@ -115,7 +111,7 @@
 
         <div class="flex items-center gap-2">
             <button @click="showSettings=true" class="bg-gray-100 text-gray-600 hover:bg-gray-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition"><i class="ph ph-gear-six text-lg"></i> Config</button>
-            <button @click="savePage" :disabled="loading" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-blue-500/30">
+            <button @click="savePage" :disabled="loading" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-blue-500/30 hover:shadow-blue-600/40">
                 <i x-show="loading" class="ph ph-spinner animate-spin"></i>
                 <span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
             </button>
@@ -132,15 +128,9 @@
             <button @click="tab='layers'" :class="tab=='layers'?'text-blue-600 border-b-2 border-blue-600 bg-blue-50':''" class="flex-1 p-3 text-gray-400 hover:text-gray-600 transition"><i class="ph ph-stack text-lg"></i></button>
         </div>
         <div class="flex-1 overflow-y-auto relative bg-white">
-            <div x-show="tab=='blocks'" id="blocks-container" class="pb-20"></div>
-            <div x-show="tab=='styles'">
-                <div id="selectors-container" class="p-3 border-b bg-gray-50"></div>
-                <div id="styles-container" class="pb-20"></div>
-            </div>
-            <div x-show="tab=='traits'">
-                <div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b">Settings</div>
-                <div id="traits-container" class="p-2 pb-20"></div>
-            </div>
+            <div x-show="tab=='blocks'" id="blocks-container" class="pb-20 p-2"></div>
+            <div x-show="tab=='styles'"><div id="selectors-container" class="p-3 border-b bg-gray-50"></div><div id="styles-container" class="pb-20"></div></div>
+            <div x-show="tab=='traits'"><div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b">Settings</div><div id="traits-container" class="p-2 pb-20"></div></div>
             <div x-show="tab=='layers'" id="layers-container" class="pb-20"></div>
         </div>
     </div>
@@ -161,20 +151,14 @@
                         <button @click="page.product_type='donation'" :class="page.product_type=='donation'?'bg-white shadow-sm text-blue-600':'text-gray-500'" class="flex-1 py-2 text-xs font-bold rounded-md transition">Donasi</button>
                     </div>
                     <div x-show="page.product_type==='physical'" class="space-y-3 bg-blue-50 p-4 rounded-lg border border-blue-100">
-                        <div>
-                            <label class="text-[11px] font-bold text-gray-600">Berat (gram)</label>
-                            <input x-model="page.config.shipping.weight" type="number" class="input-std mt-1" placeholder="1000">
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" id="cod" x-model="page.config.shipping.cod" class="w-4 h-4 text-blue-600 rounded">
-                            <label for="cod" class="text-xs font-medium text-gray-700">Aktifkan COD</label>
-                        </div>
+                        <div><label class="text-[11px] font-bold text-gray-600">Berat (gram)</label><input x-model="page.config.shipping.weight" type="number" class="input-std mt-1" placeholder="1000"></div>
+                        <div class="flex items-center gap-2"><input type="checkbox" id="cod" x-model="page.config.shipping.cod" class="w-4 h-4 text-blue-600 rounded"><label for="cod" class="text-xs font-medium text-gray-700">Aktifkan COD</label></div>
                     </div>
                 </div>
 
                 <div class="border-t border-gray-100 pt-6" x-show="page.product_type !== 'donation'">
                     <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider gap-2 flex items-center"><i class="ph ph-tag"></i> Harga & Varian</h3>
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-tag"></i> Harga & Varian</h3>
                     </div>
                     <div class="space-y-2">
                         <template x-for="(v, i) in page.config.variants">
@@ -221,17 +205,10 @@
 
                 <div class="border-t border-gray-100 pt-6">
                     <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 flex gap-2 items-center"><i class="ph ph-credit-card"></i> Pembayaran</h3>
-                    <label class="text-[10px] font-bold text-gray-500">Provider Default</label>
-                    <select x-model="page.slug_payment" class="input-std mt-1 mb-4">
-                        <option value="whatsapp">WhatsApp Manual</option>
-                        <template x-for="p in paymentProviders" :key="p.slug"><option :value="p.slug" x-text="p.name"></option></template>
-                    </select>
+                    <select x-model="page.slug_payment" class="input-std mt-1 mb-4"><option value="whatsapp">WhatsApp Manual</option><template x-for="p in paymentProviders" :key="p.slug"><option :value="p.slug" x-text="p.name"></option></template></select>
                     <div class="space-y-1 bg-gray-50 p-3 rounded border border-gray-200 h-32 overflow-y-auto">
                         <template x-for="p in paymentProviders" :key="p.slug">
-                            <label class="flex items-center gap-2 p-1 hover:bg-white rounded cursor-pointer">
-                                <input type="checkbox" :value="p.slug" x-model="page.config.active_payments" class="w-4 h-4 text-blue-600 rounded">
-                                <span class="text-xs text-gray-700" x-text="p.name"></span>
-                            </label>
+                            <label class="flex items-center gap-2 p-1 hover:bg-white rounded cursor-pointer"><input type="checkbox" :value="p.slug" x-model="page.config.active_payments" class="w-4 h-4 text-blue-600 rounded"><span class="text-xs text-gray-700" x-text="p.name"></span></label>
                         </template>
                     </div>
                 </div>
@@ -305,14 +282,11 @@
         if(clearBtn) clearBtn.addEventListener('click', ()=>{ input.value=''; input.focus(); });
     })();
 
-    // --- EDITOR APP ---
+    // --- MAIN APP ---
     function editorApp() {
         return {
             loading: false, showSettings: false, device: 'desktop', tab: 'blocks', notifications: [], paymentProviders: [],
-            page: { 
-                slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', 
-                config: { price: 0, variants: [], shipping: { weight: 1000, cod: false }, order_bump: { active: false }, coupons: [], settings: {}, active_payments: [] } 
-            },
+            page: { slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', config: { price: 0, variants: [], shipping: { weight: 1000, cod: false }, order_bump: { active: false }, coupons: [], settings: {}, active_payments: [] } },
 
             async init() {
                 const params = new URLSearchParams(window.location.search);
@@ -334,10 +308,7 @@
             notify(title, msg, type = 'success') {
                 const id = Date.now();
                 this.notifications.push({ id, title, msg, type, show: true });
-                setTimeout(() => { 
-                    const i = this.notifications.findIndex(n => n.id === id);
-                    if(i > -1) this.notifications[i].show = false; 
-                }, 3000);
+                setTimeout(() => { const i = this.notifications.findIndex(n => n.id === id); if(i > -1) this.notifications[i].show = false; }, 3000);
             },
 
             setDevice(d) { this.device = d; window.editor.setDevice(d); },
@@ -347,37 +318,29 @@
             async savePage() {
                 this.loading = true;
                 let html = window.editor.getHtml();
-                // Inject Page ID untuk Form Contact
                 html = html.replace('name="page_id" value="0"', `name="page_id" value="${this.page.id||0}"`);
-                
                 try {
                     const res = await fetch('/api/admin/pages', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            slug: this.page.slug, title: this.page.title, product_type: this.page.product_type,
-                            provider: this.page.slug_payment, html: html, css: window.editor.getCss(), product_config: this.page.config
-                        })
+                        body: JSON.stringify({ slug: this.page.slug, title: this.page.title, product_type: this.page.product_type, provider: this.page.slug_payment, html: html, css: window.editor.getCss(), product_config: this.page.config })
                     });
-                    if(res.ok) this.notify('Sukses', 'Halaman tersimpan!');
-                    else this.notify('Gagal', 'Terjadi kesalahan', 'error');
-                } catch(e) { this.notify('Error', 'Network Error', 'error'); }
+                    if(res.ok) this.notify('Sukses', 'Tersimpan!'); else this.notify('Gagal', 'Error', 'error');
+                } catch(e) { this.notify('Error', 'Network', 'error'); }
                 this.loading = false;
             },
 
             initGrapes() {
                 window.editor = grapesjs.init({
                     container: '#gjs', height: '100%', fromElement: false, storageManager: false,
-                    canvas: {
-                        styles: ['https://cdn.tailwindcss.com', '@media (max-width: 480px) { body { padding: 0 16px; } }']
-                    },
+                    canvas: { styles: ['https://cdn.tailwindcss.com', '@media (max-width: 480px) { body { padding: 0 16px; } }'] },
                     plugins: ['gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-component-countdown', 'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'],
                     deviceManager: { devices: [{ id: 'desktop', width: '' }, { id: 'tablet', width: '768px' }, { id: 'mobile', width: '375px' }] },
                     blockManager: { appendTo: '#blocks-container' },
                     layerManager: { appendTo: '#layers-container' },
                     selectorManager: { appendTo: '#selectors-container' },
                     traitManager: { appendTo: '#traits-container' },
-                    styleManager: { appendTo: '#styles-container', sectors: [{name:'Typography', open:true, buildProps:['font-family','font-size','font-weight','color','text-align']},{name:'Decorations', open:false, buildProps:['background-color','border','border-radius','box-shadow']},{name:'Dimensions', open:false, buildProps:['width','height','padding','margin']}] }
+                    styleManager: { appendTo: '#styles-container', sectors: [{name:'Typography',open:true,buildProps:['font-family','font-size','font-weight','color','text-align']},{name:'Decorations',open:false,buildProps:['background-color','border','border-radius','box-shadow']},{name:'Dimensions',open:false,buildProps:['width','height','padding','margin']}] }
                 });
 
                 // Icon Component
@@ -386,134 +349,172 @@
                         defaults: {
                             tagName: 'iconify-icon', droppable: false,
                             attributes: { icon: 'mdi:home', width: '48', style: 'color:#2563eb' },
-                            traits: [
-                                { type: 'button', text: '🔍 Pilih Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) },
-                                { name: 'width', type: 'number', label: 'Size' },
-                                { name: 'color', type: 'color', label: 'Color' }
-                            ]
+                            traits: [ { type: 'button', text: '🔍 Pilih Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) }, { name: 'width', type: 'number', label: 'Size' }, { name: 'color', type: 'color', label: 'Color' } ]
                         }
                     }
                 });
                 window.editor.on('component:dblclick', (model) => { if(model.get('tagName')==='iconify-icon') window.openIconifyPicker(model); });
 
                 const bm = window.editor.BlockManager;
-                
-                // --- MEMBERSIHKAN BLOCK BAWAAN FORM ---
-                // Agar tidak bingung dengan Contact Pro & Checkout
-                setTimeout(() => {
-                    ['form','input','textarea','select','button','label','checkbox','radio'].forEach(id => bm.remove(id));
-                }, 1000);
+                setTimeout(() => { ['form','input','textarea','select','button','label','checkbox','radio'].forEach(id => bm.remove(id)); }, 1000);
 
-                // --- NEW WIDGETS ---
-                
-                // 1. HERO HEADER
-                bm.add('hero-header', {
-                    label: 'Header Hero', category: 'Layout',
-                    media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v16H4V4zm2 2v8h12V6H6z"/></svg>',
-                    content: `<header style="padding:80px 20px; text-align:center; background:#f8fafc;">
-                        <h1 style="font-size:3rem; font-weight:900; line-height:1.2; margin-bottom:16px; color:#1e293b;">Headline Menarik<br><span style="color:#2563eb;">Produk Anda</span></h1>
-                        <p style="font-size:1.1rem; color:#64748b; max-width:600px; margin:0 auto 32px;">Deskripsi singkat yang menjelaskan value proposition produk Anda dan kenapa pengunjung harus membeli sekarang.</p>
-                        <a href="#checkout-box" style="display:inline-block; padding:16px 32px; background:#2563eb; color:white; font-weight:bold; border-radius:99px; text-decoration:none; transition:all 0.2s;">BELI SEKARANG</a>
+                // --- 1. HEADERS (4 Jenis) ---
+                bm.add('header-left', {
+                    label: 'Header Kiri', category: 'Headers',
+                    media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>',
+                    content: `<header class="flex justify-between items-center p-5 bg-white border-b border-gray-100">
+                        <div class="font-black text-2xl text-blue-600">LOGO</div>
+                        <nav class="hidden md:flex gap-6 text-sm font-bold text-gray-600">
+                            <a href="#" class="hover:text-blue-600">Home</a><a href="#" class="hover:text-blue-600">Fitur</a><a href="#" class="hover:text-blue-600">Harga</a>
+                        </nav>
+                        <a href="#checkout-box" class="px-5 py-2 bg-blue-600 text-white rounded-full font-bold text-sm">Beli</a>
+                    </header>`
+                });
+                bm.add('header-center', {
+                    label: 'Header Tengah', category: 'Headers',
+                    content: `<header class="text-center p-5 bg-white border-b border-gray-100">
+                        <div class="font-black text-3xl text-blue-600 mb-4">BRAND</div>
+                        <nav class="flex justify-center gap-8 text-sm font-bold text-gray-600">
+                            <a href="#" class="hover:text-blue-600">Home</a><a href="#" class="hover:text-blue-600">Tentang</a><a href="#" class="hover:text-blue-600">Kontak</a>
+                        </nav>
+                    </header>`
+                });
+                bm.add('header-right', {
+                    label: 'Header Kanan', category: 'Headers',
+                    content: `<header class="flex flex-row-reverse justify-between items-center p-5 bg-white border-b border-gray-100">
+                        <div class="font-black text-2xl text-blue-600">LOGO</div>
+                        <nav class="flex gap-6 text-sm font-bold text-gray-600"><a href="#">Menu 1</a><a href="#">Menu 2</a></nav>
+                    </header>`
+                });
+                bm.add('header-sticky', {
+                    label: 'Header Sticky', category: 'Headers',
+                    content: `<header style="position:sticky; top:0; z-index:999;" class="flex justify-between items-center p-4 bg-white/90 backdrop-blur-md shadow-sm">
+                        <div class="font-bold text-xl">STICKY</div>
+                        <a href="#checkout-box" class="text-xs bg-black text-white px-4 py-2 rounded-lg">Order Now</a>
                     </header>`
                 });
 
-                // 2. FEATURES GRID
-                bm.add('feature-grid', {
-                    label: 'Feature Grid', category: 'Layout',
-                    media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z"/></svg>',
-                    content: `<section style="padding:60px 20px; background:white;">
-                        <div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:40px;">
-                            <div style="text-align:center;">
-                                <iconify-icon icon="ph:rocket-launch-duotone" width="48" style="color:#2563eb; margin-bottom:16px;"></iconify-icon>
-                                <h3 style="font-size:1.2rem; font-weight:bold; margin-bottom:8px;">Cepat & Ringan</h3>
-                                <p style="color:#64748b; font-size:0.9rem;">Optimasi performa tinggi untuk kenyamanan pengguna.</p>
+                // --- 2. SLIDER / CAROUSEL ---
+                bm.add('hero-slider', {
+                    label: 'Image Slider', category: 'Media',
+                    content: `<div class="relative w-full overflow-hidden" style="height:400px;">
+                        <div class="flex overflow-x-auto snap-x snap-mandatory h-full scrollbar-hide" style="scroll-behavior:smooth;">
+                            <div class="snap-center shrink-0 w-full h-full bg-cover bg-center flex items-center justify-center text-white text-3xl font-bold relative" style="background-image:url('https://via.placeholder.com/800x400/2563eb/ffffff?text=Slide+1');">
+                                <div class="bg-black/30 p-4 rounded text-center"><h1>Promo Spesial</h1><a href="#" class="text-sm bg-white text-blue-600 px-4 py-2 rounded mt-2 inline-block">Cek Disini</a></div>
                             </div>
-                            <div style="text-align:center;">
-                                <iconify-icon icon="ph:shield-check-duotone" width="48" style="color:#2563eb; margin-bottom:16px;"></iconify-icon>
-                                <h3 style="font-size:1.2rem; font-weight:bold; margin-bottom:8px;">Aman Terpercaya</h3>
-                                <p style="color:#64748b; font-size:0.9rem;">Data transaksi dienkripsi dengan standar keamanan tinggi.</p>
-                            </div>
-                            <div style="text-align:center;">
-                                <iconify-icon icon="ph:headset-duotone" width="48" style="color:#2563eb; margin-bottom:16px;"></iconify-icon>
-                                <h3 style="font-size:1.2rem; font-weight:bold; margin-bottom:8px;">Support 24/7</h3>
-                                <p style="color:#64748b; font-size:0.9rem;">Tim kami siap membantu kendala Anda kapanpun.</p>
+                            <div class="snap-center shrink-0 w-full h-full bg-cover bg-center flex items-center justify-center text-white text-3xl font-bold relative" style="background-image:url('https://via.placeholder.com/800x400/10b981/ffffff?text=Slide+2');">
+                                <div class="bg-black/30 p-4 rounded text-center"><h1>Produk Baru</h1><a href="#" class="text-sm bg-white text-green-600 px-4 py-2 rounded mt-2 inline-block">Lihat</a></div>
                             </div>
                         </div>
-                    </section>`
-                });
-
-                // 3. FAQ ACCORDION
-                bm.add('faq-accordion', {
-                    label: 'FAQ', category: 'Content',
-                    media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/></svg>',
-                    content: `<section style="padding:60px 20px; background:#f8fafc;">
-                        <div style="max-width:700px; margin:0 auto;">
-                            <h2 style="text-align:center; font-weight:800; font-size:2rem; margin-bottom:40px;">Pertanyaan Umum</h2>
-                            <details style="background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:10px; padding:16px; cursor:pointer;">
-                                <summary style="font-weight:bold; color:#1e293b; outline:none;">Apakah ada garansi?</summary>
-                                <p style="margin-top:12px; color:#64748b; font-size:0.95rem;">Ya, kami memberikan garansi uang kembali 30 hari jika Anda tidak puas.</p>
-                            </details>
-                            <details style="background:white; border:1px solid #e2e8f0; border-radius:8px; margin-bottom:10px; padding:16px; cursor:pointer;">
-                                <summary style="font-weight:bold; color:#1e293b; outline:none;">Bagaimana cara pembayaran?</summary>
-                                <p style="margin-top:12px; color:#64748b; font-size:0.95rem;">Kami menerima transfer bank (VA), E-Wallet (QRIS), dan Kartu Kredit.</p>
-                            </details>
-                        </div>
-                    </section>`
-                });
-
-                // 4. FLOATING WHATSAPP
-                bm.add('floating-wa', {
-                    label: 'Floating WA', category: 'Marketing',
-                    media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12c0 2.17.7 4.19 1.94 5.86L3 22l4.23-1.06C8.78 21.62 10.35 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.48 0-2.9-.39-4.14-1.07l-.3-.16-2.52.63.67-2.42-.17-.29C4.96 15.54 4.5 13.82 4.5 12c0-4.14 3.36-7.5 7.5-7.5s7.5 3.36 7.5 7.5-3.36 7.5-7.5 7.5z"/></svg>',
-                    content: `<a href="https://wa.me/628123456789" target="_blank" style="position:fixed; bottom:20px; right:20px; background:#25D366; color:white; padding:12px 20px; border-radius:99px; font-weight:bold; box-shadow:0 4px 12px rgba(37, 211, 102, 0.4); text-decoration:none; display:flex; align-items:center; gap:8px; z-index:999;">
-                        <iconify-icon icon="ic:baseline-whatsapp" width="24"></iconify-icon> Chat WhatsApp
-                    </a>`
-                });
-
-                // 5. YOUTUBE RESPONSIVE
-                bm.add('video-responsive', {
-                    label: 'Video YT', category: 'Media',
-                    media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/></svg>',
-                    content: `<div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-                        <iframe style="position:absolute; top:0; left:0; width:100%; height:100%;" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen></iframe>
+                        <div class="absolute bottom-4 left-0 right-0 text-center text-white text-xs opacity-70">Geser untuk melihat</div>
                     </div>`
                 });
 
-                // 6. CONTACT PRO (Form Database)
-                const contactFormHTML = `
-                    <div style="padding:40px 20px;">
-                        <form action="/api/public/contact" method="POST" style="max-width:500px; margin:0 auto; background:white; padding:30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border:1px solid #e2e8f0;">
-                            <input type="hidden" name="page_id" value="0">
-                            <div style="text-align:center; margin-bottom:24px;">
-                                <h3 style="font-size:1.5rem; font-weight:800; color:#1e293b; margin-bottom:8px;">Hubungi Kami</h3>
-                                <p style="color:#64748b; font-size:0.9rem;">Silahkan isi form di bawah ini.</p>
-                            </div>
-                            <div style="margin-bottom:16px;">
-                                <label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">Perihal</label>
-                                <select name="subject" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;"><option value="Kontak">Umum</option><option value="Info">Info Produk</option><option value="Support">Bantuan</option></select>
-                            </div>
-                            <div style="margin-bottom:16px;">
-                                <label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">Nama</label>
-                                <input type="text" name="name" required style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;">
-                            </div>
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-                                <div><label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">Email</label><input type="email" name="email" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;"></div>
-                                <div><label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">WhatsApp</label><input type="tel" name="phone" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;"></div>
-                            </div>
-                            <div style="margin-bottom:24px;">
-                                <label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">Pesan</label>
-                                <textarea name="message" rows="4" required style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;"></textarea>
-                            </div>
-                            <button type="submit" style="width:100%; padding:12px; background:#2563eb; color:white; font-weight:bold; border-radius:8px; border:none; cursor:pointer;">KIRIM PESAN</button>
-                        </form>
-                    </div>`;
-                
-                bm.add('contact-pro', { label: 'Contact Pro', category: 'Forms', media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>', content: contactFormHTML });
+                // --- 3. NEWS FLASH (Running Text) ---
+                bm.add('news-flash', {
+                    label: 'News Flash', category: 'Marketing',
+                    content: `<div style="background:#2563eb; color:white; padding:8px 0; overflow:hidden; white-space:nowrap;">
+                        <div style="display:inline-block; padding-left:100%; animation:marquee 15s linear infinite;">
+                            🔥 PROMO TERBATAS! DISKON 50% HANYA HARI INI! GUNAKAN KODE: SUPERHEMAT 🔥
+                        </div>
+                        <style>@keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }</style>
+                    </div>`
+                });
 
-                // CHECKOUT TEMPLATES (Original)
+                // --- 4. COUNTDOWN TIMER ---
+                bm.add('promo-countdown', {
+                    label: 'Countdown', category: 'Marketing',
+                    content: `<div style="text-align:center; padding:40px 20px; background:#fff1f2;">
+                        <h3 style="color:#e11d48; font-weight:bold; margin-bottom:20px;">PENAWARAN BERAKHIR DALAM:</h3>
+                        <div style="display:flex; justify-content:center; gap:10px; font-size:2rem; font-weight:900; color:#e11d48;">
+                            <div style="background:white; padding:10px; rounded:8px;">02</div>:
+                            <div style="background:white; padding:10px; rounded:8px;">15</div>:
+                            <div style="background:white; padding:10px; rounded:8px;">30</div>
+                        </div>
+                        <p style="margin-top:20px; font-size:0.9rem;">Segera amankan slot Anda sebelum harga naik!</p>
+                    </div>`
+                });
+
+                // --- 5. SOCIAL PROOF (Real/Fake Sales) ---
+                bm.add('social-proof', {
+                    label: 'Social Proof', category: 'Marketing',
+                    content: `<div id="sales-notify" style="position:fixed; bottom:80px; left:20px; background:white; padding:15px; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.1); display:flex; align-items:center; gap:15px; z-index:998; border-left:4px solid #10b981; animation:slideIn 0.5s ease-out;">
+                        <div style="background:#d1fae5; padding:10px; border-radius:50%; color:#059669;"><iconify-icon icon="ph:shopping-bag-fill" width="24"></iconify-icon></div>
+                        <div>
+                            <div style="font-weight:bold; font-size:0.9rem;">Budi Santoso</div>
+                            <div style="font-size:0.8rem; color:#6b7280;">Baru saja membeli <span style="color:#10b981;">Paket Sultan</span></div>
+                            <div style="font-size:0.7rem; color:#9ca3af;">2 menit yang lalu</div>
+                        </div>
+                        <style>
+                            @keyframes slideIn { from { transform: translateX(-100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+                        </style>
+                        <script>
+                            // Simple Fake Proof Logic (Bisa diganti Real dari DB)
+                            const names = ['Andi', 'Budi', 'Citra', 'Dewi', 'Eko'];
+                            const products = ['Paket Hemat', 'Paket Sultan', 'Ebook Premium'];
+                            setInterval(() => {
+                                const el = document.getElementById('sales-notify');
+                                if(el) {
+                                    el.style.display = 'none';
+                                    setTimeout(() => {
+                                        el.querySelector('div:nth-child(2) div:first-child').innerText = names[Math.floor(Math.random()*names.length)] + ' dari Jakarta';
+                                        el.querySelector('div:nth-child(2) div:nth-child(2) span').innerText = products[Math.floor(Math.random()*products.length)];
+                                        el.style.display = 'flex';
+                                    }, 5000); // Muncul lagi setelah 5 detik
+                                }
+                            }, 15000); // Ganti tiap 15 detik
+                        <\/script>
+                    </div>`
+                });
+
+                // --- 6. PRICING TABLES (3 Varian) ---
+                bm.add('pricing-basic', {
+                    label: 'Pricing Basic', category: 'Pricing',
+                    content: `<div class="p-6 border rounded-xl text-center bg-white shadow-sm max-w-sm mx-auto">
+                        <h3 class="text-lg font-bold text-gray-500">PAKET BASIC</h3>
+                        <div class="text-4xl font-black text-blue-600 my-4">Rp 99rb</div>
+                        <ul class="text-sm text-gray-600 space-y-2 mb-6"><li>Fitur Dasar</li><li>Support Email</li><li>Update Gratis</li></ul>
+                        <a href="#checkout-box" class="block w-full py-3 bg-blue-100 text-blue-600 font-bold rounded-lg hover:bg-blue-200">Pilih Paket</a>
+                    </div>`
+                });
+                bm.add('pricing-pro', {
+                    label: 'Pricing Pro', category: 'Pricing',
+                    content: `<div class="p-6 border-2 border-blue-600 rounded-xl text-center bg-white shadow-xl relative max-w-sm mx-auto">
+                        <div class="absolute top-0 right-0 bg-blue-600 text-white text-xs px-2 py-1 rounded-bl-lg font-bold">POPULAR</div>
+                        <h3 class="text-lg font-bold text-blue-600">PAKET PRO</h3>
+                        <div class="text-4xl font-black text-gray-800 my-4">Rp 199rb</div>
+                        <ul class="text-sm text-gray-600 space-y-2 mb-6"><li>Semua Fitur Basic</li><li><b>Support Prioritas</b></li><li>Akses Komunitas</li></ul>
+                        <a href="#checkout-box" class="block w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/30">Ambil Promo</a>
+                    </div>`
+                });
+                bm.add('comparison-table', {
+                    label: 'Comparison', category: 'Pricing',
+                    content: `<div class="overflow-x-auto p-4"><table class="w-full text-sm text-left"><thead class="bg-gray-50 text-xs uppercase font-bold text-gray-500"><tr><th class="p-3">Fitur</th><th class="p-3 text-center">Basic</th><th class="p-3 text-center text-blue-600">Pro</th></tr></thead><tbody class="divide-y"><tr class="hover:bg-gray-50"><td class="p-3 font-medium">Akses Materi</td><td class="p-3 text-center">Terbatas</td><td class="p-3 text-center font-bold text-blue-600">Full Akses</td></tr><tr class="hover:bg-gray-50"><td class="p-3 font-medium">Download</td><td class="p-3 text-center text-red-500">✘</td><td class="p-3 text-center text-green-500">✔</td></tr></tbody></table></div>`
+                });
+
+                // --- 7. STICKY MOBILE MENU ---
+                bm.add('sticky-mobile-nav', {
+                    label: 'Sticky Mobile', category: 'Marketing',
+                    content: `<div class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-[999] flex justify-around items-center py-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                        <a href="#" class="flex flex-col items-center text-gray-400 hover:text-blue-600"><iconify-icon icon="ph:house-fill" width="24"></iconify-icon><span class="text-[10px] font-bold">Home</span></a>
+                        <a href="#" class="flex flex-col items-center text-gray-400 hover:text-blue-600"><iconify-icon icon="ph:chats-circle-fill" width="24"></iconify-icon><span class="text-[10px] font-bold">Chat</span></a>
+                        <a href="#checkout-box" class="flex flex-col items-center text-blue-600"><div class="bg-blue-50 p-2 rounded-full -mt-6 border border-blue-100 shadow-lg"><iconify-icon icon="ph:shopping-cart-fill" width="28"></iconify-icon></div><span class="text-[10px] font-bold mt-1">Beli</span></a>
+                        <a href="#" class="flex flex-col items-center text-gray-400 hover:text-blue-600"><iconify-icon icon="ph:user-fill" width="24"></iconify-icon><span class="text-[10px] font-bold">Akun</span></a>
+                    </div>`
+                });
+
+                // --- 8. CONTACT & CHECKOUT (RESTORED) ---
+                // Contact Pro
+                bm.add('contact-pro', { 
+                    label: 'Contact Pro', category: 'Forms', 
+                    media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>', 
+                    content: `<div style="padding:40px 20px;"><form action="/api/public/contact" method="POST" style="max-width:500px; margin:0 auto; background:white; padding:30px; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); border:1px solid #e2e8f0;"><input type="hidden" name="page_id" value="0"><div style="text-align:center; margin-bottom:24px;"><h3 style="font-size:1.5rem; font-weight:800; color:#1e293b; margin-bottom:8px;">Hubungi Kami</h3><p style="color:#64748b; font-size:0.9rem;">Silahkan isi form di bawah ini.</p></div><div style="margin-bottom:16px;"><label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">Perihal</label><select name="subject" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;"><option value="Kontak">Umum</option><option value="Info">Info Produk</option><option value="Support">Bantuan</option></select></div><div style="margin-bottom:16px;"><label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">Nama</label><input type="text" name="name" required style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;"></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;"><div><label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">Email</label><input type="email" name="email" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;"></div><div><label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">WhatsApp</label><input type="tel" name="phone" style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;"></div></div><div style="margin-bottom:24px;"><label style="display:block; font-size:0.75rem; font-weight:bold; text-transform:uppercase; color:#475569; margin-bottom:4px;">Pesan</label><textarea name="message" rows="4" required style="width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; background:#f8fafc; outline:none;"></textarea></div><button type="submit" style="width:100%; padding:12px; background:#2563eb; color:white; font-weight:bold; border-radius:8px; border:none; cursor:pointer;">KIRIM PESAN</button></form></div>` 
+                });
+                
+                // Checkout Card
                 bm.add('checkout-card', { label: 'Checkout Card', category: 'E-Commerce', media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/><rect x="7" y="7" width="10" height="2"/><rect x="7" y="11" width="10" height="2"/><rect x="7" y="15" width="6" height="2"/></svg>', content: `<section style="padding:50px 20px; background:#f8fafc;"><div style="max-width:500px; margin:0 auto; background:#fff; padding:30px; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.05); border:1px solid #e2e8f0;">[ CHECKOUT ]</div></section>` });
                 
-                // Add default container
+                // Defaults
                 bm.add('container-fluid', { label: 'Container', category: 'Layout', content: `<div style="width:90%; max-width:1200px; margin:0 auto; padding:20px; min-height:50px;"></div>` });
                 bm.add('section-std', { label: 'Section', category: 'Layout', content: `<section style="padding:60px 20px; background-color:#fff;"><div style="width:90%; max-width:1100px; margin:0 auto; padding:0 20px;"></div></section>` });
                 bm.add('iconify-blk', { label: 'Iconify', category: 'Media', attributes: { class: 'ph ph-star' }, content: { type: 'iconify-icon' } });
