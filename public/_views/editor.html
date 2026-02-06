@@ -475,12 +475,12 @@
         mobileTab: '', 
         mobilePanelOpen: false,
         notifications: [],
-        paymentProviders: [], // Menampung daftar dari database
+        paymentProviders: [],
         page: { 
             slug: '', 
             title: '', 
             product_type: 'physical', 
-            slug_payment: 'whatsapp', // Default payment
+            slug_payment: 'whatsapp',
             config: { 
                 variants: [], 
                 shipping: { weight: 1000 }, 
@@ -489,47 +489,139 @@
                 settings: {} 
             } 
         },
-        cred: { provider: 'midtrans', data: '' },
-        authPass: localStorage.getItem('auth_token'), // Pastikan menggunakan token auth yang benar
+        cred: { provider: 'flashpay', data: '' },
+        // AMBIL TOKEN YANG BENAR DARI LOCALSTORAGE
+        authPass: localStorage.getItem('auth_token'), 
 
         async init() {
             const params = new URLSearchParams(window.location.search);
             this.page.slug = params.get('slug');
             
+            // CEK TOKEN: Jika tidak ada, tendang ke login
             if (!this.authPass) {
                 window.location.href = '/login';
                 return;
             }
 
-            // 1. Ambil daftar template pembayaran dari DB agar pilihan di select dinamis
-            await this.fetchPaymentProviders();
-            
-            // 2. Inisialisasi GrapesJS
-            this.initGrapes();
+            try {
+                await this.fetchPaymentProviders();
+                this.initGrapes();
+            } catch (e) {
+                console.error("Init Error:", e);
+                window.location.href = '/login';
+            }
         },
 
         async fetchPaymentProviders() {
+            const res = await fetch('/api/admin/templates?type=payment', {
+                headers: { 'Authorization': 'Bearer ' + this.authPass }
+            });
+            if (res.status === 401) throw new Error("Expired");
+            const data = await res.json();
+            this.paymentProviders = data;
+        },
+
+        async saveCreds() {
             try {
-                const res = await fetch('/api/admin/templates?type=payment', {
-                    headers: { 'Authorization': 'Bearer ' + this.authPass }
+                const res = await fetch('/api/admin/credentials', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Bearer ' + this.authPass,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        provider: this.cred.provider,
+                        data: JSON.parse(this.cred.data)
+                    })
                 });
-                const data = await res.json();
-                this.paymentProviders = data; // Mengisi daftar provider dari payment_templates
+                if (res.ok) this.notify('Berhasil', 'Kredensial tersimpan!');
+                else this.notify('Gagal', 'Gagal menyimpan', 'error');
             } catch (e) {
-                console.error("Gagal ambil payment providers:", e);
-                this.notify('Error', 'Gagal memuat daftar pembayaran', 'error');
+                this.notify('Gagal', 'Format JSON salah', 'error');
             }
         },
 
+        async savePage() {
+            this.loading = true;
+            try {
+                const res = await fetch('/api/admin/pages', {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': 'Bearer ' + this.authPass,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        slug: this.page.slug,
+                        title: this.page.title,
+                        product_type: this.page.product_type,
+                        provider: this.page.slug_payment,
+                        html: window.editor.getHtml(),
+                        css: window.editor.getCss(),
+                        product_config: this.page.config
+                    })
+                });
+                if (res.status === 401) window.location.href = '/login';
+                if (res.ok) this.notify('Sukses', 'Halaman tersimpan!');
+            } catch (e) {
+                this.notify('Error', 'Gagal simpan', 'error');
+            }
+            this.loading = false;
+        },
+
+        initGrapes() {
+            setTimeout(() => {
+                window.editor = grapesjs.init({
+                    container: '#gjs',
+                    height: '100%',
+                    fromElement: false,
+                    storageManager: false,
+                    plugins: [
+                        'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 
+                        'grapesjs-component-countdown', 'grapesjs-tabs', 'grapesjs-custom-code', 
+                        'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 
+                        'grapesjs-typed', 'grapesjs-style-bg'
+                    ],
+                    // ... config lainnya sama ...
+                    blockManager: { appendTo: '#blocks-container' },
+                    layerManager: { appendTo: '#layers-container' },
+                    selectorManager: { appendTo: '#selectors-container' },
+                    traitManager: { appendTo: '#traits-container' },
+                    styleManager: { appendTo: '#styles-container' }
+                });
+
+                if (this.page.slug) {
+                    fetch('/api/admin/pages/' + this.page.slug, {
+                        headers: { 'Authorization': 'Bearer ' + this.authPass }
+                    })
+                    .then(r => {
+                        if (r.status === 401) window.location.href = '/login';
+                        return r.json();
+                    })
+                    .then(d => {
+                        if (d.id) {
+                            this.page.title = d.title;
+                            this.page.product_type = d.product_type || 'physical';
+                            this.page.slug_payment = d.provider || 'whatsapp';
+                            const c = JSON.parse(d.product_config_json || '{}');
+                            this.page.config = {
+                                variants: c.variants || [],
+                                shipping: c.shipping || { weight: 1000 },
+                                order_bump: c.order_bump || { active: false },
+                                coupons: c.coupons || [],
+                                settings: c.settings || {}
+                            };
+                            if (d.html_content) window.editor.setComponents(d.html_content);
+                            if (d.css_content) window.editor.setStyle(d.css_content);
+                        }
+                    });
+                }
+            }, 100);
+        },
+        // ... fungsi toggleMobilePanel & notify tetap ada ...
         toggleMobilePanel(tabName) {
-            if (this.mobilePanelOpen && this.mobileTab === tabName) {
-                this.mobilePanelOpen = false;
-            } else {
-                this.mobileTab = tabName;
-                this.mobilePanelOpen = true;
-            }
+            if (this.mobilePanelOpen && this.mobileTab === tabName) this.mobilePanelOpen = false;
+            else { this.mobileTab = tabName; this.mobilePanelOpen = true; }
         },
-
         notify(title, msg, type = 'success') {
             const id = Date.now();
             this.notifications.push({ id, title, msg, type, show: true });
@@ -537,7 +629,9 @@
                 const idx = this.notifications.findIndex(n => n.id === id);
                 if (idx > -1) this.notifications[idx].show = false;
             }, 3000);
-        },
+        }
+    }
+}
 
         setDevice(d) {
             this.device = d;
