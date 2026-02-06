@@ -23,7 +23,6 @@ async function serveAsset(c, path) {
         const response = await c.env.ASSETS.fetch(url);
         if (path.endsWith('.html')) {
             const newResponse = new Response(response.body, response);
-            // Jangan cache halaman admin
             newResponse.headers.set('Cache-Control', 'no-store, max-age=0');
             return newResponse;
         }
@@ -32,15 +31,13 @@ async function serveAsset(c, path) {
 }
 
 // ===============================================
-// 1. MIDDLEWARE AUTH (Cookie Logic Perbaikan)
+// 1. MIDDLEWARE AUTH
 // ===============================================
 const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
     const path = url.pathname;
     
-    console.log(`[AUTH] Checking path: ${path}`);
-
-    // --- WHITELIST ---
+    // Whitelist
     const whitelisted = (
         path === '/' || path === '/login' || path === '/admin/login' ||
         path === '/api/login' || path === '/api/setup-first-user' ||
@@ -51,39 +48,31 @@ const requireAuth = async (c, next) => {
 
     if (whitelisted) {
         if (!path.startsWith('/_views')) {
-            console.log(`[AUTH] Whitelisted path allowed: ${path}`);
             await next();
             return;
         }
     }
 
-    // --- CEK TOKEN ---
+    // Cek Token
     let token = getCookie(c, 'auth_token');
     const authHeader = c.req.header('Authorization');
     
     if (!token && authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
-        console.log(`[AUTH] Token extracted from Authorization Header`);
     }
 
     if (!token) {
-        console.warn(`[AUTH] No token found for path: ${path}. Redirecting to /login`);
         if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized: No Token' }, 401);
         return c.redirect('/login');
     }
 
     try {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
-        console.log(`[AUTH] Verifying token. Master Key present: ${!!c.env.APP_MASTER_KEY}`);
-        
         const payload = await verify(token, secret, 'HS256');
-        console.log(`[AUTH] Token Verified for: ${payload.email}`);
-        
         c.set('user', payload);
         await next();
         c.res.headers.set('Cache-Control', 'no-store, max-age=0');
     } catch (e) {
-        console.error(`[AUTH] Token Verification Failed: ${e.message}`);
         deleteCookie(c, 'auth_token');
         if (path.startsWith('/api/')) return c.json({ error: 'Invalid Token' }, 401);
         return c.redirect('/login');
@@ -98,50 +87,25 @@ app.use('*', requireAuth);
 app.post('/api/login', async (c) => {
     try {
         const { email, password } = await c.req.json();
-        console.log(`[LOGIN] Attempt for email: ${email}`);
         
-        // Cek DB
         const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
-        if (!user) {
-            console.warn(`[LOGIN] User NOT found in database: ${email}`);
-            return c.json({ success: false, message: 'Email tidak ditemukan' }, 401);
-        }
+        if (!user) return c.json({ success: false, message: 'Email tidak ditemukan' }, 401);
 
-        // Cek Password
         const inputHash = await sha256(password);
-        if (inputHash !== user.password) {
-            console.warn(`[LOGIN] Password mismatch for: ${email}`);
-            return c.json({ success: false, message: 'Password salah' }, 401);
-        }
+        if (inputHash !== user.password) return c.json({ success: false, message: 'Password salah' }, 401);
 
-        console.log(`[LOGIN] Password valid. Generating token...`);
-
-        // Buat Token
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
         const token = await sign({ 
-        id: user.id, 
-        email: user.email, 
-        role: user.role, 
-        exp: Math.floor(Date.now() / 1000) + 86400 
+            id: user.id, email: user.email, role: user.role, 
+            exp: Math.floor(Date.now() / 1000) + 86400 
         }, secret, 'HS256');
 
-        console.log(`[LOGIN] Token generated. Setting cookie...`);
-
-        // SET COOKIE
         setCookie(c, 'auth_token', token, { 
-            path: '/', 
-            secure: true, 
-            httpOnly: true, 
-            maxAge: 86400,
-            sameSite: 'Lax' // Ubah None ke Lax agar lebih kompatibel
+            path: '/', secure: true, httpOnly: true, maxAge: 86400, sameSite: 'Lax' 
         });
 
-        console.log(`[LOGIN] Success. Sending response.`);
         return c.json({ success: true, token: token });
-    } catch (e) { 
-        console.error(`[LOGIN] Error exception: ${e.message}`);
-        return c.json({ success: false, error: e.message }, 500); 
-    }
+    } catch (e) { return c.json({ success: false, error: e.message }, 500); }
 });
 
 app.post('/api/setup-first-user', async (c) => {
@@ -160,11 +124,10 @@ app.get('/api/logout', (c) => {
 });
 
 // ===============================================
-// 3. ADMIN ROUTES
+// 3. ADMIN ROUTES (HTML)
 // ===============================================
 app.get('/login', (c) => serveAsset(c, '/login.html'));
 app.get('/admin/login', (c) => c.redirect('/login'));
-
 app.get('/admin', (c) => c.redirect('/admin/dashboard'));
 app.get('/admin/dashboard', (c) => serveAsset(c, '/_views/dashboard.html'));
 app.get('/admin/pages', (c) => serveAsset(c, '/_views/pages.html'));
@@ -172,51 +135,18 @@ app.get('/admin/editor', (c) => serveAsset(c, '/_views/editor.html'));
 app.get('/admin/reports', (c) => serveAsset(c, '/_views/reports.html'));
 app.get('/admin/analytics', (c) => serveAsset(c, '/_views/analytics.html'));
 app.get('/admin/settings', (c) => serveAsset(c, '/_views/settings.html'));
-
 app.get('/_views*', (c) => c.redirect('/login'));
 
 // ===============================================
-// 4. API DATA (GENERIC & ADMIN)
+// 4. API DATA ROUTES (BACKEND)
 // ===============================================
+
+// --- A. PAGES ---
 app.get('/api/admin/pages', async (c) => {
     try {
         const res = await c.env.DB.prepare("SELECT id, slug, title, product_type, created_at FROM pages ORDER BY created_at DESC").all();
         return c.json(res.results);
     } catch(e) { return c.json({ error: e.message }, 500); }
-});
-
-// --- API BARU UNTUK HALAMAN REPORTS (Memperbaiki SyntaxError) ---
-app.get('/api/admin/reports', async (c) => {
-    try {
-        // Ambil data order terbaru
-        const orders = await c.env.DB.prepare("SELECT * FROM orders ORDER BY created_at DESC LIMIT 100").all();
-        
-        // Ambil statistik ringkas (Total Revenue, Pending, Paid)
-        const stats = await c.env.DB.prepare(`
-            SELECT 
-                COUNT(*) as total_orders,
-                SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END) as revenue,
-                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
-                SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_count
-            FROM orders
-        `).first();
-
-        return c.json({ 
-            orders: orders.results, 
-            stats: stats || { total_orders: 0, revenue: 0, pending_count: 0, paid_count: 0 } 
-        });
-    } catch(e) { return c.json({ error: e.message }, 500); }
-});
-
-app.get('/api/admin/analytics/data', async (c) => {
-    try {
-        const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
-        const today = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics WHERE date(created_at) = date('now')").first();
-        const topPages = await c.env.DB.prepare(`SELECT p.title, p.slug, COUNT(a.id) as views FROM pages p LEFT JOIN analytics a ON p.id = a.page_id GROUP BY p.id ORDER BY views DESC LIMIT 10`).all();
-        const referrers = await c.env.DB.prepare(`SELECT referrer, COUNT(*) as count FROM analytics WHERE referrer IS NOT NULL AND referrer != '' GROUP BY referrer ORDER BY count DESC LIMIT 10`).all();
-        const recent = await c.env.DB.prepare(`SELECT p.title, a.referrer, a.created_at FROM analytics a JOIN pages p ON a.page_id = p.id ORDER BY a.created_at DESC LIMIT 20`).all();
-        return c.json({ stats: { total_views: total?.count||0, today_views: today?.count||0 }, top_pages: topPages.results||[], referrers: referrers.results||[], recent: recent.results||[] });
-    } catch (e) { return c.json({ error: e.message }, 500); }
 });
 
 app.post('/api/admin/pages', async (c) => {
@@ -233,6 +163,62 @@ app.get('/api/admin/pages/:slug', async (c) => {
     return c.json(page || {});
 });
 
+// --- B. REPORTS (FIX: Menggunakan Tabel TRANSACTIONS) ---
+app.get('/api/admin/reports', async (c) => {
+    try {
+        // Ambil data dari tabel TRANSACTIONS
+        const txs = await c.env.DB.prepare("SELECT * FROM transactions ORDER BY created_at DESC LIMIT 100").all();
+        
+        // Format ulang data agar sesuai dgn tampilan frontend
+        // Kita extract nama & email dari kolom JSON customer_info
+        const formattedOrders = txs.results.map(t => {
+            let customer = { name: 'Guest', email: '-', phone: '-' };
+            try { 
+                const parsed = JSON.parse(t.customer_info);
+                if(parsed) customer = parsed;
+            } catch(e) {}
+
+            return {
+                id: t.id,
+                order_id: t.order_id,
+                customer_name: customer.name, // Mapping utk frontend
+                customer_phone: customer.phone,
+                total_amount: t.amount,       // Mapping utk frontend
+                status: t.status,
+                created_at: t.created_at
+            };
+        });
+
+        // Statistik Ringkas
+        const stats = await c.env.DB.prepare(`
+            SELECT 
+                COUNT(*) as total_orders,
+                SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) as revenue,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_count
+            FROM transactions
+        `).first();
+
+        return c.json({ 
+            orders: formattedOrders, 
+            stats: stats || { total_orders: 0, revenue: 0, pending_count: 0, paid_count: 0 } 
+        });
+    } catch(e) { return c.json({ error: e.message }, 500); }
+});
+
+// --- C. ANALYTICS ---
+app.get('/api/admin/analytics/data', async (c) => {
+    try {
+        const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
+        const today = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics WHERE date(created_at) = date('now')").first();
+        const topPages = await c.env.DB.prepare(`SELECT p.title, p.slug, COUNT(a.id) as views FROM pages p LEFT JOIN analytics a ON p.id = a.page_id GROUP BY p.id ORDER BY views DESC LIMIT 10`).all();
+        const referrers = await c.env.DB.prepare(`SELECT referrer, COUNT(*) as count FROM analytics WHERE referrer IS NOT NULL AND referrer != '' GROUP BY referrer ORDER BY count DESC LIMIT 10`).all();
+        const recent = await c.env.DB.prepare(`SELECT p.title, a.referrer, a.created_at FROM analytics a JOIN pages p ON a.page_id = p.id ORDER BY a.created_at DESC LIMIT 20`).all();
+        return c.json({ stats: { total_views: total?.count||0, today_views: today?.count||0 }, top_pages: topPages.results||[], referrers: referrers.results||[], recent: recent.results||[] });
+    } catch (e) { return c.json({ error: e.message }, 500); }
+});
+
+// --- D. SETTINGS & TEMPLATES ---
 app.post('/api/admin/set-homepage', async (c) => {
     try {
         await c.env.DB.prepare("INSERT INTO settings (key, value) VALUES ('homepage_slug', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind((await c.req.json()).slug).run();
@@ -254,7 +240,6 @@ app.post('/api/admin/credentials', async (c) => {
 
 app.post('/api/admin/upload-image', uploadImage);
 
-// --- ENDPOINT: GANTI PASSWORD ---
 app.post('/api/admin/change-password', async (c) => {
     try {
         const user = c.get('user');
@@ -263,9 +248,7 @@ app.post('/api/admin/change-password', async (c) => {
         if(!dbUser) return c.json({ success: false, message: 'User tidak ditemukan' }, 404);
         
         const currentHash = await sha256(current_password);
-        if(currentHash !== dbUser.password) {
-            return c.json({ success: false, message: 'Password lama salah' }, 401);
-        }
+        if(currentHash !== dbUser.password) return c.json({ success: false, message: 'Password lama salah' }, 401);
         
         const newHash = await sha256(new_password);
         await c.env.DB.prepare("UPDATE users SET password = ? WHERE id = ?").bind(newHash, user.id).run();
@@ -273,7 +256,7 @@ app.post('/api/admin/change-password', async (c) => {
     } catch(e) { return c.json({ success: false, message: e.message }, 500); }
 });
 
-// --- ENDPOINT: TEMPLATE API ---
+// Templates CRUD
 app.get('/api/admin/templates', async (c) => {
     const type = c.req.query('type') === 'shipping' ? 'shipping_templates' : 'payment_templates';
     try {
@@ -306,16 +289,8 @@ app.delete('/api/admin/templates', async (c) => {
     } catch(e) { return c.json({ error: e.message }, 500); }
 });
 
-// Generic API Gateways
-app.post('/api/shipping/check', async (c) => {
-    try {
-        const body = await c.req.json();
-        return c.json(await executeGenericAPI(c, 'shipping', body.slug_shipping, body));
-    } catch(e) { return c.json({ success: false, message: e.message }, 500); }
-});
-
 // ===============================================
-// 5. PUBLIC API
+// 5. PUBLIC API (CHECKOUT & SUBMIT)
 // ===============================================
 app.post('/api/public/submit-form', async (c) => {
     try {
@@ -325,12 +300,35 @@ app.post('/api/public/submit-form', async (c) => {
     } catch (e) { return c.text('Error', 500); }
 });
 
+// --- CHECKOUT FIX (Insert ke TRANSACTIONS) ---
 app.post('/api/public/checkout', async (c) => {
     try {
         const { page_id, customer, items, total, shipping, slug_payment } = await c.req.json();
         const orderId = `ORD-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-        await c.env.DB.prepare(`INSERT INTO orders (order_id, page_id, customer_name, customer_phone, customer_address, items_json, total_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))`).bind(orderId, page_id, customer.name, customer.phone, JSON.stringify(shipping || {}), JSON.stringify(items), total).run();
+        
+        // Karena tabel transactions tidak punya kolom items_json,
+        // kita simpan items dan shipping ke dalam customer_info (JSON)
+        const fullCustomerInfo = {
+            ...customer, // name, email, phone
+            items: items,
+            shipping: shipping
+        };
+
+        // Insert ke tabel TRANSACTIONS
+        await c.env.DB.prepare(
+            `INSERT INTO transactions (page_id, order_id, provider, amount, status, customer_info, created_at) 
+             VALUES (?, ?, ?, ?, 'pending', ?, datetime('now'))`
+        ).bind(
+            page_id, 
+            orderId, 
+            slug_payment || 'whatsapp', 
+            total, 
+            JSON.stringify(fullCustomerInfo)
+        ).run();
+
+        // Eksekusi API Payment Gateway (Midtrans/Paspay/Dll)
         const result = await executeGenericAPI(c, 'payment', slug_payment || 'whatsapp', { order_id: orderId, amount: total, customer, items, shipping });
+        
         return c.json({ success: true, order_id: orderId, payment: result });
     } catch (e) { return c.json({ success: false, message: e.message }, 500); }
 });
@@ -340,6 +338,13 @@ app.post('/api/public/shipping', async (c) => {
         const body = await c.req.json();
         return c.json(await executeGenericAPI(c, 'shipping', body.slug_shipping, body));
     } catch (e) { return c.json({ success: false, message: e.message }, 500); }
+});
+
+app.post('/api/shipping/check', async (c) => {
+    try {
+        const body = await c.req.json();
+        return c.json(await executeGenericAPI(c, 'shipping', body.slug_shipping, body));
+    } catch(e) { return c.json({ success: false, message: e.message }, 500); }
 });
 
 // ===============================================
