@@ -45,32 +45,38 @@ async function executeGenericAPI(c, type, slug, payload) {
     let extraHeaders = {};
     
     // --- LOGIKA KHUSUS FLASHPAY (AUTO AUTH VIA RELAY) ---
-    if (slug.includes('flashpay')) {
-        const authPayload = {
-            target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
-            target_method: "POST",
-            target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
-            target_payload: { client_key: creds.client_key, server_key: creds.server_key }
-        };
-    
-        const authRes = await fetch(RELAY_URL, {
-            method: 'POST',
-            headers: { "Content-Type": "application/json", "X-Relay-Secret": RELAY_SECRET },
-            body: JSON.stringify(authPayload)
-        });
-        
-        const authData = await authRes.json();
-        
-        // DEBUG: Lihat pesan error asli dari FlashPay via Relay
-        if (!authRes.ok || !authData?.data?.token) {
-            const errorMsg = authData?.message || JSON.stringify(authData);
-            throw new Error("Relay Error: " + errorMsg);
+if (slug.includes('flashpay')) {
+    const authPayload = {
+        target_url: "https://sandbox-secure.flashmobile.id/auth/v2/access-token",
+        target_method: "POST",
+        target_headers: { "Accept": "application/json", "Content-Type": "application/json" },
+        target_payload: { 
+            client_key: creds.client_key, 
+            server_key: creds.server_key 
         }
-        
-        const token = authData.data.token;
-        extraHeaders['Authorization'] = `Bearer ${token}`;
-        extraHeaders['X-Client-Key'] = creds.client_key;
+    };
+
+    // TEMBAK LANGSUNG KE RELAY DENGAN SECRET ASLI
+    const authRes = await fetch("https://pasdigi-relay.hf.space/proxy", {
+        method: 'POST',
+        headers: { 
+            "Content-Type": "application/json", 
+            "X-Relay-Secret": "BantarCaringin1" // <-- HARDCODE DISINI, JANGAN PAKE VARIABEL
+        },
+        body: JSON.stringify(authPayload)
+    });
+    
+    const authData = await authRes.json();
+    
+    if (!authRes.ok || !authData?.data?.token) {
+        // Biar kita tau Relay nolak kenapa
+        throw new Error(`Relay Auth Fail (Status: ${authRes.status}): ` + JSON.stringify(authData));
     }
+    
+    const token = authData.data.token;
+    extraHeaders['Authorization'] = `Bearer ${token}`;
+    extraHeaders['X-Client-Key'] = creds.client_key;
+}
 
     // Replace Variable {{...}}
     const replaceVars = (str) => {
