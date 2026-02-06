@@ -45,7 +45,6 @@
                     <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Settings</span>
                 </a>
             </nav>
-
             <div class="p-4 border-t dark:border-gray-700 shrink-0">
                 <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors">
                     <i class="ph ph-sign-out text-xl"></i>
@@ -74,14 +73,14 @@
                     <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
                         <i class="ph ph-key text-yellow-500"></i> API Credentials
                     </h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Kelola kunci rahasia untuk layanan yang aktif.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Kelola kunci rahasia. Pilih integrasi, lalu isi form yang muncul.</p>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">Pilih Integrasi</label>
-                            <div class="space-y-2 max-h-[300px] overflow-y-auto pr-2 border dark:border-gray-600 rounded-lg p-2 min-h-[100px]">
+                            <div class="space-y-2 max-h-[300px] overflow-y-auto pr-2 border dark:border-gray-600 rounded-lg p-2 min-h-[150px]">
                                 <template x-for="p in allProviders" :key="p">
-                                    <button @click="cred.provider=p" 
+                                    <button @click="setProvider(p)" 
                                             :class="cred.provider==p ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'" 
                                             class="w-full text-left px-3 py-2 border rounded-md text-sm font-bold transition flex items-center gap-2 capitalize">
                                         <i class="ph" :class="getIcon(p)"></i> 
@@ -89,19 +88,53 @@
                                     </button>
                                 </template>
                                 <div x-show="allProviders.length === 0" class="text-center text-xs text-gray-400 py-4 italic">
-                                    Tidak ada integrasi aktif.<br>Buat template di bawah dulu.
+                                    Tidak ada integrasi.<br>Buat template di bawah.
                                 </div>
                             </div>
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">
-                                JSON Configuration <span x-show="cred.provider" x-text="'(' + cred.provider + ')'" class="normal-case text-blue-500"></span>
-                            </label>
-                            <textarea x-model="cred.data" rows="8" class="w-full px-4 py-3 bg-gray-900 text-green-400 font-mono text-xs rounded-lg border border-gray-700 outline-none focus:border-green-500 mb-4" placeholder='{ "server_key": "...", "client_key": "..." }'></textarea>
-                            <div class="flex justify-end">
+                            <div class="flex justify-between items-center mb-4">
+                                <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                                    Konfigurasi <span x-show="cred.provider" x-text="cred.provider" class="normal-case text-blue-600 font-black"></span>
+                                </label>
+                                <button @click="jsonMode = !jsonMode" class="text-[10px] text-blue-500 hover:underline">
+                                    <span x-text="jsonMode ? 'Switch to Form Mode' : 'Switch to Raw JSON'"></span>
+                                </button>
+                            </div>
+
+                            <div x-show="!jsonMode">
+                                <template x-if="dynamicFields.length > 0">
+                                    <div class="grid grid-cols-1 gap-4">
+                                        <template x-for="field in dynamicFields" :key="field.key">
+                                            <div>
+                                                <label class="block text-xs font-bold text-gray-600 dark:text-gray-300 mb-1 capitalize" x-text="field.label"></label>
+                                                <input type="text" x-model="field.value" 
+                                                       class="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                                                       :placeholder="'Masukkan ' + field.label">
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template x-if="dynamicFields.length === 0 && cred.provider">
+                                    <div class="text-center py-8 bg-gray-50 dark:bg-gray-900 rounded-lg border border-dashed dark:border-gray-700">
+                                        <p class="text-xs text-gray-500">Provider ini belum memiliki skema field standar.</p>
+                                        <button @click="jsonMode = true" class="text-blue-500 text-xs mt-2 underline">Gunakan Mode JSON Saja</button>
+                                    </div>
+                                </template>
+                                <template x-if="!cred.provider">
+                                    <div class="text-center py-12 text-gray-400 text-sm">Pilih integrasi di sebelah kiri.</div>
+                                </template>
+                            </div>
+
+                            <div x-show="jsonMode">
+                                <textarea x-model="cred.data" rows="8" class="w-full px-4 py-3 bg-gray-900 text-green-400 font-mono text-xs rounded-lg border border-gray-700 outline-none focus:border-green-500 mb-2"></textarea>
+                                <p class="text-[10px] text-gray-400">Pastikan format JSON valid (gunakan tanda kutip dua).</p>
+                            </div>
+
+                            <div class="flex justify-end mt-6" x-show="cred.provider">
                                 <button @click="saveCreds" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow-lg flex items-center gap-2">
-                                    <i class="ph ph-lock-key"></i> Simpan Kredensial
+                                    <i class="ph ph-lock-key"></i> Simpan Konfigurasi
                                 </button>
                             </div>
                         </div>
@@ -114,7 +147,7 @@
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="text-xs text-gray-500 dark:text-gray-400">
-                            <p class="mb-2">Ganti password secara berkala untuk menjaga keamanan akun admin Anda.</p>
+                            <p>Ganti password secara berkala.</p>
                         </div>
                         <div class="md:col-span-2 space-y-4">
                             <div>
@@ -146,7 +179,7 @@
                             <h3 class="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2">
                                 <i class="ph ph-brackets-curly text-purple-500"></i> Integrasi API (Advanced)
                             </h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Buat template integrasi baru (Payment/Shipping) di sini agar muncul di daftar kredensial.</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Buat template baru di sini agar muncul di daftar kredensial.</p>
                         </div>
                         <div class="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-lg">
                             <button @click="tplType='payment'; fetchTemplates()" :class="tplType=='payment' ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-white' : 'text-gray-500'" class="px-4 py-1.5 rounded-md text-sm font-bold transition">Payment</button>
@@ -231,16 +264,27 @@
                 darkMode: localStorage.getItem('theme') === 'dark',
                 
                 // STATE
-                cred: { provider: '', data: '' }, // Provider default kosong
+                cred: { provider: '', data: '' },
                 security: { old_pass: '', new_pass: '', confirm_pass: '' },
                 tplType: 'payment',
                 templates: [],
                 isEditing: false,
                 tpl: { slug: '', name: '', api_endpoint: '', method: 'POST', headers_json: '{}', body_json: '{}', response_mapping: '{}' },
                 
-                // SATU DAFTAR UNIFIED (MURNI DATABASE)
+                // DATA PROSES
                 allProviders: [],
+                jsonMode: false,
+                dynamicFields: [], // Menyimpan field yang digenerate otomatis
                 
+                // SCHEMAS (Pola field untuk provider umum)
+                schemas: {
+                    'midtrans': [ {key:'server_key', label:'Server Key'}, {key:'client_key', label:'Client Key'} ],
+                    'rajaongkir': [ {key:'api_key', label:'API Key'}, {key:'origin_city_id', label:'ID Kota Asal (Origin)'} ],
+                    'cloudinary': [ {key:'cloud_name', label:'Cloud Name'}, {key:'api_key', label:'API Key'}, {key:'upload_preset', label:'Upload Preset'} ],
+                    'whatsapp': [ {key:'phone_number', label:'Nomor WA Admin (628...)'} ],
+                    'paspay': [ {key:'api_key', label:'API Key Paspay'}, {key:'project_id', label:'Project ID'} ] // DEFAULT SCHEMA
+                },
+
                 token: localStorage.getItem('admin_pass'),
                 
                 async init() {
@@ -251,7 +295,7 @@
                     await this.refreshProviderList(); 
                 },
 
-                // Logic: HANYA AMBIL DARI DATABASE (TANPA HARDCODE DEFAULT)
+                // GABUNGKAN DATA PROVIDER DARI DB
                 async refreshProviderList() {
                     const dbSlugs = [];
                     try {
@@ -260,17 +304,69 @@
                         
                         if(resPay.ok) { const d = await resPay.json(); dbSlugs.push(...d.map(i => i.slug)); }
                         if(resShip.ok) { const d = await resShip.json(); dbSlugs.push(...d.map(i => i.slug)); }
-                    } catch(e) { console.error("Gagal load provider list"); }
+                    } catch(e) {}
 
-                    // Sort A-Z
-                    this.allProviders = [...new Set(dbSlugs)].sort();
-                    
-                    // Set default selection jika belum ada yang dipilih dan list tidak kosong
+                    // UNIFIED LIST (Hanya dari DB + Standard)
+                    // Kita gabung standard manual agar user baru tidak bingung
+                    const standards = ['midtrans', 'rajaongkir', 'cloudinary', 'whatsapp'];
+                    this.allProviders = [...new Set([...standards, ...dbSlugs])].sort();
+
+                    // Auto select first
                     if (!this.cred.provider && this.allProviders.length > 0) {
-                        this.cred.provider = this.allProviders[0];
+                        this.setProvider(this.allProviders[0]);
                     }
                 },
 
+                // SAAT PROVIDER DIPILIH -> GENERATE FORM
+                setProvider(p) {
+                    this.cred.provider = p;
+                    this.cred.data = ''; // Reset JSON dulu
+                    this.dynamicFields = [];
+
+                    // Cek apakah ada schema bawaan
+                    if (this.schemas[p]) {
+                        this.dynamicFields = this.schemas[p].map(f => ({ ...f, value: '' }));
+                        this.jsonMode = false;
+                    } else {
+                        // Jika tidak ada schema, default ke JSON Mode
+                        this.jsonMode = true;
+                    }
+                },
+
+                // SAAT SIMPAN -> CONVERT FORM KE JSON
+                async saveCreds() {
+                    if (!this.cred.provider) return alert("Pilih integrasi dulu.");
+
+                    let jsonData = this.cred.data;
+
+                    // Jika dalam Mode Form, convert fields ke JSON string
+                    if (!this.jsonMode && this.dynamicFields.length > 0) {
+                        const obj = {};
+                        this.dynamicFields.forEach(f => obj[f.key] = f.value);
+                        jsonData = JSON.stringify(obj);
+                    }
+
+                    try {
+                        // Validasi JSON
+                        const parsed = JSON.parse(jsonData);
+                        
+                        const res = await fetch('/api/admin/credentials', {
+                            method: 'POST', 
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                            body: JSON.stringify({provider: this.cred.provider, data: parsed})
+                        });
+                        
+                        if(res.ok) { 
+                            alert('Konfigurasi Tersimpan!'); 
+                            // Reset
+                            if(!this.jsonMode) this.dynamicFields.forEach(f => f.value = '');
+                            this.cred.data = '';
+                        }
+                        else alert('Gagal menyimpan.');
+                    } catch(e) { alert('Format JSON Invalid! Cek kembali input Anda.'); }
+                },
+
+                // --- OTHER FUNCTIONS ---
                 toggleTheme() {
                     this.darkMode = !this.darkMode;
                     localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
@@ -279,57 +375,29 @@
 
                 logout() { localStorage.removeItem('admin_pass'); window.location.href = '/login'; },
                 
-                // Icon Mapping (Generic)
                 getIcon(p) { 
-                    const icons = {
-                        'midtrans': 'ph-credit-card', 
-                        'rajaongkir': 'ph-truck', 
-                        'cloudinary': 'ph-image', 
-                        'whatsapp': 'ph-whatsapp-logo',
-                        'paspay': 'ph-qr-code'
-                    }; 
+                    const icons = {'midtrans':'ph-credit-card','rajaongkir':'ph-truck','cloudinary':'ph-image','whatsapp':'ph-whatsapp-logo','paspay':'ph-qr-code'}; 
                     return icons[p] || 'ph-plugs-connected'; 
                 },
 
-                // --- 1. CREDENTIALS ---
-                async saveCreds() {
-                    if (!this.cred.provider) return alert("Pilih integrasi dulu/buat template baru.");
-                    try {
-                        const parsed = JSON.parse(this.cred.data);
-                        const res = await fetch('/api/admin/credentials', {
-                            method: 'POST', 
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
-                            body: JSON.stringify({provider: this.cred.provider, data: parsed})
-                        });
-                        if(res.ok) { alert('Kredensial tersimpan!'); this.cred.data = ''; }
-                        else alert('Gagal menyimpan.');
-                    } catch(e) { alert('JSON Kredensial Tidak Valid!'); }
-                },
-
-                // --- 2. SECURITY ---
                 async changePassword() {
-                    if(!this.security.old_pass || !this.security.new_pass) return alert('Lengkapi form password');
-                    if(this.security.new_pass !== this.security.confirm_pass) return alert('Konfirmasi password beda');
+                    if(!this.security.old_pass || !this.security.new_pass) return alert('Lengkapi form');
+                    if(this.security.new_pass !== this.security.confirm_pass) return alert('Konfirmasi beda');
                     try {
                         const res = await fetch('/api/admin/change-password', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
                             body: JSON.stringify({ current_password: this.security.old_pass, new_password: this.security.new_pass })
                         });
-                        const d = await res.json();
                         if(res.ok) { alert('Sukses! Login ulang.'); this.logout(); }
-                        else alert('Gagal: ' + d.message);
+                        else alert('Gagal.');
                     } catch(e) { alert('Error koneksi'); }
                 },
 
-                // --- 3. TEMPLATES ---
                 async fetchTemplates() {
                     this.templates = [];
                     this.resetTpl();
                     try {
-                        const res = await fetch(`/api/admin/templates?type=${this.tplType}`, {
-                            headers: { 'Authorization': `Bearer ${this.token}` }
-                        });
+                        const res = await fetch(`/api/admin/templates?type=${this.tplType}`, { headers: { 'Authorization': `Bearer ${this.token}` } });
                         if(res.ok) this.templates = await res.json();
                     } catch(e) {}
                 },
@@ -342,15 +410,10 @@
                     try {
                         JSON.parse(this.tpl.headers_json); JSON.parse(this.tpl.body_json); JSON.parse(this.tpl.response_mapping);
                         const res = await fetch('/api/admin/templates', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
+                            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
                             body: JSON.stringify({ type: this.tplType, data: this.tpl })
                         });
-                        if(res.ok) { 
-                            alert('Template tersimpan!'); 
-                            await this.fetchTemplates();
-                            await this.refreshProviderList(); // REFRESH LIST DROPDOWN
-                        }
+                        if(res.ok) { alert('Template tersimpan!'); await this.fetchTemplates(); await this.refreshProviderList(); }
                         else { const e = await res.json(); alert('Gagal: ' + e.error); }
                     } catch(e) { alert('Format JSON salah!'); }
                 },
@@ -361,11 +424,7 @@
                         const res = await fetch(`/api/admin/templates?type=${this.tplType}&slug=${this.tpl.slug}`, {
                             method: 'DELETE', headers: { 'Authorization': `Bearer ${this.token}` }
                         });
-                        if(res.ok) { 
-                            alert('Terhapus'); 
-                            await this.fetchTemplates();
-                            await this.refreshProviderList(); // REFRESH LIST DROPDOWN
-                        }
+                        if(res.ok) { alert('Terhapus'); await this.fetchTemplates(); await this.refreshProviderList(); }
                     } catch(e) { alert('Gagal'); }
                 }
             }
