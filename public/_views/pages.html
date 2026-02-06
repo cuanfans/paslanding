@@ -7,6 +7,105 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="/js/layout.js"></script>
+
+    <script>
+        function pagesList() {
+            return {
+                pages: [],
+                homepageSlug: null,
+                loading: true,
+                creating: false,
+                openCreate: false,
+                newPage: { slug: '', title: '', type: 'physical' },
+
+                async init() {
+                    this.loading = true;
+                    try {
+                        const resPages = await fetch('/api/admin/pages');
+                        const resHome = await fetch('/api/admin/homepage-slug');
+                        
+                        if(resPages.ok) this.pages = await resPages.json();
+                        if(resHome.ok) {
+                            const dataHome = await resHome.json();
+                            this.homepageSlug = dataHome.slug;
+                        }
+                    } catch(e) {
+                        console.error("Gagal mengambil data", e);
+                    }
+                    this.loading = false;
+                },
+
+                async setHomepage(slug) {
+                    if(!confirm('Jadikan halaman ini sebagai Homepage utama?')) return;
+                    try {
+                        const res = await fetch('/api/admin/set-homepage', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ slug: slug })
+                        });
+                        
+                        if(res.ok) {
+                            this.homepageSlug = slug;
+                            alert('Homepage berhasil diubah!');
+                        } else {
+                            alert('Gagal mengubah homepage');
+                        }
+                    } catch(e) {
+                        alert('Error koneksi');
+                    }
+                },
+
+                generateSlug() {
+                    this.newPage.slug = this.newPage.title
+                        .toLowerCase()
+                        .replace(/[^a-z0-9\s-]/g, '')
+                        .trim()
+                        .replace(/\s+/g, '-');
+                },
+
+                async createPage() {
+                    if (!this.newPage.slug || !this.newPage.title) return alert('Mohon isi Slug dan Judul');
+                    
+                    this.creating = true;
+                    try {
+                        const defaultHtml = `
+                            <section style="padding: 50px 20px; text-align: center; font-family: sans-serif;">
+                                <h1 style="font-size: 2.5rem; margin-bottom: 1rem; color: #1e293b;">${this.newPage.title}</h1>
+                                <p style="font-size: 1.25rem; color: #64748b; margin-bottom: 2rem;">Tulis penawaran menarik Anda di sini...</p>
+                                <div data-gjs-type="checkout-widget"></div>
+                            </section>
+                        `;
+
+                        const payload = {
+                            slug: this.newPage.slug,
+                            title: this.newPage.title,
+                            product_type: this.newPage.type,
+                            html: defaultHtml, 
+                            css: '',
+                            product_config: { variants: [], order_bump: { active: false }, shipping: { weight: 1000 } }
+                        };
+
+                        const res = await fetch('/api/admin/pages', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const data = await res.json();
+
+                        if (res.ok && data.success) {
+                            window.location.href = '/admin/editor?slug=' + this.newPage.slug;
+                        } else {
+                            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+                        }
+                    } catch (e) {
+                        alert('Error koneksi ke server');
+                    }
+                    this.creating = false;
+                }
+            }
+        }
+    </script>
 </head>
 <body>
     <admin-layout>
@@ -111,103 +210,6 @@
                 </table>
             </div>
         </div>
-    </admin-layout> <script>
-        function pagesList() {
-            return {
-                pages: [],
-                homepageSlug: null,
-                loading: true,
-                creating: false,
-                openCreate: false,
-                newPage: { slug: '', title: '', type: 'physical' },
-
-                async init() {
-                    this.loading = true;
-                    try {
-                        const resPages = await fetch('/api/admin/pages');
-                        const resHome = await fetch('/api/admin/homepage-slug');
-                        
-                        if(resPages.ok) this.pages = await resPages.json();
-                        if(resHome.ok) {
-                            const dataHome = await resHome.json();
-                            this.homepageSlug = dataHome.slug;
-                        }
-                    } catch(e) {
-                        console.error("Gagal mengambil data", e);
-                    }
-                    this.loading = false;
-                },
-
-                async setHomepage(slug) {
-                    if(!confirm('Jadikan halaman ini sebagai Homepage utama?')) return;
-                    try {
-                        const res = await fetch('/api/admin/set-homepage', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ slug: slug })
-                        });
-                        
-                        if(res.ok) {
-                            this.homepageSlug = slug;
-                            alert('Homepage berhasil diubah!');
-                        } else {
-                            alert('Gagal mengubah homepage');
-                        }
-                    } catch(e) {
-                        alert('Error koneksi');
-                    }
-                },
-
-                generateSlug() {
-                    this.newPage.slug = this.newPage.title
-                        .toLowerCase()
-                        .replace(/[^a-z0-9\s-]/g, '')
-                        .trim()
-                        .replace(/\s+/g, '-');
-                },
-
-                async createPage() {
-                    if (!this.newPage.slug || !this.newPage.title) return alert('Mohon isi Slug dan Judul');
-                    
-                    this.creating = true;
-                    try {
-                        const defaultHtml = `
-                            <section style="padding: 50px 20px; text-align: center; font-family: sans-serif;">
-                                <h1 style="font-size: 2.5rem; margin-bottom: 1rem; color: #1e293b;">${this.newPage.title}</h1>
-                                <p style="font-size: 1.25rem; color: #64748b; margin-bottom: 2rem;">Tulis penawaran menarik Anda di sini...</p>
-                                <div data-gjs-type="checkout-widget"></div>
-                            </section>
-                        `;
-
-                        const payload = {
-                            slug: this.newPage.slug,
-                            title: this.newPage.title,
-                            product_type: this.newPage.type,
-                            html: defaultHtml, 
-                            css: '',
-                            product_config: { variants: [], order_bump: { active: false }, shipping: { weight: 1000 } }
-                        };
-
-                        const res = await fetch('/api/admin/pages', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-
-                        const data = await res.json();
-
-                        if (res.ok && data.success) {
-                            window.location.href = '/admin/editor?slug=' + this.newPage.slug;
-                        } else {
-                            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
-                        }
-                    } catch (e) {
-                        alert('Error koneksi ke server');
-                    }
-                    this.creating = false;
-                }
-            }
-        }
-    </script>
+    </admin-layout>
 </body>
 </html>
