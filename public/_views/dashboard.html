@@ -1,47 +1,74 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <title>Dashboard</title>
+    <title>Dashboard - BlinkSite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="/js/layout.js"></script>
 </head>
-<body>
+<body class="bg-gray-50 dark:bg-gray-900">
     <admin-layout>
         <div x-data="dashboardApp()" x-init="init()">
             <header class="mb-8">
                 <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Selamat Datang, Admin!</h2>
-                <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Ringkasan performa bisnis Anda.</p>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Ringkasan performa bisnis Anda hari ini.</p>
             </header>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
                     <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase">Total Halaman</p>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Halaman</p>
                         <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.pages">0</h3>
                     </div>
                     <div class="h-12 w-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-2xl">
                         <i class="ph ph-files"></i>
                     </div>
                 </div>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
                     <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase">Total Leads</p>
-                        <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.leads">0</h3>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Kunjungan</p>
+                        <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.views">0</h3>
                     </div>
                     <div class="h-12 w-12 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center text-2xl">
-                        <i class="ph ph-users"></i>
+                        <i class="ph ph-chart-line"></i>
                     </div>
                 </div>
-                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center">
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
                     <div>
-                        <p class="text-xs font-bold text-gray-400 uppercase">Penjualan (Est)</p>
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Penjualan (Est)</p>
                         <h3 class="text-3xl font-black text-gray-800 dark:text-white mt-1">Rp 0</h3>
                     </div>
                     <div class="h-12 w-12 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full flex items-center justify-center text-2xl">
-                        <i class="ph ph-currency-dollar"></i>
+                        <i class="ph ph-currency-circle-dollar"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                    <div class="p-4 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+                        <h4 class="font-bold text-sm uppercase text-gray-500">Kunjungan Terbaru</h4>
+                        <a href="/admin/analytics" class="text-xs text-blue-600 font-bold hover:underline">Lihat Semua</a>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <tbody class="divide-y dark:divide-gray-700">
+                                <template x-for="item in recentViews" :key="item.created_at">
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td class="p-4 font-medium" x-text="item.title"></td>
+                                        <td class="p-4 text-gray-400 text-xs" x-text="item.referrer"></td>
+                                        <td class="p-4 text-right text-gray-400 text-[10px]" x-text="new Date(item.created_at).toLocaleString()"></td>
+                                    </tr>
+                                </template>
+                                <tr x-show="recentViews.length === 0">
+                                    <td colspan="3" class="p-8 text-center text-gray-400">Belum ada data kunjungan.</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -50,12 +77,33 @@
         <script>
             function dashboardApp() {
                 return {
-                    stats: { pages: 0, leads: 0 },
+                    stats: { pages: 0, views: 0 },
+                    recentViews: [],
                     async init() {
-                        const res = await fetch('/api/admin/pages');
-                        if(res.ok) {
-                            const data = await res.json();
-                            this.stats.pages = data.length;
+                        const token = localStorage.getItem('admin_pass');
+                        const headers = { 'Authorization': `Bearer ${token}` };
+
+                        try {
+                            // Fetch Data Halaman
+                            const resPages = await fetch('/api/admin/pages', { headers });
+                            if(resPages.ok) {
+                                const pages = await resPages.json();
+                                this.stats.pages = pages.length;
+                            }
+
+                            // Fetch Data Analytics
+                            const resAnal = await fetch('/api/admin/analytics/data', { headers });
+                            if(resAnal.ok) {
+                                const anal = await resAnal.json();
+                                this.stats.views = anal.stats.total_views || 0;
+                                this.recentViews = anal.recent || [];
+                            }
+
+                            if(resPages.status === 401 || resAnal.status === 401) {
+                                window.location.href = '/login';
+                            }
+                        } catch (e) {
+                            console.error("Dashboard Load Error:", e);
                         }
                     }
                 }
