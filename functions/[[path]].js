@@ -12,7 +12,7 @@ const RELAY_URL = "https://pasdigi-relay.hf.space/proxy";
 const RELAY_SECRET = "BantarCaringin1";
 
 // =============================================================
-// 1. INTERNAL ENGINE (SINKRON DENGAN TEST PHP)
+// 1. INTERNAL ENGINE (SINKRON SPEK DOKUMENTASI VA)
 // =============================================================
 async function executeGenericAPI(c, type, slug, payload) {
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
@@ -54,10 +54,26 @@ async function executeGenericAPI(c, type, slug, payload) {
         });
     };
 
+    // --- SINKRONISASI PAYLOAD SESUAI DOKUMENTASI VA ---
     if (slug.includes('flashpay')) {
-        payload.external_id = "ORDER-" + Date.now();
-        payload.payment_type = ["VA_BRI"];
-        payload.customer_id = payload.customer_phone; 
+        payload.external_id = "INV-" + Date.now();
+        payload.payment_type = ["VA_BRIs"]; // Berdasarkan spek VA_BCA, VA_BRI, dll
+        payload.currency = "IDR";
+        payload.session_time = "15";
+        
+        // WAJIB UNTUK VA
+        payload.customer_id = payload.customer_phone.replace(/[^0-9]/g, ''); // Harus Numeric
+        payload.va_type = "CLOSE_AMOUNT";
+        payload.va_reusability = "SINGLE_USE";
+        
+        // Data Customer Details (Di level object sesuai dokumentasi)
+        payload.customer_details = {
+            name: payload.customer_name,
+            email: payload.customer_email,
+            phone: payload.customer_phone,
+            address: "Jl. In",
+            postal_code: "13930"
+        };
     }
     
     const bodyFinal = replaceVars(template.body_json || '{}');
@@ -97,25 +113,23 @@ app.post('/api/public/checkout', async (c) => {
         const requestData = {
             slug_payment: body.slug_payment,
             page_id: body.page_id,
-            amount: parseInt(config.price || 170000),
-            customer_name: body.customer?.name || "User",
+            amount: parseInt(config.price || 175000),
+            customer_name: body.customer?.name || "Alea",
             customer_email: "customer@mail.com",
-            customer_phone: body.customer?.phone || "0812312312",
-            customer_address: "Jl. In",
-            customer_postal: "13930"
+            customer_phone: (body.customer?.phone || "0812312312").replace(/[^0-9]/g, '')
         };
 
         const result = await executeGenericAPI(c, 'payment', requestData.slug_payment, requestData);
         const va_number = result.va_number || result._raw?.data?.payment_code || result._raw?.data?.va_number;
 
-        if (!va_number) return c.json({ error: "Gagal generate VA", debug: result._raw }, 400);
+        if (!va_number) return c.json({ error: "FlashPay: Data VA tidak ditemukan", debug: result._raw }, 400);
 
         return c.json({ va: { number: va_number, bank: "BRI VA", amount: requestData.amount } });
     } catch (e) { return c.json({ error: e.message }, 500); }
 });
 
 // ===============================================
-// 8. RENDERING (FIXED SYNTAX)
+// 8. RENDERING (FIXED TEMPLATE LITERALS)
 // ===============================================
 app.get('/:slug', async (c) => {
     const slug = c.req.param('slug');
@@ -133,7 +147,7 @@ async function renderPage(c, page) {
             if (!document.body.innerHTML.includes('[ CHECKOUT ]')) return;
             const activeSlugs = ${JSON.stringify(activePayments)};
             let listHTML = activeSlugs.map(s => \`
-                <label class="flex items-center p-3 border rounded-lg mb-2 cursor-pointer border-gray-100">
+                <label class="flex items-center p-3 border rounded-lg mb-2 cursor-pointer border-gray-200">
                     <input type="radio" name="pay_method" value="\${s}" class="mr-3">
                     <span class="font-bold text-xs uppercase text-gray-700">\${s.replace(/-/g,' ')}</span>
                 </label>\`).join('');
@@ -141,10 +155,10 @@ async function renderPage(c, page) {
                 <div id="checkout-box" class="max-w-md mx-auto my-10 p-8 bg-white rounded-2xl shadow-xl border">
                     <div id="checkout-form-inner">
                         <h2 class="text-xl font-black mb-6 text-center">CHECKOUT</h2>
-                        <input type="text" id="c_name" placeholder="Nama" class="w-full mb-3 p-3 bg-gray-50 border rounded-lg">
-                        <input type="tel" id="c_phone" placeholder="No WhatsApp" class="w-full mb-6 p-3 bg-gray-50 border rounded-lg">
+                        <input type="text" id="c_name" placeholder="Nama" class="w-full mb-3 p-3 bg-gray-50 border rounded-lg outline-none">
+                        <input type="tel" id="c_phone" placeholder="WhatsApp" class="w-full mb-6 p-3 bg-gray-50 border rounded-lg outline-none">
                         <div class="mb-6">\${listHTML}</div>
-                        <button id="btn-pay" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl">KONFIRMASI BAYAR</button>
+                        <button id="btn-pay" class="w-full p-4 bg-blue-600 text-white font-black rounded-xl uppercase transition active:scale-95">Bayar Sekarang</button>
                     </div>
                 </div>\`;
             document.body.innerHTML = document.body.innerHTML.replace('[ CHECKOUT ]', formHTML);
@@ -164,13 +178,13 @@ async function renderPage(c, page) {
                     if(data.va) {
                         document.getElementById('checkout-form-inner').innerHTML = \`
                             <div class="text-center">
-                                <h3 class="text-lg font-bold mb-4 uppercase">Nomor VA BRI</h3>
+                                <h3 class="text-lg font-bold mb-4">NOMOR VA BRI</h3>
                                 <div class="bg-gray-50 p-6 rounded-xl border border-dashed mb-4">
                                     <div class="text-2xl font-black text-blue-600 tracking-widest">\${data.va.number}</div>
                                 </div>
                                 <div class="text-sm font-bold">Total: Rp \${new Intl.NumberFormat('id-ID').format(data.va.amount)}</div>
                             </div>\`;
-                    } else { alert(data.error || 'Gagal'); btn.disabled = false; btn.innerText = 'BAYAR'; }
+                    } else { alert(data.error || 'Gagal'); btn.disabled = false; btn.innerText = 'BAYAR SEKARANG'; }
                 } catch(e) { alert(e.message); btn.disabled = false; }
             };
         });
