@@ -38,44 +38,54 @@ const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
     const path = url.pathname;
     
-    // 1. Definisikan Whitelist dengan Jelas
-    const isPublic = 
-        path === '/' || 
-        path === '/login' || 
-        path === '/api/login' || 
-        path === '/api/setup-first-user' ||
+    console.log(`[AUTH] Checking path: ${path}`);
+
+    // --- WHITELIST ---
+    const whitelisted = (
+        path === '/' || path === '/login' || path === '/admin/login' ||
+        path === '/api/login' || path === '/api/setup-first-user' ||
         path.startsWith('/api/public/') ||
-        /\.(js|css|png|jpg|ico|svg)$/.test(path);
+        path.endsWith('.js') || path.endsWith('.css') ||
+        path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.ico')
+    );
 
-    // 2. Jika public DAN bukan folder terlarang, izinkan
-    if (isPublic && !path.startsWith('/_views')) {
-        return await next();
+    if (whitelisted) {
+        if (!path.startsWith('/_views')) {
+            console.log(`[AUTH] Whitelisted path allowed: ${path}`);
+            await next();
+            return;
+        }
     }
 
-    // 3. Cek Token untuk area terproteksi (Admin)
+    // --- CEK TOKEN ---
     let token = getCookie(c, 'auth_token');
-    if (!token) {
-        const authHeader = c.req.header('Authorization');
-        if (authHeader?.startsWith('Bearer ')) token = authHeader.split(' ')[1];
+    const authHeader = c.req.header('Authorization');
+    
+    if (!token && authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+        console.log(`[AUTH] Token extracted from Authorization Header`);
     }
 
     if (!token) {
-        if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized' }, 401);
+        console.warn(`[AUTH] No token found for path: ${path}. Redirecting to /login`);
+        if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized: No Token' }, 401);
         return c.redirect('/login');
     }
 
     try {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
+        console.log(`[AUTH] Verifying token. Master Key present: ${!!c.env.APP_MASTER_KEY}`);
+        
         const payload = await verify(token, secret);
+        console.log(`[AUTH] Token Verified for: ${payload.email}`);
+        
         c.set('user', payload);
         await next();
-        // Set header cache hanya jika bukan API
-        if (!path.startsWith('/api/')) {
-            c.res.headers.set('Cache-Control', 'no-store, max-age=0');
-        }
+        c.res.headers.set('Cache-Control', 'no-store, max-age=0');
     } catch (e) {
+        console.error(`[AUTH] Token Verification Failed: ${e.message}`);
         deleteCookie(c, 'auth_token');
-        if (path.startsWith('/api/')) return c.json({ error: 'Invalid Session' }, 401);
+        if (path.startsWith('/api/')) return c.json({ error: 'Invalid Token' }, 401);
         return c.redirect('/login');
     }
 };
@@ -88,14 +98,23 @@ app.use('*', requireAuth);
 app.post('/api/login', async (c) => {
     try {
         const { email, password } = await c.req.json();
+        console.log(`[LOGIN] Attempt for email: ${email}`);
         
         // Cek DB
         const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
-        if (!user) return c.json({ success: false, message: 'Email salah' }, 401);
+        if (!user) {
+            console.warn(`[LOGIN] User NOT found in database: ${email}`);
+            return c.json({ success: false, message: 'Email tidak ditemukan' }, 401);
+        }
 
         // Cek Password
         const inputHash = await sha256(password);
-        if (inputHash !== user.password) return c.json({ success: false, message: 'Password salah' }, 401);
+        if (inputHash !== user.password) {
+            console.warn(`[LOGIN] Password mismatch for: ${email}`);
+            return c.json({ success: false, message: 'Password salah' }, 401);
+        }
+
+        console.log(`[LOGIN] Password valid. Generating token...`);
 
         // Buat Token
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
@@ -103,21 +122,26 @@ app.post('/api/login', async (c) => {
             id: user.id, 
             email: user.email, 
             role: user.role, 
-            exp: Math.floor(Date.now() / 1000) + 86400 // 24 Jam
+            exp: Math.floor(Date.now() / 1000) + 86400 
         }, secret);
 
-        // SET COOKIE (SETTING INI SANGAT PENTING UTK CLOUDFLARE PAGES)
-        // Kita gunakan SameSite=None dan Secure=true agar kompatibel lintas browser di HTTPS
+        console.log(`[LOGIN] Token generated. Setting cookie...`);
+
+        // SET COOKIE
         setCookie(c, 'auth_token', token, { 
             path: '/', 
             secure: true, 
             httpOnly: true, 
             maxAge: 86400,
-            sameSite: 'Lax' 
+            sameSite: 'Lax' // Ubah None ke Lax agar lebih kompatibel
         });
 
+        console.log(`[LOGIN] Success. Sending response.`);
         return c.json({ success: true, token: token });
-    } catch (e) { return c.json({ success: false, error: e.message }, 500); }
+    } catch (e) { 
+        console.error(`[LOGIN] Error exception: ${e.message}`);
+        return c.json({ success: false, error: e.message }, 500); 
+    }
 });
 
 app.post('/api/setup-first-user', async (c) => {
