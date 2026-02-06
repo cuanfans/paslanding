@@ -311,16 +311,70 @@ app.post('/api/public/submit-form', async (c) => {
 
 app.post('/api/public/checkout', async (c) => {
     try {
-        const { page_id, customer, items, total, shipping, slug_payment } = await c.req.json();
-        const orderId = `ORD-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-        const fullCustomer = { ...customer, items, shipping };
+        const body = await c.req.json();
+        const { slug_payment, customer, page_id } = body;
 
-        await c.env.DB.prepare(`INSERT INTO transactions (page_id, order_id, provider, amount, status, customer_info, created_at) VALUES (?, ?, ?, ?, 'pending', ?, datetime('now'))`)
-            .bind(page_id, orderId, slug_payment || 'whatsapp', total, JSON.stringify(fullCustomer)).run();
+        // 1. Validasi Input Dasar
+        if (!slug_payment || !customer?.phone) {
+            return c.json({ error: "Data pesanan tidak lengkap!" }, 400);
+        }
 
-        const result = await executeGenericAPI(c, 'payment', slug_payment || 'whatsapp', { order_id: orderId, amount: total, customer: fullCustomer });
-        return c.json({ success: true, order_id: orderId, payment: result });
-    } catch (e) { return c.json({ success: false, message: e.message }, 500); }
+        // 2. Ambil Kredensial dari Tabel Credentials (BERDASARKAN PROVIDER YANG DIPILIH PEMBELI)
+        // Kita asumsikan di dropdown/checkbox slug-nya adalah 'flashpay-bri', 
+        // tapi di tabel credentials kita simpan sebagai 'flashpay'
+        const providerKey = slug_payment.includes('flashpay') ? 'flashpay' : slug_payment;
+        
+        const credRow = await c.env.DB.prepare(
+            `SELECT data FROM credentials WHERE provider = ?`
+        ).bind(providerKey).first();
+
+        if (!credRow) {
+            return c.json({ error: `Kredensial API untuk ${providerKey} belum diatur di menu Settings!` }, 400);
+        }
+
+        const creds = JSON.parse(credRow.data);
+        // Pastikan key ada
+        if (!creds.client_key || !creds.server_key) {
+            return c.json({ error: "API Key (Client/Server) tidak ditemukan dalam JSON Config!" }, 400);
+        }
+
+        // 3. Logika Hit ke Relay Proxy FlashPay
+        const timestamp = Math.floor(Date.now() / 1000);
+        const orderId = `INV-${timestamp}-${Math.floor(Math.random() * 1000)}`;
+        
+        // Sesuaikan dengan endpoint Relay Proxy Anda
+        const proxyUrl = "https://your-relay-proxy.com/api/v1/payment"; 
+
+        const response = await fetch(proxyUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Client-Key': creds.client_key,
+                'X-Timestamp': timestamp.toString(),
+                'X-Signature': btoa(`${creds.client_key}:${timestamp}:${creds.server_key}`) // Contoh simple signature
+            },
+            body: JSON.stringify({
+                order_id: orderId,
+                amount: 199000, // Harusnya ambil dari data Page/Variant
+                customer_name: customer.name,
+                customer_phone: customer.phone,
+                payment_method: slug_payment // e.g. 'flashpay-bri'
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.payment_url) {
+            return c.json({ payment_url: result.payment_url });
+        } else {
+            return c.json({ error: result.message || "Gagal mendapatkan link pembayaran dari FlashPay" }, 400);
+        }
+
+    } catch (err) {
+        console.error("CRITICAL ERROR CHECKOUT:", err);
+        // Ini yang mencegah Error 500 tanpa info
+        return c.json({ error: "Internal Server Error: " + err.message }, 500);
+    }
 });
 
 app.post('/api/public/shipping', async (c) => {
