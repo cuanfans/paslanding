@@ -74,19 +74,18 @@
                     <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
                         <i class="ph ph-key text-yellow-500"></i> API Credentials
                     </h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Isi kunci rahasia untuk provider bawaan maupun template custom Anda.</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Kelola kunci rahasia untuk semua integrasi layanan.</p>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">Pilih Layanan</label>
+                            <label class="block text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">Pilih Integrasi</label>
                             <div class="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                                <template x-for="p in providerList" :key="p">
+                                <template x-for="p in allProviders" :key="p">
                                     <button @click="cred.provider=p" 
                                             :class="cred.provider==p ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 dark:text-gray-300'" 
                                             class="w-full text-left px-4 py-3 border rounded-lg text-sm font-bold transition flex items-center gap-3 capitalize">
                                         <i class="ph" :class="getIcon(p)"></i> 
                                         <span x-text="p"></span>
-                                        <span x-show="isCustom(p)" class="ml-auto text-[10px] bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-500">Custom</span>
                                     </button>
                                 </template>
                             </div>
@@ -142,9 +141,9 @@
                     <div class="flex justify-between items-center mb-6">
                         <div>
                             <h3 class="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2">
-                                <i class="ph ph-brackets-curly text-purple-500"></i> API Templates
+                                <i class="ph ph-brackets-curly text-purple-500"></i> Integrasi API (Advanced)
                             </h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Buat integrasi baru (Payment/Shipping).</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Buat dan atur template integrasi baru di sini.</p>
                         </div>
                         <div class="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-lg">
                             <button @click="tplType='payment'; fetchTemplates()" :class="tplType=='payment' ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-white' : 'text-gray-500'" class="px-4 py-1.5 rounded-md text-sm font-bold transition">Payment</button>
@@ -155,7 +154,7 @@
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div class="lg:col-span-1 border-r dark:border-gray-700 pr-6">
                             <div class="flex justify-between items-center mb-3">
-                                <label class="text-xs font-bold text-gray-500 uppercase">List Template</label>
+                                <label class="text-xs font-bold text-gray-500 uppercase">Daftar Template</label>
                                 <button @click="resetTpl()" class="text-xs text-blue-600 hover:underline">+ Buat Baru</button>
                             </div>
                             <div class="space-y-2 max-h-[400px] overflow-y-auto">
@@ -173,11 +172,11 @@
                             <div class="space-y-4">
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Slug (ID Unik)</label>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Slug (ID)</label>
                                         <input x-model="tpl.slug" :disabled="isEditing" placeholder="cth: paspay" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-xs disabled:opacity-50">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama</label>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Nama Layanan</label>
                                         <input x-model="tpl.name" placeholder="cth: Paspay QRIS" class="w-full px-3 py-2 border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white text-xs">
                                     </div>
                                 </div>
@@ -193,16 +192,16 @@
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Headers</label>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Headers JSON</label>
                                         <textarea x-model="tpl.headers_json" rows="4" class="w-full px-3 py-2 bg-gray-900 text-blue-300 font-mono text-[10px] rounded border border-gray-700"></textarea>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-bold text-gray-500 mb-1">Body</label>
+                                        <label class="block text-xs font-bold text-gray-500 mb-1">Body JSON</label>
                                         <textarea x-model="tpl.body_json" rows="4" class="w-full px-3 py-2 bg-gray-900 text-yellow-300 font-mono text-[10px] rounded border border-gray-700"></textarea>
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">Response Mapping</label>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">Response Mapping JSON</label>
                                     <textarea x-model="tpl.response_mapping" rows="2" class="w-full px-3 py-2 bg-gray-900 text-green-300 font-mono text-[10px] rounded border border-gray-700"></textarea>
                                 </div>
                                 <div class="flex justify-between pt-2 border-t dark:border-gray-700 mt-4">
@@ -228,7 +227,7 @@
                 sidebarOpen: window.innerWidth > 768,
                 darkMode: localStorage.getItem('theme') === 'dark',
                 
-                // DATA
+                // STATE
                 cred: { provider: 'midtrans', data: '' },
                 security: { old_pass: '', new_pass: '', confirm_pass: '' },
                 tplType: 'payment',
@@ -236,9 +235,8 @@
                 isEditing: false,
                 tpl: { slug: '', name: '', api_endpoint: '', method: 'POST', headers_json: '{}', body_json: '{}', response_mapping: '{}' },
                 
-                // PROVIDER LIST (Defaults + Custom)
-                defaultProviders: ['midtrans', 'rajaongkir', 'cloudinary', 'whatsapp'],
-                customProviders: [],
+                // SATU DAFTAR UNIFIED
+                allProviders: [],
                 
                 token: localStorage.getItem('admin_pass'),
                 
@@ -246,38 +244,28 @@
                     if (!this.token) return window.location.href = '/login';
                     if (this.darkMode) document.documentElement.classList.add('dark');
                     
-                    await this.fetchTemplates(); // Load templates dulu
-                    await this.refreshProviderList(); // Baru update list provider
+                    await this.fetchTemplates(); 
+                    await this.refreshProviderList(); 
                 },
 
-                // GABUNGKAN DEFAULT + CUSTOM
-                get providerList() {
-                    return [...this.defaultProviders, ...this.customProviders];
-                },
-
-                // Cek apakah provider ini custom (template)
-                isCustom(p) {
-                    return !this.defaultProviders.includes(p);
-                },
-
-                // Ambil semua template untuk mengisi dropdown Credentials
+                // Logic: Gabungkan standar + database, lalu urutkan
                 async refreshProviderList() {
-                    this.customProviders = [];
+                    const standards = ['midtrans', 'rajaongkir', 'cloudinary', 'whatsapp'];
+                    const dbSlugs = [];
+
                     try {
                         const resPay = await fetch('/api/admin/templates?type=payment', { headers: { 'Authorization': `Bearer ${this.token}` } });
                         const resShip = await fetch('/api/admin/templates?type=shipping', { headers: { 'Authorization': `Bearer ${this.token}` } });
                         
-                        if(resPay.ok) {
-                            const data = await resPay.json();
-                            this.customProviders.push(...data.map(d => d.slug));
-                        }
-                        if(resShip.ok) {
-                            const data = await resShip.json();
-                            this.customProviders.push(...data.map(d => d.slug));
-                        }
-                        // Hapus duplikat jika ada slug yg sama dgn default
-                        this.customProviders = this.customProviders.filter(p => !this.defaultProviders.includes(p));
+                        if(resPay.ok) { const d = await resPay.json(); dbSlugs.push(...d.map(i => i.slug)); }
+                        if(resShip.ok) { const d = await resShip.json(); dbSlugs.push(...d.map(i => i.slug)); }
                     } catch(e) { console.error("Gagal load provider list"); }
+
+                    // Gabung dan Hapus Duplikat
+                    const merged = [...new Set([...standards, ...dbSlugs])];
+                    
+                    // Sort A-Z
+                    this.allProviders = merged.sort();
                 },
 
                 toggleTheme() {
@@ -288,9 +276,15 @@
 
                 logout() { localStorage.removeItem('admin_pass'); window.location.href = '/login'; },
                 
+                // Icon Mapping (Generic fallback for custom)
                 getIcon(p) { 
-                    const i={'midtrans':'ph-credit-card','rajaongkir':'ph-truck','cloudinary':'ph-image','whatsapp':'ph-whatsapp-logo'}; 
-                    return i[p]||'ph-plugs-connected'; 
+                    const icons = {
+                        'midtrans': 'ph-credit-card', 
+                        'rajaongkir': 'ph-truck', 
+                        'cloudinary': 'ph-image', 
+                        'whatsapp': 'ph-whatsapp-logo'
+                    }; 
+                    return icons[p] || 'ph-plugs-connected'; // Fallback icon
                 },
 
                 // --- 1. CREDENTIALS ---
@@ -350,7 +344,7 @@
                         if(res.ok) { 
                             alert('Template tersimpan!'); 
                             await this.fetchTemplates();
-                            await this.refreshProviderList(); // Update dropdown provider di atas
+                            await this.refreshProviderList(); // REFRESH DROPDOWN CREDENTIALS JUGA
                         }
                         else { const e = await res.json(); alert('Gagal: ' + e.error); }
                     } catch(e) { alert('Format JSON salah!'); }
@@ -365,7 +359,7 @@
                         if(res.ok) { 
                             alert('Terhapus'); 
                             await this.fetchTemplates();
-                            await this.refreshProviderList(); // Update dropdown provider di atas
+                            await this.refreshProviderList(); // REFRESH DROPDOWN CREDENTIALS JUGA
                         }
                     } catch(e) { alert('Gagal'); }
                 }
