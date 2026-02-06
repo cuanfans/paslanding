@@ -1,12 +1,18 @@
+// public/js/layout.js
+
 // Cek Auth Global
 if (!localStorage.getItem('admin_pass')) window.location.href = '/login';
 
 class AdminLayout extends HTMLElement {
     connectedCallback() {
-        // Ambil konten asli di dalam tag <admin-layout>
-        const content = this.innerHTML;
-        
-        // Render Layout Full (Sidebar + Main Content)
+        // AMANKAN KONTEN ASLI (JANGAN DI-STRING-KAN, TAPI DIPINDAHKAN)
+        // Ini mencegah AlpineJS kehilangan referensi DOM saat layout dirender.
+        const originalContent = document.createDocumentFragment();
+        while(this.firstChild) {
+            originalContent.appendChild(this.firstChild);
+        }
+
+        // Render Kerangka Layout
         this.innerHTML = `
             <div x-data="{ sidebarOpen: false, darkMode: localStorage.getItem('theme') === 'dark' }" 
                  :class="{ 'dark': darkMode }" 
@@ -30,6 +36,7 @@ class AdminLayout extends HTMLElement {
                         ${this.navLink('/admin/dashboard', 'ph-squares-four', 'Dashboard')}
                         ${this.navLink('/admin/pages', 'ph-files', 'Landing Pages')}
                         ${this.navLink('/admin/reports', 'ph-chart-line-up', 'Reports')}
+                        ${this.navLink('/admin/analytics', 'ph-trend-up', 'Traffic')}
                         ${this.navLink('/admin/settings', 'ph-gear', 'Settings')}
                     </nav>
 
@@ -49,25 +56,23 @@ class AdminLayout extends HTMLElement {
 
                 <div x-show="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/50 z-40 md:hidden" x-transition.opacity></div>
 
-                <main class="flex-1 p-4 md:p-8 ml-0 md:ml-64 mt-16 md:mt-0 transition-all">
-                    ${content}
-                </main>
+                <main id="main-content-slot" class="flex-1 p-4 md:p-8 ml-0 md:ml-64 mt-16 md:mt-0 transition-all">
+                    </main>
             </div>
         `;
 
-        // Init Dark Mode Class on HTML tag
+        // Init Dark Mode
         if (localStorage.getItem('theme') === 'dark') {
             document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
         }
+
+        // KEMBALIKAN KONTEN ASLI KE DALAM LAYOUT
+        this.querySelector('#main-content-slot').appendChild(originalContent);
     }
 
-    // Helper untuk membuat link menu aktif otomatis
     navLink(href, icon, label) {
         const current = window.location.pathname;
         const isActive = current === href || (href !== '/admin/dashboard' && current.startsWith(href));
-        
         const base = "flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-lg transition group";
         const activeClass = "bg-blue-50 text-blue-600 dark:bg-blue-600 dark:text-white shadow-sm";
         const inactiveClass = "text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white";
