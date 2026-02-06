@@ -31,62 +31,54 @@ async function serveAsset(c, path) {
 }
 
 // ===============================================
-// 1. MIDDLEWARE AUTH (PERBAIKAN LOGIKA & COOKIE)
+// 1. MIDDLEWARE AUTH (PERBAIKAN LOGIKA)
 // ===============================================
 const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
     const path = url.pathname;
     
-    // A. WHITELIST (Jalur Bebas Tanpa Login)
+    // --- 1. WHITELIST: JALUR BEBAS AKSES ---
+    // API Login HARUS ada di sini agar tidak diblokir token
     if (
-        path === '/' ||                          // Homepage
-        path === '/login' ||                     // Halaman Login
-        path === '/admin/login' || 
-        path === '/api/login' ||                 // API Login (WAJIB DIBUKA)
-        path === '/api/setup-first-user' ||      
-        path.startsWith('/api/public/')          // API Publik
+        path === '/' ||
+        path === '/login' ||
+        path === '/admin/login' ||
+        path === '/api/login' ||            // <--- PENTING: Login API dibuka
+        path === '/api/setup-first-user' ||
+        path.startsWith('/api/public/')
     ) {
         await next(); 
         return;
     }
 
-    // B. ASSET CHECK (File Statis)
-    // Izinkan file berekstensi (js, css, png), KECUALI file HTML di folder sensitif
-    if (path.includes('.')) {
-        // Jika file ada di folder _views (Source Code Admin), BLOKIR (lanjut ke cek token)
-        if (path.startsWith('/_views')) {
-             // Pass through to Token Check
-        } else {
-             // File aset biasa aman -> Lolos
-             await next(); 
-             return;
-        }
+    // --- 2. PROTEKSI FILE VIEWS ---
+    // Jangan izinkan akses langsung ke folder _views tanpa token
+    if (path.startsWith('/_views') || path.startsWith('/admin')) {
+        // Lanjut ke pengecekan token di bawah
+    } else if (path.includes('.')) {
+        // File aset biasa (js/css/png) boleh lewat
+        await next();
+        return;
     }
 
-    // C. TOKEN CHECK (Proteksi Admin)
+    // --- 3. CEK TOKEN ---
     let token = getCookie(c, 'auth_token');
     const authHeader = c.req.header('Authorization');
     
-    // Support Bearer Token juga (untuk fetch API)
     if (!token && authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.split(' ')[1];
     }
 
-    // Jika Tidak Ada Token -> Tolak
     if (!token) {
         if (path.startsWith('/api/')) return c.json({ error: 'Unauthorized' }, 401);
         return c.redirect('/login');
     }
 
-    // Validasi Token
     try {
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
         const payload = await verify(token, secret);
         c.set('user', payload);
-        
         await next();
-        
-        // Header Anti-Cache untuk Admin Area
         c.res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     } catch (e) {
         deleteCookie(c, 'auth_token');
@@ -98,21 +90,26 @@ const requireAuth = async (c, next) => {
 app.use('*', requireAuth); 
 
 // ===============================================
-// 2. AUTH ROUTES (FIX COOKIE SECURE)
+// 2. AUTH ROUTES (DENGAN TABEL USERS)
 // ===============================================
 app.post('/api/login', async (c) => {
     try {
         const { email, password } = await c.req.json();
         
-        // Cek Tabel USERS (Sesuai Data Anda)
+        // Cek User di Database
         const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
-        if (!user) return c.json({ success: false, message: 'Akun tidak ditemukan' }, 401);
+        
+        if (!user) {
+            return c.json({ success: false, message: 'Email tidak ditemukan' }, 401);
+        }
 
+        // Cek Password Hash
         const inputHash = await sha256(password);
         if (inputHash !== user.password) {
             return c.json({ success: false, message: 'Password Salah' }, 401);
         }
 
+        // Buat Token
         const secret = c.env.APP_MASTER_KEY || JWT_SECRET;
         const token = await sign({ 
             id: user.id, 
@@ -121,22 +118,27 @@ app.post('/api/login', async (c) => {
             exp: Math.floor(Date.now() / 1000) + 86400 
         }, secret);
 
-        // FIX FATAL: Deteksi HTTPS agar cookie bisa disimpan di Localhost (HTTP)
+        // --- FIX PENTING: COOKIE SECURE ---
+        // Jika di localhost (http), secure harus false. Jika https, true.
         const url = new URL(c.req.url);
-        const isSecure = url.protocol === 'https:'; // True di Cloudflare, False di Localhost
+        const isSecure = url.protocol === 'https:'; 
 
         setCookie(c, 'auth_token', token, { 
             path: '/', 
-            secure: isSecure,  // Dinamis: false jika localhost
+            secure: isSecure, // False di localhost agar cookie tersimpan!
             httpOnly: true, 
             maxAge: 86400, 
             sameSite: 'Lax' 
         });
 
         return c.json({ success: true, token: token, user: { name: user.name, email: user.email } });
-    } catch (e) { return c.json({ success: false, error: e.message }, 500); }
+    } catch (e) { 
+        console.error("Login Error:", e);
+        return c.json({ success: false, error: e.message }, 500); 
+    }
 });
 
+// Setup user pertama jika lupa password/db reset
 app.post('/api/setup-first-user', async (c) => {
     try {
         const { email, password, name } = await c.req.json();
@@ -166,7 +168,6 @@ app.get('/admin/reports', (c) => serveAsset(c, '/_views/reports.html'));
 app.get('/admin/analytics', (c) => serveAsset(c, '/_views/analytics.html'));
 app.get('/admin/settings', (c) => serveAsset(c, '/_views/settings.html'));
 
-// Proteksi Folder Views
 app.get('/_views*', (c) => c.redirect('/login'));
 
 // ===============================================
