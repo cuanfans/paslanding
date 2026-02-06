@@ -1,93 +1,189 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <title>Settings</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - BlinkSite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="/js/layout.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
-<body>
-    <admin-layout>
-        <div x-data="settingsApp()" x-init="init()" class="max-w-4xl">
-            <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Pengaturan Sistem</h2>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200" x-data="settingsApp()" x-init="init()" :class="darkMode ? 'dark' : ''">
 
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700 mb-6">
-                <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
-                    <i class="ph ph-globe text-blue-500"></i> Homepage
-                </h3>
-                <div class="flex gap-4">
-                    <input x-model="homepageSlug" type="text" placeholder="Masukkan slug halaman..." class="flex-1 px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
-                    <button @click="saveHomepage" class="bg-gray-900 dark:bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 transition">Simpan</button>
-                </div>
+    <div class="flex h-screen overflow-hidden" x-cloak>
+        
+        <aside :class="sidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full md:w-20 md:translate-x-0'" 
+               class="fixed md:relative z-30 h-full flex flex-col bg-white dark:bg-gray-800 border-r dark:border-gray-700 transition-all duration-300 shadow-xl md:shadow-none">
+            
+            <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0">
+                <span x-show="sidebarOpen" class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span>
+                <span x-show="!sidebarOpen" class="text-xl font-bold text-blue-600 hidden md:block">B</span>
             </div>
 
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
-                <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
-                    <i class="ph ph-plugs text-green-500"></i> Integrasi API
-                </h3>
-                
-                <div class="mb-4">
-                    <label class="block text-xs font-bold text-gray-500 mb-2">PROVIDER</label>
-                    <select x-model="cred.provider" class="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none">
-                        <option value="midtrans">Midtrans (Payment)</option>
-                        <option value="rajaongkir">RajaOngkir (Shipping)</option>
-                        <option value="cloudinary">Cloudinary (Image)</option>
-                        <option value="whatsapp">WhatsApp (Manual)</option>
-                    </select>
-                </div>
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-squares-four text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Dashboard</span>
+                </a>
+                <a href="/admin/pages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-files text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Halaman</span>
+                </a>
+                <a href="/admin/reports" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-chart-line-up text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Laporan</span>
+                </a>
+                <a href="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-trend-up text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Traffic</span>
+                </a>
+                <a href="/admin/settings" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md group">
+                    <i class="ph ph-gear text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Settings</span>
+                </a>
+            </nav>
 
-                <div class="mb-4">
-                    <label class="block text-xs font-bold text-gray-500 mb-2">JSON CONFIGURATION</label>
-                    <textarea x-model="cred.data" rows="6" class="w-full px-4 py-3 bg-gray-900 text-green-400 font-mono text-xs rounded-lg border border-gray-700 outline-none focus:border-green-500" placeholder='{ "server_key": "SB-Mid-...", "client_key": "..." }'></textarea>
-                </div>
+            <div class="p-4 border-t dark:border-gray-700 shrink-0">
+                <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors">
+                    <i class="ph ph-sign-out text-xl"></i>
+                    <span x-show="sidebarOpen" class="font-medium">Keluar</span>
+                </button>
+            </div>
+        </aside>
 
-                <div class="flex justify-end">
-                    <button @click="saveCreds" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition flex items-center gap-2">
-                        <i class="ph ph-check-circle"></i> Simpan Konfigurasi
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-4 shadow-sm z-20 shrink-0">
+                <div class="flex items-center gap-4">
+                    <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <i class="ph ph-list text-2xl"></i>
                     </button>
+                    <h1 class="font-bold text-lg truncate">Pengaturan Sistem</h1>
                 </div>
-            </div>
+                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors">
+                    <i x-show="!darkMode" class="ph ph-moon text-xl"></i>
+                    <i x-show="darkMode" class="ph ph-sun text-xl text-yellow-400"></i>
+                </button>
+            </header>
+
+            <main class="flex-1 overflow-y-auto p-4 md:p-8 max-w-4xl">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700 mb-6">
+                    <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+                        <i class="ph ph-globe text-blue-500"></i> Homepage Utama
+                    </h3>
+                    <p class="text-xs text-gray-400 mb-3">Tentukan slug halaman yang akan muncul saat domain utama diakses.</p>
+                    <div class="flex gap-4">
+                        <input x-model="homepageSlug" type="text" placeholder="Masukkan slug halaman..." class="flex-1 px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                        <button @click="saveHomepage" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg">Simpan</button>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
+                    <h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+                        <i class="ph ph-plugs text-green-500"></i> Integrasi & API
+                    </h3>
+                    
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Pilih Provider</label>
+                        <select x-model="cred.provider" class="w-full px-4 py-2 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none">
+                            <option value="midtrans">Midtrans (Payment Gateway)</option>
+                            <option value="rajaongkir">RajaOngkir (Shipping)</option>
+                            <option value="cloudinary">Cloudinary (Storage Gambar)</option>
+                            <option value="whatsapp">WhatsApp (Notifikasi Manual)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest">JSON Configuration (Secret)</label>
+                        <textarea x-model="cred.data" rows="6" class="w-full px-4 py-3 bg-gray-900 text-green-400 font-mono text-xs rounded-lg border border-gray-700 outline-none focus:border-green-500" placeholder='{ "server_key": "...", "client_key": "..." }'></textarea>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button @click="saveCreds" class="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition flex items-center gap-2 shadow-lg">
+                            <i class="ph ph-check-circle"></i> Update Konfigurasi
+                        </button>
+                    </div>
+                </div>
+            </main>
         </div>
 
-        <script>
-            function settingsApp() {
-                return {
-                    homepageSlug: '',
-                    cred: { provider: 'midtrans', data: '' },
-                    token: localStorage.getItem('admin_pass'),
-                    
-                    async init() {
-                        try {
-                            const res = await fetch('/api/admin/homepage-slug');
-                            const data = await res.json();
-                            if(data.slug) this.homepageSlug = data.slug;
-                        } catch(e) {}
-                    },
+        <div x-show="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/50 z-20 md:hidden" x-transition.opacity></div>
+    </div>
 
-                    async saveHomepage() {
-                        await fetch('/api/admin/set-homepage', {
-                            method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': this.token},
+    <script>
+        function settingsApp() {
+            return {
+                sidebarOpen: window.innerWidth > 768,
+                darkMode: localStorage.getItem('theme') === 'dark',
+                homepageSlug: '',
+                cred: { provider: 'midtrans', data: '' },
+                token: localStorage.getItem('admin_pass'),
+                
+                async init() {
+                    if (!this.token) return window.location.href = '/login';
+                    if (this.darkMode) document.documentElement.classList.add('dark');
+
+                    try {
+                        const res = await fetch('/api/admin/homepage-slug', {
+                            headers: { 'Authorization': `Bearer ${this.token}` }
+                        });
+                        if(res.ok) {
+                            const data = await res.json();
+                            this.homepageSlug = data.slug || '';
+                        }
+                    } catch(e) { console.error(e); }
+                },
+
+                async saveHomepage() {
+                    try {
+                        const res = await fetch('/api/admin/set-homepage', {
+                            method: 'POST', 
+                            headers: {
+                                'Content-Type': 'application/json', 
+                                'Authorization': `Bearer ${this.token}`
+                            },
                             body: JSON.stringify({slug: this.homepageSlug})
                         });
-                        alert('Homepage tersimpan!');
-                    },
+                        if(res.ok) alert('Homepage utama berhasil diperbarui!');
+                        else alert('Gagal menyimpan.');
+                    } catch(e) { alert('Terjadi kesalahan koneksi.'); }
+                },
 
-                    async saveCreds() {
-                        try {
-                            const parsed = JSON.parse(this.cred.data);
-                            await fetch('/api/admin/credentials', {
-                                method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': this.token},
-                                body: JSON.stringify({provider: this.cred.provider, data: parsed})
-                            });
-                            alert('Konfigurasi tersimpan aman!');
+                async saveCreds() {
+                    try {
+                        const parsed = JSON.parse(this.cred.data);
+                        const res = await fetch('/api/admin/credentials', {
+                            method: 'POST', 
+                            headers: {
+                                'Content-Type': 'application/json', 
+                                'Authorization': `Bearer ${this.token}`
+                            },
+                            body: JSON.stringify({provider: this.cred.provider, data: parsed})
+                        });
+                        if(res.ok) {
+                            alert('Konfigurasi ' + this.cred.provider + ' tersimpan!');
                             this.cred.data = '';
-                        } catch(e) { alert('JSON Tidak Valid!'); }
-                    }
+                        } else {
+                            alert('Gagal menyimpan kredensial.');
+                        }
+                    } catch(e) { alert('JSON Tidak Valid! Pastikan format benar.'); }
+                },
+
+                toggleTheme() {
+                    this.darkMode = !this.darkMode;
+                    localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+                    document.documentElement.classList.toggle('dark');
+                },
+
+                logout() {
+                    localStorage.removeItem('admin_pass');
+                    window.location.href = '/login';
                 }
             }
-        </script>
-    </admin-layout>
+        }
+    </script>
 </body>
 </html>
