@@ -3,27 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laporan Transaksi - BlinkSite</title>
+    <title>Laporan - BlinkSite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <style>
-        [x-cloak] { display: none !important; }
-    </style>
+    <style>[x-cloak] { display: none !important; }</style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200" x-data="reportApp()" x-init="init()" :class="darkMode ? 'dark' : ''">
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200 font-sans" 
+      x-data="reportsApp()" x-init="init()" :class="darkMode ? 'dark' : ''">
 
-    <div class="flex h-screen overflow-hidden" x-cloak>
-        
+    <div class="flex h-screen overflow-hidden">
         <aside :class="sidebarOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full md:w-20 md:translate-x-0'" 
                class="fixed md:relative z-30 h-full flex flex-col bg-white dark:bg-gray-800 border-r dark:border-gray-700 transition-all duration-300 shadow-xl md:shadow-none">
-            
             <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0">
                 <span x-show="sidebarOpen" class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span>
                 <span x-show="!sidebarOpen" class="text-xl font-bold text-blue-600 hidden md:block">B</span>
             </div>
-
             <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                 <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
                     <i class="ph ph-squares-four text-xl shrink-0"></i>
@@ -46,7 +42,6 @@
                     <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Settings</span>
                 </a>
             </nav>
-
             <div class="p-4 border-t dark:border-gray-700 shrink-0">
                 <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors">
                     <i class="ph ph-sign-out text-xl"></i>
@@ -61,118 +56,137 @@
                     <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                         <i class="ph ph-list text-2xl"></i>
                     </button>
-                    <h1 class="font-bold text-lg truncate">Laporan Transaksi</h1>
+                    <h1 class="font-bold text-lg truncate text-gray-800 dark:text-white">Laporan Penjualan</h1>
                 </div>
-                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors">
+                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors text-gray-600 dark:text-gray-300">
                     <i x-show="!darkMode" class="ph ph-moon text-xl"></i>
                     <i x-show="darkMode" class="ph ph-sun text-xl text-yellow-400"></i>
                 </button>
             </header>
 
-            <main class="flex-1 overflow-y-auto p-4 md:p-8">
-                <h2 class="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Statistik Penjualan</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
-                        <h4 class="text-gray-500 text-xs font-bold uppercase tracking-widest">Omzet Produk Fisik</h4>
-                        <div class="text-3xl font-black mt-2 text-blue-600" x-text="formatRupiah(revenuePhysical)">Rp 0</div>
+            <main class="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border dark:border-gray-700">
+                        <p class="text-xs text-gray-500 uppercase font-bold">Total Pendapatan</p>
+                        <h3 class="text-2xl font-black text-green-600 mt-1" x-text="formatRupiah(stats.revenue)"></h3>
                     </div>
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
-                        <h4 class="text-gray-500 text-xs font-bold uppercase tracking-widest">Omzet Produk Digital</h4>
-                        <div class="text-3xl font-black mt-2 text-purple-600" x-text="formatRupiah(revenueDigital)">Rp 0</div>
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border dark:border-gray-700">
+                        <p class="text-xs text-gray-500 uppercase font-bold">Total Order</p>
+                        <h3 class="text-2xl font-black text-gray-800 dark:text-white mt-1" x-text="stats.total_orders"></h3>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border dark:border-gray-700">
+                        <p class="text-xs text-gray-500 uppercase font-bold">Lunas (Paid)</p>
+                        <h3 class="text-2xl font-black text-blue-600 mt-1" x-text="stats.paid_count"></h3>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border dark:border-gray-700">
+                        <p class="text-xs text-gray-500 uppercase font-bold">Menunggu (Pending)</p>
+                        <h3 class="text-2xl font-black text-orange-500 mt-1" x-text="stats.pending_count"></h3>
                     </div>
                 </div>
 
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden border dark:border-gray-700 relative min-h-[300px]">
-                    <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 z-10">
-                        <div class="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 overflow-hidden">
+                    <div class="p-6 border-b dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <h3 class="font-bold text-lg text-gray-800 dark:text-white">Riwayat Transaksi</h3>
+                        <div class="flex gap-2">
+                             <input x-model="search" type="text" placeholder="Cari Order ID / Nama..." class="px-4 py-2 bg-gray-50 dark:bg-gray-900 border dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white">
+                        </div>
                     </div>
-
-                    <div class="p-4 border-b dark:border-gray-700 font-bold text-gray-700 dark:text-gray-200 uppercase text-xs tracking-tighter">
-                        Riwayat Transaksi Terbaru
-                    </div>
-
-                    <table class="w-full text-left text-sm" x-show="!loading">
-                        <thead class="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[10px] uppercase font-bold">
-                            <tr>
-                                <th class="p-4">ID Order</th>
-                                <th class="p-4">Customer</th>
-                                <th class="p-4 text-right">Total</th>
-                                <th class="p-4">Status</th>
-                                <th class="p-4 text-right">Tanggal</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y dark:divide-gray-700">
-                            <template x-for="order in orders" :key="order.order_id">
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                    <td class="p-4 font-mono font-bold text-blue-600" x-text="order.order_id"></td>
-                                    <td class="p-4">
-                                        <div class="font-bold text-gray-800 dark:text-white" x-text="order.customer_name"></div>
-                                        <div class="text-[10px] text-gray-400" x-text="order.customer_phone"></div>
-                                    </td>
-                                    <td class="p-4 text-right font-bold" x-text="formatRupiah(order.total_amount)"></td>
-                                    <td class="p-4">
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase" 
-                                              :class="order.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
-                                              x-text="order.status"></span>
-                                    </td>
-                                    <td class="p-4 text-right text-gray-400 text-[10px]" x-text="new Date(order.created_at).toLocaleString('id-ID')"></td>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-900 dark:text-gray-400">
+                                <tr>
+                                    <th class="px-6 py-3">Order ID</th>
+                                    <th class="px-6 py-3">Pelanggan</th>
+                                    <th class="px-6 py-3">Produk</th>
+                                    <th class="px-6 py-3">Total</th>
+                                    <th class="px-6 py-3">Status</th>
+                                    <th class="px-6 py-3">Tanggal</th>
                                 </tr>
-                            </template>
-                            <tr x-show="orders.length === 0">
-                                <td colspan="5" class="p-10 text-center text-gray-400 italic">Belum ada transaksi terekam.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                <template x-for="order in filteredOrders" :key="order.id">
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                                        <td class="px-6 py-4 font-mono font-bold text-gray-800 dark:text-gray-200" x-text="order.order_id"></td>
+                                        <td class="px-6 py-4">
+                                            <div class="font-bold text-gray-800 dark:text-white" x-text="order.customer_name"></div>
+                                            <div class="text-xs text-gray-500" x-text="order.customer_email"></div>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="font-medium text-gray-800 dark:text-white" x-text="order.page_title"></div>
+                                            <span class="text-[10px] px-2 py-0.5 rounded-full uppercase font-bold"
+                                                  :class="order.product_type === 'digital' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'"
+                                                  x-text="order.product_type"></span>
+                                        </td>
+                                        <td class="px-6 py-4 font-bold text-green-600" x-text="formatRupiah(order.total_amount)"></td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-2 py-1 rounded text-xs font-bold uppercase"
+                                                  :class="{
+                                                      'bg-green-100 text-green-700': order.status === 'paid' || order.status === 'settlement',
+                                                      'bg-orange-100 text-orange-700': order.status === 'pending',
+                                                      'bg-red-100 text-red-700': order.status === 'expire' || order.status === 'cancel'
+                                                  }" x-text="order.status"></span>
+                                        </td>
+                                        <td class="px-6 py-4 text-gray-500" x-text="formatDate(order.created_at)"></td>
+                                    </tr>
+                                </template>
+                                <tr x-show="filteredOrders.length === 0">
+                                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">Belum ada data transaksi.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </main>
         </div>
-
+        
         <div x-show="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/50 z-20 md:hidden" x-transition.opacity></div>
     </div>
 
     <script>
-        function reportApp() {
+        function reportsApp() {
             return {
                 sidebarOpen: window.innerWidth > 768,
                 darkMode: localStorage.getItem('theme') === 'dark',
-                loading: true,
                 orders: [],
-                revenuePhysical: 0,
-                revenueDigital: 0,
+                stats: { total_orders: 0, revenue: 0, pending_count: 0, paid_count: 0 },
+                search: '',
+                token: localStorage.getItem('admin_pass'),
 
                 async init() {
-                    const token = localStorage.getItem('admin_pass');
-                    if (!token) return window.location.href = '/login';
+                    if (!this.token) return window.location.href = '/login';
                     if (this.darkMode) document.documentElement.classList.add('dark');
+                    await this.loadData();
+                },
 
+                async loadData() {
                     try {
-                        // Catatan: Endpoint ini harus kamu buat di backend jika belum ada
-                        // Untuk sementara kita gunakan simulasi atau sesuaikan dengan API yang kamu punya
                         const res = await fetch('/api/admin/reports', {
-                            headers: { 'Authorization': `Bearer ${token}` }
+                            headers: { 'Authorization': `Bearer ${this.token}` }
                         });
-
                         if (res.ok) {
                             const data = await res.json();
                             this.orders = data.orders || [];
-                            this.revenuePhysical = data.summary.physical || 0;
-                            this.revenueDigital = data.summary.digital || 0;
-                        } else if (res.status === 401) {
-                            window.location.href = '/login';
+                            this.stats = data.stats || { total_orders: 0, revenue: 0, pending_count: 0, paid_count: 0 };
                         }
-                    } catch (e) {
-                        console.error("Gagal load report:", e);
-                    }
-                    this.loading = false;
+                    } catch (e) { console.error('Gagal load report:', e); }
                 },
 
-                formatRupiah(number) {
-                    return new Intl.NumberFormat('id-ID', {
-                        style: 'currency',
-                        currency: 'IDR',
-                        minimumFractionDigits: 0
-                    }).format(number);
+                get filteredOrders() {
+                    if (!this.search) return this.orders;
+                    const q = this.search.toLowerCase();
+                    return this.orders.filter(o => 
+                        (o.order_id && o.order_id.toLowerCase().includes(q)) || 
+                        (o.customer_name && o.customer_name.toLowerCase().includes(q))
+                    );
+                },
+
+                formatRupiah(num) {
+                    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+                },
+
+                formatDate(str) {
+                    if(!str) return '-';
+                    return new Date(str).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute:'2-digit' });
                 },
 
                 toggleTheme() {
