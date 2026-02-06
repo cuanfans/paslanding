@@ -185,6 +185,29 @@ app.get('/api/admin/pages', async (c) => {
     } catch(e) { return c.json({ error: e.message }, 500); }
 });
 
+// --- API BARU UNTUK HALAMAN REPORTS (Memperbaiki SyntaxError) ---
+app.get('/api/admin/reports', async (c) => {
+    try {
+        // Ambil data order terbaru
+        const orders = await c.env.DB.prepare("SELECT * FROM orders ORDER BY created_at DESC LIMIT 100").all();
+        
+        // Ambil statistik ringkas (Total Revenue, Pending, Paid)
+        const stats = await c.env.DB.prepare(`
+            SELECT 
+                COUNT(*) as total_orders,
+                SUM(CASE WHEN status = 'paid' THEN total_amount ELSE 0 END) as revenue,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_count
+            FROM orders
+        `).first();
+
+        return c.json({ 
+            orders: orders.results, 
+            stats: stats || { total_orders: 0, revenue: 0, pending_count: 0, paid_count: 0 } 
+        });
+    } catch(e) { return c.json({ error: e.message }, 500); }
+});
+
 app.get('/api/admin/analytics/data', async (c) => {
     try {
         const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
@@ -231,43 +254,37 @@ app.post('/api/admin/credentials', async (c) => {
 
 app.post('/api/admin/upload-image', uploadImage);
 
-// --- ENDPOINT BARU: GANTI PASSWORD ---
+// --- ENDPOINT: GANTI PASSWORD ---
 app.post('/api/admin/change-password', async (c) => {
     try {
         const user = c.get('user');
         const { current_password, new_password } = await c.req.json();
-        
-        // Ambil data user dari DB
         const dbUser = await c.env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first();
         if(!dbUser) return c.json({ success: false, message: 'User tidak ditemukan' }, 404);
         
-        // Cek password lama
         const currentHash = await sha256(current_password);
         if(currentHash !== dbUser.password) {
             return c.json({ success: false, message: 'Password lama salah' }, 401);
         }
         
-        // Update password baru
         const newHash = await sha256(new_password);
         await c.env.DB.prepare("UPDATE users SET password = ? WHERE id = ?").bind(newHash, user.id).run();
-        
         return c.json({ success: true });
     } catch(e) { return c.json({ success: false, message: e.message }, 500); }
 });
 
-// --- ENDPOINT BARU: TEMPLATE API (Payment & Shipping) ---
+// --- ENDPOINT: TEMPLATE API ---
 app.get('/api/admin/templates', async (c) => {
     const type = c.req.query('type') === 'shipping' ? 'shipping_templates' : 'payment_templates';
     try {
         const res = await c.env.DB.prepare(`SELECT * FROM ${type}`).all();
         return c.json(res.results);
-    } catch(e) { return c.json([], 200); } // Return empty array if table not found/empty
+    } catch(e) { return c.json([], 200); } 
 });
 
 app.post('/api/admin/templates', async (c) => {
     const { type, data } = await c.req.json();
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
-    
     try {
         await c.env.DB.prepare(
             `INSERT INTO ${table} (slug, name, api_endpoint, method, headers_json, body_json, response_mapping) 
