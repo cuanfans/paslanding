@@ -38,7 +38,7 @@
         .gjs-pn-panels { 
             position: fixed !important; 
             bottom: 10px !important; 
-            right: 330px !important;
+            right: 330px !important; 
             top: auto !important; 
             left: auto !important;
             width: auto !important; 
@@ -461,34 +461,44 @@ function editorApp() {
             config: { variants: [], shipping: { weight: 1000 }, order_bump: { active: false, title: '', price: 0, desc: '' }, coupons: [], settings: {} } 
         },
         cred: { provider: 'flashpay', data: '' },
-        authPass: localStorage.getItem('auth_token'),
 
         async init() {
             const params = new URLSearchParams(window.location.search);
             this.page.slug = params.get('slug');
-            
-            // CEK TOKEN - Jika kosong baru tendang ke login
-            if (!this.authPass) { 
-                console.error("Token Hilang!");
-                window.location.href = '/login'; 
-                return; 
+
+            // DO NOT rely on localStorage auth token.
+            // Instead try a test authenticated request (cookies included via credentials).
+            const ok = await this.fetchPaymentProviders();
+            if (!ok) {
+                console.error("Not authenticated or session expired. Redirecting to login.");
+                window.location.href = '/login';
+                return;
             }
-            
-            await this.fetchPaymentProviders();
+
             this.initGrapes();
         },
 
+        // Fetch payment providers with credentials (cookies). Return true if OK, false if 401.
         async fetchPaymentProviders() {
             try {
                 const res = await fetch('/api/admin/templates?type=payment', {
-                    headers: { 'Authorization': 'Bearer ' + this.authPass }
+                    credentials: 'same-origin' // ensure cookies (httpOnly) are sent
                 });
-                if (res.status === 401) { 
-                    window.location.href = '/login'; 
-                    return; 
+                if (res.status === 401) {
+                    return false;
                 }
-                this.paymentProviders = await res.json();
-            } catch (e) { console.error("Fetch Providers Error"); }
+                // expecting JSON array or object
+                const json = await res.json();
+                // If API returns wrapper, try to extract array (fallback)
+                if (Array.isArray(json)) this.paymentProviders = json;
+                else if (Array.isArray(json.data)) this.paymentProviders = json.data;
+                else if (Array.isArray(json.results)) this.paymentProviders = json.results;
+                else this.paymentProviders = json || [];
+                return true;
+            } catch (e) {
+                console.error("Fetch Providers Error", e);
+                return false;
+            }
         },
 
         toggleMobilePanel(tabName) {
@@ -505,18 +515,25 @@ function editorApp() {
             }, 3000);
         },
 
-        setDevice(d) { this.device = d; window.editor.setDevice(d); },
-        cmd(c) { window.editor.runCommand(c); },
+        setDevice(d) { this.device = d; if (window.editor) window.editor.setDevice(d); },
+        cmd(c) { if (window.editor) window.editor.runCommand(c); },
         addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
 
         async saveCreds() {
             try {
+                // cred.data expected to be JSON string; handle gracefully
+                let parsed = {};
+                try { parsed = JSON.parse(this.cred.data); } catch(e) { this.notify('Gagal', 'Format JSON salah', 'error'); return; }
+
                 const res = await fetch('/api/admin/credentials', {
                     method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + this.authPass, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ provider: this.cred.provider, data: JSON.parse(this.cred.data) })
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider: this.cred.provider, data: parsed })
                 });
+                if (res.status === 401) { window.location.href = '/login'; return; }
                 if (res.ok) this.notify('Berhasil', 'Kredensial tersimpan!');
+                else this.notify('Gagal', 'Gagal simpan kredensial', 'error');
             } catch (e) { this.notify('Gagal', 'Format JSON salah', 'error'); }
         },
 
@@ -525,13 +542,20 @@ function editorApp() {
             try {
                 const res = await fetch('/api/admin/pages', {
                     method: 'POST',
-                    headers: { 'Authorization': 'Bearer ' + this.authPass, 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         slug: this.page.slug, title: this.page.title, product_type: this.page.product_type,
                         provider: this.page.slug_payment, html: window.editor.getHtml(), css: window.editor.getCss(), product_config: this.page.config
                     })
                 });
+                if (res.status === 401) { window.location.href = '/login'; return; }
                 if (res.ok) this.notify('Sukses', 'Halaman tersimpan!');
+                else {
+                    const text = await res.text();
+                    console.error('Save page failed:', text);
+                    this.notify('Error', 'Gagal simpan', 'error');
+                }
             } catch (e) { this.notify('Error', 'Gagal simpan', 'error'); }
             this.loading = false;
         },
@@ -590,8 +614,12 @@ function editorApp() {
             bm.add('checkout-pro', { label: 'Checkout', category: 'E-Commerce', content: `<div data-gjs-type="checkout-widget" style="padding:20px; border:2px dashed #3b82f6; text-align:center;"><strong>[ CHECKOUT ]</strong></div>` });
 
             if (this.page.slug) {
-                fetch('/api/admin/pages/' + this.page.slug, { headers: { 'Authorization': 'Bearer ' + this.authPass } })
-                .then(r => r.json()).then(d => {
+                fetch('/api/admin/pages/' + this.page.slug, { credentials: 'same-origin' })
+                .then(r => {
+                    if (r.status === 401) { window.location.href = '/login'; throw new Error('Unauthorized'); }
+                    return r.json();
+                })
+                .then(d => {
                     if (d.id) {
                         this.page.title = d.title; this.page.product_type = d.product_type || 'physical'; this.page.slug_payment = d.provider || 'whatsapp';
                         try {
@@ -601,7 +629,7 @@ function editorApp() {
                         if (d.html_content) window.editor.setComponents(d.html_content);
                         if (d.css_content) window.editor.setStyle(d.css_content);
                     }
-                });
+                }).catch(()=>{});
             }
         }
     };
