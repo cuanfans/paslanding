@@ -111,6 +111,35 @@
             .mobile-overlay.show { display: block; }
         }
 
+        /* TAMBAHKAN DI BAGIAN <style> */
+
+        /* Paksa container Blocks agar selalu terlihat isinya */
+        #blocks-container, 
+        #styles-container, 
+        #traits-container, 
+        #layers-container {
+            min-height: 100vh !important; /* Paksa tinggi penuh */
+            height: auto !important;
+            padding-bottom: 100px !important; /* Ruang untuk scroll */
+            display: block !important; /* Pastikan tidak hidden */
+            overflow: visible !important; 
+        }
+        
+        /* Pastikan grid block manager terlihat jelas */
+        .gjs-blocks-c {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+            padding: 10px !important;
+            width: 100% !important;
+        }
+        
+        /* Fix Z-Index agar tidak tertutup layer putih misterius */
+        .sidebar-desktop .custom-scroll {
+            z-index: 50 !important;
+            position: relative !important;
+            background: transparent !important; /* Transparan agar kelihatan */
+        }
         /* 7. SCROLLBAR & UI TWEAKS */
         .gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views { display: none !important; }
         .gjs-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; }
@@ -177,31 +206,30 @@
         
         <div class="sidebar-desktop" :class="mobileMenuOpen ? 'is-open' : ''">
             
-            <div class="panel-tabs flex border-b border-gray-200 bg-white shrink-0 z-10 relative">
+            <div class="panel-tabs flex border-b border-gray-200 bg-white shrink-0 z-20">
                 <button @click="tab='blocks'" :class="tab=='blocks'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-squares-four text-xl"></i></button>
                 <button @click="tab='styles'" :class="tab=='styles'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-paint-brush text-xl"></i></button>
                 <button @click="tab='traits'" :class="tab=='traits'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-sliders text-xl"></i></button>
                 <button @click="tab='layers'" :class="tab=='layers'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-stack text-xl"></i></button>
             </div>
             
-            <div class="flex-1 bg-white custom-scroll relative w-full">
+            <div class="flex-1 bg-white custom-scroll w-full z-10" style="overflow-y: auto; height: 100%;">
                 
-                <div x-show="tab=='blocks'" class="min-h-full pb-24">
-                    <div id="blocks-container" class="p-2"></div>
+                <div x-show="tab=='blocks'">
+                    <div id="blocks-container"></div>
                 </div>
 
-                <div x-show="tab=='styles'" class="min-h-full pb-24">
-                    <div id="selectors-container" class="p-3 border-b bg-gray-50 sticky top-0 z-20"></div>
+                <div x-show="tab=='styles'">
+                    <div id="selectors-container" class="p-3 border-b bg-gray-50 sticky top-0"></div>
                     <div id="styles-container" class="p-1"></div>
                 </div>
 
-                <div x-show="tab=='traits'" class="min-h-full pb-24">
-                    <div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b sticky top-0 z-20">Element Config</div>
+                <div x-show="tab=='traits'">
+                    <div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b sticky top-0">Config</div>
                     <div id="traits-container" class="p-4"></div>
-                    <div class="p-8 text-center text-gray-300 text-xs italic">Klik elemen untuk edit</div>
                 </div>
 
-                <div x-show="tab=='layers'" class="min-h-full pb-24">
+                <div x-show="tab=='layers'">
                     <div id="layers-container"></div>
                 </div>
 
