@@ -462,13 +462,27 @@ app.post('/api/public/checkout', async (c) => {
 });
 
 // ===============================================
-// 7. PAGE RENDERING (FINAL FIX BUILD ERROR)
+// 7. PAGE RENDERING (FINAL FIX & CLEAN)
 // ===============================================
+app.get('/:slug', async (c) => {
+    try {
+        const slug = c.req.param('slug');
+        if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
+        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
+        if(!page) return c.text('404 Not Found', 404);
+
+        // TRACK ANALYTICS
+        c.env.DB.prepare("INSERT INTO analytics (page_id, event_type, referrer) VALUES (?, 'view', ?)").bind(page.id, c.req.header('Referer') || 'direct').run().catch(()=>{});
+
+        return renderPage(c, page);
+    } catch(e) { return c.env.ASSETS.fetch(c.req.raw); }
+});
+
 async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
     const activePayments = config.active_payments || [];
     
-    // 1. INJEKSI CSS KRITIS (BRIDGE CSS)
+    // 1. INJEKSI CSS KRITIS (BRIDGE CSS - SAMA PERSIS DENGAN EDITOR)
     const bridgeCSS = `
         body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
         
@@ -502,7 +516,7 @@ async function renderPage(c, page) {
         .btn { text-transform: none !important; }
     `;
 
-    // 2. INJEKSI KONFIGURASI TAILWIND
+    // 2. INJEKSI KONFIGURASI TAILWIND (ESCAPED)
     const tailwindConfig = `
         tailwind.config = {
             darkMode: 'class',
@@ -517,8 +531,7 @@ async function renderPage(c, page) {
         }
     `;
 
-    // 3. SCRIPT LOGIC (DENGAN ESCAPING YANG BENAR)
-    // Perhatikan: <\/script> digunakan di sini untuk menghindari error build
+    // 3. SCRIPT LOGIC (ESCAPED </script> -> <\/script>)
     const liveScripts = `
     <script>
         // A. Notifikasi Pesan Terkirim
@@ -566,7 +579,7 @@ async function renderPage(c, page) {
             const container = document.body;
             if (container.innerHTML.includes('[ CHECKOUT ]')) {
                 const config = ${JSON.stringify(config)};
-                const activePayments = ${JSON.stringify(config.active_payments || [])};
+                const activePayments = ${JSON.stringify(activePayments)};
                 
                 const paymentHTML = activePayments.length > 0 ? activePayments.map(slug => 
                     '<label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200 mb-2">' +
@@ -627,7 +640,7 @@ async function renderPage(c, page) {
     <\/script>
     `;
 
-    // 4. RETURN HTML LENGKAP (DENGAN ESCAPING)
+    // 4. RETURN HTML LENGKAP
     return c.html(`
     <!DOCTYPE html>
     <html lang='id'>
@@ -655,12 +668,5 @@ async function renderPage(c, page) {
     </html>
     `);
 }
-    </script>`;
-
-    const appScript = `<script>window.PAGE_ID=${page.id};</script>`;
-    
-    return c.html("<!DOCTYPE html><html lang='id'><head><meta charset='UTF-8'><title>" + page.title + "</title><script src='https://cdn.tailwindcss.com'></script><style>" + page.css_content + "</style></head><body>" + page.html_content + appScript + msgScript + checkoutScript + "</body></html>");
-}
-
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 export const onRequest = handle(app);
