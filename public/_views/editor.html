@@ -36,88 +36,85 @@
     <script src="https://unpkg.com/grapesjs-style-bg@2.0.1"></script>
 
     <style>
-        /* 1. RESET & BASE */
-        body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
+        /* 1. RESET DASAR */
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; }
         [x-cloak] { display: none !important; }
-        
-        /* 2. HEADER (Fixed Top) */
+
+        /* 2. HEADER FIXED */
         header {
-            height: 60px; width: 100%; position: fixed; top: 0; left: 0; z-index: 100;
+            height: 60px; width: 100%; position: fixed; top: 0; left: 0; z-index: 50;
             background: white; border-bottom: 1px solid #e2e8f0;
             display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
         }
 
-        /* 3. WADAH CANVAS (#gjs) - INI YANG MEMPERBAIKI MASALAH ANDA */
-        #gjs {
-            position: absolute !important;
-            top: 60px !important;      /* Mulai di bawah header */
-            left: 0 !important;
-            bottom: 0 !important;
-            
-            /* DESKTOP DEFAULT: Beri jarak 320px di kanan untuk Sidebar */
-            right: 320px !important;   
-            width: auto !important;
-            height: auto !important;
-            
-            background-color: #f3f4f6; /* Abu-abu canvas background */
-            transition: all 0.3s ease; /* Animasi halus saat resize */
+        /* 3. WADAH UTAMA (WRAPPER) */
+        /* Menggunakan Flexbox agar Canvas otomatis mengisi sisa ruang */
+        .workspace-wrapper {
+            display: flex;
+            height: calc(100vh - 60px); /* Full height dikurangi header */
+            margin-top: 60px; /* Dorong ke bawah header */
+            width: 100%;
             overflow: hidden;
+            position: relative;
         }
 
-        /* 4. CANVAS INTERNA (Isi GrapesJS) */
-        .gjs-cv-canvas {
-            width: 100%; height: 100%; top: 0 !important;
+        /* 4. CANVAS AREA (#gjs) */
+        #gjs {
+            flex: 1; /* Mengisi sisa ruang kosong (Desktop: Sisa kiri, Mobile: Full) */
+            height: 100%;
+            overflow: hidden;
+            background: #f3f4f6;
+            position: relative;
+            min-width: 0; /* Mencegah overflow flex */
         }
+        
+        /* Reset Canvas GrapesJS */
+        .gjs-cv-canvas { width: 100%; height: 100%; top: 0 !important; }
 
-        /* 5. SIDEBAR (Panel Kanan) */
+        /* 5. SIDEBAR (DESKTOP DEFAULT) */
         .sidebar-desktop {
-            position: fixed;
-            top: 60px;
-            right: 0;
-            bottom: 0;
-            width: 320px;
+            width: 320px; /* Lebar tetap di Desktop */
+            height: 100%;
             background: white;
             border-left: 1px solid #e2e8f0;
             display: flex;
             flex-direction: column;
-            z-index: 1000;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: translateX(0); /* Default Desktop: Muncul */
+            z-index: 40;
+            flex-shrink: 0; /* Jangan mengecil */
+            transition: transform 0.3s ease;
         }
 
-        /* 6. RESPONSIVE MOBILE (Layar < 768px) */
+        /* 6. LOGIC MOBILE (Layar < 768px) */
         @media (max-width: 768px) {
-            
-            /* FIX UTAMA: Di HP, Canvas harus Full Width (Right: 0) */
-            #gjs {
-                right: 0 !important; 
-            }
-
-            /* Sidebar sembunyi ke kanan di HP */
             .sidebar-desktop {
-                width: 85%; /* Lebar sidebar 85% layar HP */
-                transform: translateX(100%); 
-                box-shadow: -10px 0 25px rgba(0,0,0,0.2);
+                position: fixed; /* Ubah jadi melayang di atas */
+                top: 60px;
+                right: 0;
+                bottom: 0;
+                width: 85%; /* Lebar sidebar di HP */
+                transform: translateX(100%); /* Sembunyi ke kanan defaultnya */
+                box-shadow: -5px 0 15px rgba(0,0,0,0.1);
             }
             
-            /* Class untuk membuka sidebar di HP */
+            /* Class saat menu dibuka */
             .sidebar-desktop.is-open {
                 transform: translateX(0);
             }
-            
-            /* Overlay hitam belakang sidebar */
+
+            /* Overlay hitam */
             .mobile-overlay {
-                position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999;
+                position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 30;
+                top: 60px;
                 display: none;
             }
             .mobile-overlay.show { display: block; }
         }
 
-        /* 7. UI TWEAKS (Scrollbar & GrapesJS Overrides) */
+        /* 7. UI GRAPESJS TWEAKS */
         .gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views { display: none !important; }
         .gjs-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; }
         
-        /* Grid Block Manager */
+        /* Block Manager Grid */
         .gjs-blocks-c { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
         .gjs-block { 
             width: 100% !important; min-height: auto !important; padding: 10px 8px !important; 
@@ -128,16 +125,15 @@
         .gjs-block:hover { border-color: #6366f1; color: #6366f1; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2); }
         .gjs-block-label { font-size: 9px; font-weight: 600; text-align: center; color: #4b5563; margin-top: 4px; }
         
-        /* Scrollbar Halus */
+        /* Hide Default Blocks (Opsional, matikan jika ingin default muncul) */
+        .gjs-block[title="Form"], .gjs-block[title="Input"], .gjs-block[title="Textarea"], .gjs-block[title="Select"], .gjs-block[title="Button"], .gjs-block[title="Label"], .gjs-block[title="Checkbox"], .gjs-block[title="Radio"], .gjs-block[title="Text"], .gjs-block[title="Link"], .gjs-block[title="Image"], .gjs-block[title="Video"], .gjs-block[title="Map"] { display: none !important; }
+        
+        /* Scrollbar */
         ::-webkit-scrollbar { width: 5px; height: 5px; } 
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .input-std { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; transition: 0.2s; }
+        .input-std { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; }
         .input-std:focus { border-color: #6366f1; ring: 2px solid #e0e7ff; }
-        
-        /* Hide Default Blocks (Ganti Label Blok Custom Anda agar muncul!) */
-        .gjs-block[title="Form"], .gjs-block[title="Input"], .gjs-block[title="Textarea"], .gjs-block[title="Select"], .gjs-block[title="Button"], .gjs-block[title="Label"], .gjs-block[title="Checkbox"], .gjs-block[title="Radio"], .gjs-block[title="Text"], .gjs-block[title="Link"], .gjs-block[title="Image"], .gjs-block[title="Video"], .gjs-block[title="Map"] { display: none !important; }
     </style>
-
 <body x-data="editorApp()">
 
     <div class="fixed bottom-5 left-5 z-[9999] flex flex-col gap-2 pointer-events-none">
