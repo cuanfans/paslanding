@@ -176,20 +176,37 @@
         <div class="mobile-overlay md:hidden" :class="mobileMenuOpen ? 'show' : ''" @click="mobileMenuOpen = false"></div>
         
         <div class="sidebar-desktop" :class="mobileMenuOpen ? 'is-open' : ''">
-            <div class="panel-tabs flex border-bottom border-gray-200 bg-white shrink-0">
-                <button @click="tab='blocks'" :class="tab=='blocks'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-squares-four text-xl"></i></button>
-                <button @click="tab='styles'" :class="tab=='styles'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-paint-brush text-xl"></i></button>
-                <button @click="tab='traits'" :class="tab=='traits'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-sliders text-xl"></i></button>
-                <button @click="tab='layers'" :class="tab=='layers'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-stack text-xl"></i></button>
+            
+            <div class="panel-tabs flex border-b border-gray-200 bg-white shrink-0 z-10 relative">
+                <button @click="tab='blocks'" :class="tab=='blocks'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-squares-four text-xl"></i></button>
+                <button @click="tab='styles'" :class="tab=='styles'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-paint-brush text-xl"></i></button>
+                <button @click="tab='traits'" :class="tab=='traits'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-sliders text-xl"></i></button>
+                <button @click="tab='layers'" :class="tab=='layers'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-stack text-xl"></i></button>
             </div>
-            <div class="flex-1 overflow-y-auto bg-white relative custom-scroll">
-                <div x-show="tab=='blocks'" id="blocks-container" class="absolute inset-0 pb-20"></div>
-                <div x-show="tab=='styles'"><div id="selectors-container" class="p-3 border-b bg-gray-50"></div><div id="styles-container" class="pb-20"></div></div>
-                <div x-show="tab=='traits'"><div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b">Element Config</div><div id="traits-container" class="p-2 pb-20"></div></div>
-                <div x-show="tab=='layers'" id="layers-container" class="absolute inset-0 pb-20"></div>
+            
+            <div class="flex-1 bg-white custom-scroll relative w-full">
+                
+                <div x-show="tab=='blocks'" class="min-h-full pb-24">
+                    <div id="blocks-container" class="p-2"></div>
+                </div>
+
+                <div x-show="tab=='styles'" class="min-h-full pb-24">
+                    <div id="selectors-container" class="p-3 border-b bg-gray-50 sticky top-0 z-20"></div>
+                    <div id="styles-container" class="p-1"></div>
+                </div>
+
+                <div x-show="tab=='traits'" class="min-h-full pb-24">
+                    <div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b sticky top-0 z-20">Element Config</div>
+                    <div id="traits-container" class="p-4"></div>
+                    <div class="p-8 text-center text-gray-300 text-xs italic">Klik elemen untuk edit</div>
+                </div>
+
+                <div x-show="tab=='layers'" class="min-h-full pb-24">
+                    <div id="layers-container"></div>
+                </div>
+
             </div>
         </div>
-    </div>
 
     <div class="md:hidden fixed bottom-0 left-0 w-full h-[60px] bg-white border-t border-gray-200 flex items-center justify-around z-[100] px-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <button @click="cmd('core:preview')" class="flex flex-col items-center justify-center w-16 h-full text-gray-500 active:text-indigo-600">
