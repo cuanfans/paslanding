@@ -341,6 +341,49 @@ function editorApp() {
 
             const domc = window.editor.DomComponents;
             const bm = window.editor.BlockManager;
+            // =========================================
+            // 0. BASIC & TYPOGRAPHY (YANG HILANG KEMBALI ADA)
+            // =========================================
+            
+            // 1. HEADING / TITLE
+            bm.add('text-heading', {
+                label: 'Heading',
+                category: 'Basic',
+                content: '<h2 class="text-3xl font-black text-gray-800 mb-4">Tulis Judul Disini</h2>',
+                attributes: { class: 'fa fa-heading' } // Icon huruf H
+            });
+
+            // 2. PARAGRAPH / TEXT
+            bm.add('text-paragraph', {
+                label: 'Paragraph',
+                category: 'Basic',
+                content: '<p class="text-base text-gray-600 mb-4 leading-relaxed">Tulis deskripsi atau teks paragraf Anda di sini. Anda bisa mengedit teks ini dengan mengklik dua kali.</p>',
+                attributes: { class: 'fa fa-paragraph' }
+            });
+
+            // 3. BUTTON (Tombol)
+            bm.add('ui-button', {
+                label: 'Button',
+                category: 'Basic',
+                content: '<a href="#" class="btn btn-primary px-6 py-3 rounded-lg font-bold text-white shadow-lg transition hover:-translate-y-1">Click Me</a>',
+                attributes: { class: 'fa fa-square' }
+            });
+
+            // 4. IMAGE (Gambar)
+            bm.add('ui-image', {
+                label: 'Image',
+                category: 'Basic',
+                content: { type: 'image', style: { color: 'black' }, activeOnRender: 1 },
+                attributes: { class: 'fa fa-image' }
+            });
+
+            // 5. DIVIDER (Garis Pembatas)
+            bm.add('ui-divider', {
+                label: 'Divider',
+                category: 'Basic',
+                content: '<div class="divider py-4"></div>',
+                attributes: { class: 'fa fa-minus' }
+            });
 
             // --- COMPONENT LOGIC ---
             
