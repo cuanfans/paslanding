@@ -156,11 +156,7 @@
     .editable-carousel .carousel-dots { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:6px; }
     .editable-carousel .carousel-dots button { width:8px; height:8px; border-radius:999px; background:rgba(255,255,255,0.6); border:none; }
 
-    /* Hide built-in contact/pro block in block manager */
-    .gjs-block[data-id="contact-pro"] { display: none !important; }
-    /* Also hide from categories list if any element shows label */
-    .gjs-block-category .gjs-block[data-id="contact-pro"] { display: none !important; }
-    /* Keep component still available in canvas if already present (we did not remove bm.add), just hide block */
+    /* Hide built-in "Contact Pro" block manager entry by leaving it unregistered (we removed bm.add) */
     </style>
 </head>
 
@@ -586,6 +582,34 @@ function editorApp() {
                 }
             });
 
+            // --- Inject canvas CSS so pricing grid displays side-by-side inside the canvas ---
+            const canvasCss = `
+/* Pricing grid (canvas) */
+.pricing-grid { display: grid; grid-template-columns: repeat(1, 1fr); gap: 16px; align-items: start; }
+@media (min-width: 768px) { .pricing-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.pricing-card { background: linear-gradient(180deg,#ffffff 0%,#fbfdff 100%); border-radius:12px; padding:20px; border:1px solid #e6eef8; box-shadow:0 8px 24px rgba(14,42,71,0.06); display:flex; flex-direction:column; gap:12px; }
+.pricing-card .title { font-weight:800; font-size:14px; color:#0f172a; text-transform:uppercase; letter-spacing:0.6px; }
+.pricing-card .price { font-size:28px; font-weight:900; color:#0b5cff; }
+.pricing-card .features { color:#475569; font-size:13px; line-height:1.6; }
+.pricing-card .cta { margin-top:auto; display:inline-block; text-align:center; padding:10px 16px; border-radius:10px; font-weight:800; text-decoration:none; }
+
+/* Carousel basic canvas styles */
+.editable-carousel { position: relative; overflow: hidden; border-radius:12px; }
+.editable-carousel .slides { display:flex; transition:transform .5s ease; }
+.editable-carousel .slide { min-width:100%; flex:0 0 100%; position:relative; }
+.editable-carousel .slide img { width:100%; height:100%; object-fit:cover; display:block; border-radius:10px; }
+.editable-carousel .carousel-controls { position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); display:flex; justify-content:space-between; pointer-events:none; }
+.editable-carousel .carousel-controls button { pointer-events:auto; background:rgba(255,255,255,0.85); border:none; width:40px; height:40px; border-radius:999px; display:flex; align-items:center; justify-content:center; margin:0 8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+.editable-carousel .carousel-dots { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:6px; }
+.editable-carousel .carousel-dots button { width:8px; height:8px; border-radius:999px; background:rgba(255,255,255,0.6); border:none; }
+`;
+            try {
+                window.editor.setStyle(canvasCss);
+            } catch (e) {
+                console.warn('Failed to inject canvas CSS', e);
+            }
+
             const domc = window.editor.DomComponents;
             domc.addType('iconify-icon', {
                 model: {
@@ -638,67 +662,7 @@ function editorApp() {
                 content: `<section style="padding:60px 20px; background:#fff;"><div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:50px; align-items:start;"><div class="product-info"><h1>Nama Produk Premium</h1><p style="line-height:1.6; color:#666; margin-bottom:20px;">Deskripsi lengkap produk yang meyakinkan pembeli bahwa ini adalah investasi terbaik mereka.</p><ul style="list-style:none; padding:0; margin-bottom:30px;"><li style="margin-bottom:10px; display:flex; align-items:center; gap:10px;"><iconify-icon icon="ph:check-circle-fill" style="color:#22c55e"></iconify-icon> Garansi 30 Hari</li><li style="margin-bottom:10px; display:flex; align-items:center; gap:10px;"><iconify-icon icon="ph:check-circle-fill" style="color:#22c55e"></iconify-icon> Support Prioritas</li></ul><img src="https://via.placeholder.com/500x300" style="width:100%; border-radius:10px;"></div><div style="background:#f8fafc; padding:30px; border-radius:15px; border:1px solid #e2e8f0;">[ CHECKOUT ]</div></div></section>` 
             });
 
-            // --- WIDGET CONTACT PRO BARU (keberadaan tetap, tapi block manager entry disembunyikan via CSS) ---
-            const contactFormHTML = `
-                <div style="padding: 40px 20px;">
-                    <form action="/api/public/contact" method="POST" style="max-width: 500px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-                        <input type="hidden" name="page_id" value="0"> 
-                        
-                        <div style="text-align: center; margin-bottom: 24px;">
-                            <h3 style="font-size: 20px; font-weight: 800; color: #1f2937; margin-bottom: 8px;">Hubungi Kami</h3>
-                            <p style="font-size: 14px; color: #6b7280;">Kami siap membantu kebutuhan Anda.</p>
-                        </div>
-
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; margin-bottom: 4px;">Perihal</label>
-                            <select name="subject" style="width: 100%; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; outline: none; font-size: 14px;">
-                                <option value="Kontak">Kontak Umum</option>
-                                <option value="Info">Minta Informasi</option>
-                                <option value="Pertanyaan">Pertanyaan</option>
-                                <option value="Keluhan">Keluhan</option>
-                                <option value="Saran">Saran</option>
-                                <option value="Kerjasama">Kerjasama</option>
-                            </select>
-                        </div>
-
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; margin-bottom: 4px;">Nama Lengkap</label>
-                            <input type="text" name="name" required style="width: 100%; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; outline: none; font-size: 14px;" placeholder="Nama Anda">
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                            <div>
-                                <label style="display: block; font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; margin-bottom: 4px;">Email</label>
-                                <input type="email" name="email" style="width: 100%; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; outline: none; font-size: 14px;" placeholder="email@contoh.com">
-                            </div>
-                            <div>
-                                <label style="display: block; font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; margin-bottom: 4px;">WhatsApp</label>
-                                <input type="tel" name="phone" style="width: 100%; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; outline: none; font-size: 14px;" placeholder="0812...">
-                            </div>
-                        </div>
-
-                        <div style="margin-bottom: 24px;">
-                            <label style="display: block; font-size: 12px; font-weight: 700; color: #374151; text-transform: uppercase; margin-bottom: 4px;">Pesan Anda</label>
-                            <textarea name="message" required rows="4" style="width: 100%; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; outline: none; font-size: 14px;" placeholder="Tulis pesan Anda disini..."></textarea>
-                        </div>
-
-                        <button type="submit" style="width: 100%; padding: 14px; background: #2563eb; color: white; font-weight: 800; border-radius: 8px; border: none; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
-                            KIRIM PESAN
-                        </button>
-                    </form>
-                </div>
-            `;
-
-            // Add contact-pro but block entry will be hidden by CSS above
-            bm.add('contact-pro', {
-                label: 'Contact Pro',
-                category: 'Forms',
-                attributes: { class: 'contact-pro-hidden' },
-                content: contactFormHTML
-            });
-
             // --- 1. SLIDER (Editable Carousel) ---
-            // Make carousel content editable: each slide is a normal component with editable text and image.
             const carouselEditable = `
                 <div class="editable-carousel" data-gjs-type="editable-carousel" data-auto="true" data-interval="5000" style="height:380px;">
                     <div class="slides">
@@ -879,10 +843,6 @@ function editorApp() {
                 media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zM3 9h2V7H3v2zm4 8h2v-2H7v2zM7 9h2V7H7v2zM7 5h2V3H7v2zm8 12h2v-2h-2v2zm0-4h2V7h-2v6z"/></svg>',
                 content: pricingHighlight
             });
-
-            // --- TEMPLATE CHECKOUT EKSKLUSIF END ---
-
-            // --- WIDGETS: Slider / pricing / hero added. ---
 
             // --- Init Data ---
             if (this.page.slug) {
