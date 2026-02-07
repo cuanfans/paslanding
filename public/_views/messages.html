@@ -8,123 +8,145 @@
     <script>tailwind.config = { darkMode: 'class' }</script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900" x-data="messagesApp()" x-init="init()">
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200" x-data="messagesApp()" x-init="init()" :class="darkMode ? 'dark' : ''">
 
-    <div class="flex h-screen overflow-hidden">
-        <aside class="flex flex-col h-screen">
-    <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0">
-        <span x-show="sidebarOpen" class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span>
-        <span x-show="!sidebarOpen" class="text-xl font-bold text-blue-600 hidden md:block">B</span>
-    </div>
+    <div class="flex h-screen overflow-hidden" x-cloak>
+        
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" 
+               class="fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700 transition-transform duration-300 ease-in-out md:relative md:flex md:flex-col shadow-xl md:shadow-none">
+            
+            <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0">
+                <span class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span>
+            </div>
 
-    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md group">
-            <i class="ph ph-squares-four text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Dashboard</span>
-        </a>
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-squares-four text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Dashboard</span>
+                </a>
 
-        <a href="/admin/pages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-files text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Halaman</span>
-        </a>
+                <a href="/admin/pages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-files text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Halaman</span>
+                </a>
 
-        <a href="/admin/reports" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-chart-line-up text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Laporan</span>
-        </a>
+                <a href="/admin/reports" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-chart-line-up text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Laporan</span>
+                </a>
 
-        <a href="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-trend-up text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Traffic</span>
-        </a>
+                <a href="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-trend-up text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Traffic</span>
+                </a>
 
-        <a href="/admin/messages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-envelope-simple text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Pesan Masuk</span>
-        </a>
+                <a href="/admin/messages" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md group">
+                    <i class="ph ph-envelope-simple text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Pesan Masuk</span>
+                </a>
 
-        <a href="/admin/settings" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-gear text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Settings</span>
-        </a>
-    </nav>
+                <a href="/admin/settings" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-gear text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Settings</span>
+                </a>
+            </nav>
 
-    <div class="p-4 border-t dark:border-gray-700 shrink-0">
-        <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors group">
-            <i class="ph ph-sign-out text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Keluar</span>
-        </button>
-    </div>
-</aside>
+            <div class="p-4 border-t dark:border-gray-700 shrink-0">
+                <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors group">
+                    <i class="ph ph-sign-out text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Keluar</span>
+                </button>
+            </div>
+        </aside>
 
-        <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-8">
-                <h1 class="font-bold text-lg">Inbox Pesan</h1>
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-4 shadow-sm z-20 shrink-0">
+                <div class="flex items-center gap-4">
+                    <button @click="sidebarOpen = !sidebarOpen" class="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <i class="ph ph-list text-2xl dark:text-white"></i>
+                    </button>
+                    <h1 class="font-bold text-lg truncate dark:text-white">Inbox Pesan</h1>
+                </div>
+                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors">
+                    <i x-show="!darkMode" class="ph ph-moon text-xl text-gray-600"></i>
+                    <i x-show="darkMode" class="ph ph-sun text-xl text-yellow-400"></i>
+                </button>
             </header>
 
-            <div class="flex-1 overflow-y-auto p-8">
-                <div class="flex gap-2 mb-6">
-                    <button @click="filter='all'" :class="filter=='all'?'bg-blue-600 text-white':'bg-white text-gray-600'" class="px-4 py-2 rounded-lg text-sm font-bold border transition">Semua</button>
-                    <button @click="filter='unread'" :class="filter=='unread'?'bg-blue-600 text-white':'bg-white text-gray-600'" class="px-4 py-2 rounded-lg text-sm font-bold border transition">Belum Dibaca</button>
-                    <button @click="filter='followed_up'" :class="filter=='followed_up'?'bg-blue-600 text-white':'bg-white text-gray-600'" class="px-4 py-2 rounded-lg text-sm font-bold border transition">Selesai</button>
+            <main class="flex-1 overflow-y-auto p-4 md:p-8">
+                <div class="flex gap-2 mb-6 overflow-x-auto pb-2">
+                    <button @click="filter='all'" :class="filter=='all'?'bg-blue-600 text-white':'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-bold border dark:border-gray-700 transition whitespace-nowrap">Semua</button>
+                    <button @click="filter='unread'" :class="filter=='unread'?'bg-blue-600 text-white':'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-bold border dark:border-gray-700 transition whitespace-nowrap">Belum Dibaca</button>
+                    <button @click="filter='followed_up'" :class="filter=='followed_up'?'bg-blue-600 text-white':'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'" class="px-4 py-2 rounded-lg text-sm font-bold border dark:border-gray-700 transition whitespace-nowrap">Selesai</button>
                 </div>
 
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-gray-50 dark:bg-gray-700">
-                            <tr>
-                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Tanggal</th>
-                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Pengirim</th>
-                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Perihal</th>
-                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Pesan</th>
-                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Status</th>
-                                <th class="p-4 text-xs font-bold text-gray-500 uppercase text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                            <template x-for="msg in filteredMessages" :key="msg.id">
-                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
-                                    <td class="p-4 text-xs text-gray-500" x-text="new Date(msg.created_at).toLocaleDateString()"></td>
-                                    <td class="p-4">
-                                        <div class="font-bold text-sm text-gray-800 dark:text-white" x-text="msg.name"></div>
-                                        <div class="text-xs text-gray-400" x-text="msg.email"></div>
-                                        <div class="text-xs text-gray-400" x-text="msg.phone"></div>
-                                    </td>
-                                    <td class="p-4">
-                                        <span class="px-2 py-1 rounded text-[10px] font-bold uppercase bg-gray-100 text-gray-600" x-text="msg.subject"></span>
-                                    </td>
-                                    <td class="p-4 text-sm text-gray-600 dark:text-gray-300 max-w-xs truncate" :title="msg.message" x-text="msg.message"></td>
-                                    <td class="p-4">
-                                        <span :class="{
-                                            'bg-red-100 text-red-600': msg.status === 'unread',
-                                            'bg-yellow-100 text-yellow-600': msg.status === 'read',
-                                            'bg-green-100 text-green-600': msg.status === 'followed_up'
-                                        }" class="px-2 py-1 rounded text-xs font-bold uppercase" x-text="msg.status"></span>
-                                    </td>
-                                    <td class="p-4 text-right flex justify-end gap-2">
-                                        <select @change="updateStatus(msg.id, $event.target.value)" class="text-xs border rounded p-1 bg-white dark:bg-gray-700 dark:text-white outline-none">
-                                            <option value="unread" :selected="msg.status=='unread'">Baru</option>
-                                            <option value="read" :selected="msg.status=='read'">Dibaca</option>
-                                            <option value="followed_up" :selected="msg.status=='followed_up'">Selesai</option>
-                                        </select>
-                                        <button @click="deleteMsg(msg.id)" class="text-red-500 hover:text-red-700 p-1"><i class="ph ph-trash text-lg"></i></button>
-                                    </td>
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
+                    <div class="overflow-x-auto w-full rounded-xl">
+                        <table class="w-full text-left border-collapse min-w-[900px]">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">Tanggal</th>
+                                    <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">Pengirim</th>
+                                    <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">Perihal</th>
+                                    <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">Pesan</th>
+                                    <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">Status</th>
+                                    <th class="p-4 text-xs font-bold text-gray-500 dark:text-gray-300 uppercase text-right">Aksi</th>
                                 </tr>
-                            </template>
-                            <tr x-show="messages.length === 0">
-                                <td colspan="6" class="p-8 text-center text-gray-400 italic">Belum ada pesan masuk.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                <template x-for="msg in filteredMessages" :key="msg.id">
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                                        <td class="p-4 text-xs text-gray-500 dark:text-gray-400" x-text="new Date(msg.created_at).toLocaleDateString()"></td>
+                                        <td class="p-4">
+                                            <div class="font-bold text-sm text-gray-800 dark:text-white" x-text="msg.name"></div>
+                                            <div class="text-xs text-gray-400" x-text="msg.email"></div>
+                                            <div class="text-xs text-gray-400" x-text="msg.phone"></div>
+                                        </td>
+                                        <td class="p-4">
+                                            <span class="px-2 py-1 rounded text-[10px] font-bold uppercase bg-gray-100 text-gray-600 border dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300" x-text="msg.subject"></span>
+                                        </td>
+                                        <td class="p-4 text-sm text-gray-600 dark:text-gray-300 max-w-xs truncate" :title="msg.message" x-text="msg.message"></td>
+                                        <td class="p-4">
+                                            <span :class="{
+                                                'bg-red-100 text-red-600 border-red-200': msg.status === 'unread',
+                                                'bg-yellow-100 text-yellow-600 border-yellow-200': msg.status === 'read',
+                                                'bg-green-100 text-green-600 border-green-200': msg.status === 'followed_up'
+                                            }" class="px-2 py-1 rounded text-[10px] font-bold uppercase border" x-text="msg.status"></span>
+                                        </td>
+                                        <td class="p-4 text-right">
+                                            <div class="flex justify-end gap-2">
+                                                <select @change="updateStatus(msg.id, $event.target.value)" class="text-xs border rounded p-1 bg-white dark:bg-gray-700 dark:text-white dark:border-gray-600 outline-none">
+                                                    <option value="unread" :selected="msg.status=='unread'">Baru</option>
+                                                    <option value="read" :selected="msg.status=='read'">Dibaca</option>
+                                                    <option value="followed_up" :selected="msg.status=='followed_up'">Selesai</option>
+                                                </select>
+                                                <button @click="deleteMsg(msg.id)" class="text-red-500 hover:text-red-700 p-1"><i class="ph ph-trash text-lg"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <tr x-show="messages.length === 0">
+                                    <td colspan="6" class="p-8 text-center text-gray-400 italic">Belum ada pesan masuk.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-        </main>
+            </main>
+        </div>
+
+        <div x-show="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/50 z-20 md:hidden" x-transition.opacity></div>
     </div>
 
     <script>
         function messagesApp() {
             return {
+                sidebarOpen: window.innerWidth > 768,
+                darkMode: localStorage.getItem('theme') === 'dark',
                 messages: [],
                 filter: 'all',
                 
@@ -134,8 +156,14 @@
                 },
 
                 async init() {
+                    const token = localStorage.getItem('admin_pass');
+                    if (!token) return window.location.href = '/login';
+                    if (this.darkMode) document.documentElement.classList.add('dark');
+
                     try {
-                        const res = await fetch('/api/admin/messages');
+                        const res = await fetch('/api/admin/messages', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
                         if(res.ok) {
                             this.messages = await res.json();
                         } else if(res.status === 401) {
@@ -145,9 +173,10 @@
                 },
 
                 async updateStatus(id, newStatus) {
+                    const token = localStorage.getItem('admin_pass');
                     await fetch('/api/admin/messages/' + id, {
                         method: 'PATCH',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
                         body: JSON.stringify({ status: newStatus })
                     });
                     this.init(); // Refresh data
@@ -155,8 +184,23 @@
 
                 async deleteMsg(id) {
                     if(!confirm('Yakin ingin menghapus pesan ini?')) return;
-                    await fetch('/api/admin/messages/' + id, { method: 'DELETE' });
+                    const token = localStorage.getItem('admin_pass');
+                    await fetch('/api/admin/messages/' + id, { 
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
                     this.init();
+                },
+
+                toggleTheme() {
+                    this.darkMode = !this.darkMode;
+                    localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+                    document.documentElement.classList.toggle('dark');
+                },
+
+                logout() {
+                    localStorage.removeItem('admin_pass');
+                    window.location.href = '/login';
                 }
             }
         }
