@@ -462,238 +462,201 @@ app.post('/api/public/checkout', async (c) => {
 });
 
 // ===============================================
-// 7. PAGE RENDERING
+// GANTI TOTAL FUNGSI RENDERPAGE DI [[path]] (14).js DENGAN INI
 // ===============================================
-app.get('/:slug', async (c) => {
-    try {
-        const slug = c.req.param('slug');
-        if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
-        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
-        if(!page) return c.text('404 Not Found', 404);
-
-        // TRACK ANALYTICS
-        c.env.DB.prepare("INSERT INTO analytics (page_id, event_type, referrer) VALUES (?, 'view', ?)").bind(page.id, c.req.header('Referer') || 'direct').run().catch(()=>{});
-
-        return renderPage(c, page);
-    } catch(e) { return c.env.ASSETS.fetch(c.req.raw); }
-});
-
 async function renderPage(c, page) {
+    // 1. Ambil Config
     const config = JSON.parse(page.product_config_json || '{}');
-    const activePayments = config.active_payments || [];
     
-    // Inject Notification Script untuk Pesan
-    const msgScript = `
+    // 2. DEFISINIKAN CSS WIDGET (BRIDGE) - SAMA SEPERTI DI EDITOR
+    // Tanpa ini, Carousel, Pricing, dan Gallery akan hancur di halaman live
+    const bridgeCSS = `
+        body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
+        
+        /* Thumbnail Gallery */
+        .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; }
+        .product-gallery .main-img { border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 4/3; background: #f3f4f6; }
+        .product-gallery .main-img img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
+        .product-gallery .thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding-bottom: 5px; scroll-behavior: smooth; }
+        .product-gallery .thumb { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.7; transition: 0.2s; object-fit: cover; }
+        .product-gallery .thumb.active, .product-gallery .thumb:hover { border-color: #2563eb; opacity: 1; }
+
+        /* Carousel Slider */
+        .editable-carousel { position: relative; width: 100%; overflow: hidden; }
+        .editable-carousel .slides { display: flex; flex-direction: row; width: 100%; height: 100%; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; height: 100%; }
+        .editable-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
+        .editable-carousel .carousel-controls { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); display: flex; justify-content: space-between; padding: 0 20px; pointer-events: none; z-index: 10; }
+        .editable-carousel .carousel-controls button { pointer-events: auto; background: rgba(0,0,0,0.2); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; backdrop-filter: blur(2px); }
+        .editable-carousel .carousel-controls button:hover { background: rgba(0,0,0,0.5); transform: scale(1.1); }
+
+        /* Pricing & Cards */
+        .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; position: relative; overflow: hidden; }
+        .pricing-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1); }
+        .pricing-card.highlight { border: 2px solid #2563eb; z-index: 2; box-shadow: 0 20px 40px -5px rgba(37, 99, 235, 0.15); }
+        .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; height: 100%; }
+
+        /* Utils */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 30s linear infinite; }
+        .btn { text-transform: none !important; }
+    `;
+
+    // 3. LOGIC SCRIPT (Interaksi di halaman Live)
+    // Berisi fungsi Checkout, Ganti Slide Carousel, dan Notifikasi Contact Form
+    const liveScripts = `
     <script>
+        // A. Notifikasi Pesan Terkirim
         if(new URLSearchParams(window.location.search).get('status') === 'sent') {
             alert('Pesan Anda telah kami terima! Kami akan segera menghubungi Anda.');
             window.history.replaceState({}, document.title, window.location.pathname);
         }
+
+        // B. Inisialisasi Ulang Komponen (Agar interaktif)
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // 1. Gallery Thumbnail Logic
+            document.querySelectorAll('.product-gallery').forEach(el => {
+                const main = el.querySelector('.main-img img');
+                const thumbs = el.querySelectorAll('.thumb');
+                if(!main || thumbs.length === 0) return;
+                thumbs.forEach(t => {
+                    t.onclick = function() {
+                        main.src = this.src;
+                        thumbs.forEach(x => x.classList.remove('active'));
+                        this.classList.add('active');
+                    }
+                });
+            });
+            
+            // 2. Carousel Auto Play Logic
+            document.querySelectorAll('.editable-carousel').forEach(el => {
+                const slides = el.querySelector('.slides');
+                const items = el.querySelectorAll('.slide');
+                if(!slides || !items.length) return;
+                let idx = 0;
+                function show(n) { 
+                    idx = (n + items.length) % items.length; 
+                    slides.style.transform = 'translateX(-'+(idx*100)+'%)'; 
+                }
+                const next = el.querySelector('.next'); if(next) next.onclick = () => show(idx+1);
+                const prev = el.querySelector('.prev'); if(prev) prev.onclick = () => show(idx-1);
+                
+                // Auto Play
+                let timer = setInterval(() => show(idx+1), 5000);
+                el.onmouseenter = () => clearInterval(timer);
+                el.onmouseleave = () => timer = setInterval(() => show(idx+1), 5000);
+            });
+
+            // 3. Logic Checkout (Jika ada form checkout)
+            const container = document.body;
+            if (container.innerHTML.includes('[ CHECKOUT ]')) {
+                const config = ${JSON.stringify(config)};
+                const activePayments = ${JSON.stringify(config.active_payments || [])};
+                
+                // RENDER PAYMENT LIST
+                const paymentHTML = activePayments.length > 0 ? activePayments.map(slug => 
+                    '<label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200 mb-2">' +
+                    '<input type="radio" name="pay_method" value="' + slug + '" class="mr-3 w-4 h-4 text-blue-600">' +
+                    '<span class="text-sm font-bold text-gray-700 uppercase">' + slug.split('-').join(' ') + '</span>' +
+                    '</label>'
+                ).join('') : '<p class="text-red-500 text-xs">Belum ada metode pembayaran.</p>';
+
+                // REPLACE PLACEHOLDER
+                const checkoutHTML = \`
+                    <div class="max-w-md mx-auto my-8 p-6 bg-white rounded-2xl shadow-xl border border-gray-100 font-sans">
+                        <h2 class="text-xl font-black text-gray-800 mb-6 text-center">Formulir Pemesanan</h2>
+                        
+                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6">
+                            <span class="font-bold text-blue-900">${page.title}</span>
+                            <span class="font-black text-blue-700">Rp \${new Intl.NumberFormat('id-ID').format(config.price || 0)}</span>
+                        </div>
+
+                        <div class="space-y-4 mb-6">
+                            <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full p-3 border rounded-lg">
+                            <input type="tel" id="c_phone" placeholder="No. WhatsApp" class="w-full p-3 border rounded-lg">
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="text-xs font-bold text-gray-400 uppercase block mb-2">Pembayaran</label>
+                            <div class="grid gap-2">\${paymentHTML}</div>
+                        </div>
+
+                        <button id="btn-submit-order" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-700 transition">
+                            BAYAR SEKARANG
+                        </button>
+                    </div>
+                \`;
+                
+                container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', checkoutHTML);
+
+                // HANDLE SUBMIT
+                document.getElementById('btn-submit-order')?.addEventListener('click', async () => {
+                    const payMethod = document.querySelector('input[name="pay_method"]:checked')?.value;
+                    const name = document.getElementById('c_name').value;
+                    const phone = document.getElementById('c_phone').value;
+
+                    if(!name || !phone) return alert('Mohon lengkapi data!');
+                    if(!payMethod) return alert('Pilih pembayaran!');
+
+                    try {
+                        const res = await fetch('/api/public/checkout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                page_id: ${page.id},
+                                slug_payment: payMethod,
+                                quantity: 1,
+                                customer: { name, phone }
+                            })
+                        });
+                        const d = await res.json();
+                        if(d.payment_url) window.location.href = d.payment_url;
+                        else alert(d.error || 'Gagal memproses.');
+                    } catch(e) { alert('Error koneksi.'); }
+                });
+            }
+        });
     </script>
     `;
 
-    // Checkout Script (Logic Kalkulator & Qty)
-    const checkoutScript = `
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const container = document.body;
-            if (!container.innerHTML.includes('[ CHECKOUT ]')) return;
-
-            const config = ${JSON.stringify(config)};
-            
-            // --- RENDER VARIAN ---
-            let productHTML = '';
-            if (config.variants && config.variants.length > 0) {
-                productHTML = config.variants.map((v, i) => \`
-                    <label class="flex justify-between items-center p-4 border rounded-2xl mb-2 cursor-pointer border-gray-100 hover:border-blue-500 transition shadow-sm bg-white">
-                        <div class="flex items-center">
-                            <input type="radio" name="v_idx" value="\${i}" \${i===0?'checked':''} class="mr-3 w-5 h-5 text-blue-600" onchange="updateCalc()">
-                            <div>
-                                <div class="font-bold text-gray-800 text-sm">\${v.name}</div>
-                            </div>
-                        </div>
-                        <div class="font-black text-blue-600">Rp \${new Intl.NumberFormat('id-ID').format(v.price)}</div>
-                    </label>\`).join('');
-            } else {
-                 productHTML = \`
-                    <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl border border-blue-100 mb-4">
-                        <span class="font-bold text-blue-900">\${page.title}</span>
-                        <span class="font-black text-blue-700">Rp \${new Intl.NumberFormat('id-ID').format(config.price)}</span>
-                    </div>\`;
+    // 4. RETURN HTML LENGKAP DENGAN LIBRARY & CSS
+    return c.html(`
+    <!DOCTYPE html>
+    <html lang='id'>
+    <head>
+        <meta charset='UTF-8'>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${page.title}</title>
+        
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = { 
+                theme: { 
+                    extend: { 
+                        fontFamily: { sans: ['Inter', 'sans-serif'] },
+                        colors: { theme: { 50:'#eef2ff', 500:'#6366f1', 600:'#4f46e5' } }
+                    } 
+                } 
             }
+        </script>
+        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
 
-            // --- RENDER PAYMENT ---
-            const activeSlugs = ${JSON.stringify(activePayments)};
-            let paymentListHTML = activeSlugs.map(slug => 
-                '<label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200 mb-2">' +
-                '<input type="radio" name="pay_method" value="' + slug + '" class="mr-3 w-4 h-4 text-blue-600">' +
-                '<span class="text-sm font-bold text-gray-700 uppercase">' + slug.split('-').join(' ') + '</span>' +
-                '</label>'
-            ).join('');
-
-            // --- BUMP HTML ---
-            let bumpHTML = '';
-            if (config.order_bump?.active) {
-                bumpHTML = \`
-                <div class="bg-yellow-50 border-2 border-dashed border-yellow-400 p-4 rounded-xl mb-6 relative mt-4">
-                    <div class="absolute top-0 right-0 bg-red-600 text-white text-[9px] px-2 py-1 rounded-bl-lg font-bold">PENWARAN TERBATAS</div>
-                    <label class="flex items-start cursor-pointer">
-                        <input type="checkbox" id="take_bump" class="mt-1 mr-3 w-5 h-5 text-blue-600 rounded" onchange="updateCalc()">
-                        <div>
-                            <div class="font-black text-gray-800 text-sm">\${config.order_bump.title}</div>
-                            <p class="text-xs text-gray-600 mt-1">\${config.order_bump.desc}</p>
-                            <div class="text-red-600 font-bold text-sm mt-1">+ Rp \${new Intl.NumberFormat('id-ID').format(config.order_bump.price)}</div>
-                        </div>
-                    </label>
-                </div>\`;
-            }
-
-            const formHTML = \`
-                <div id="checkout-form-real" class="max-w-md mx-auto my-8 p-6 bg-white rounded-2xl shadow-xl border border-gray-100 font-sans">
-                    <h2 class="text-xl font-black text-gray-800 mb-6 text-center uppercase tracking-tight">Formulir Pemesanan</h2>
-                    
-                    <div class="mb-2">\${productHTML}</div>
-
-                    <div class="flex items-center justify-between mb-6 p-3 border rounded-xl bg-gray-50">
-                        <span class="text-xs font-bold text-gray-500 uppercase">Jumlah Pesanan</span>
-                        <div class="flex items-center bg-white rounded-lg border shadow-sm">
-                            <button onclick="changeQty(-1)" class="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-l-lg font-bold text-lg">-</button>
-                            <input type="number" id="qty_input" value="1" readonly class="w-12 text-center font-bold text-gray-800 outline-none border-x py-1">
-                            <button onclick="changeQty(1)" class="px-3 py-1 text-blue-600 hover:bg-blue-50 rounded-r-lg font-bold text-lg">+</button>
-                        </div>
-                    </div>
-
-                    \${bumpHTML}
-
-                    <div class="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200 space-y-2">
-                        <div class="flex justify-between text-xs text-gray-500">
-                            <span id="summary_item_name">Produk (x1)</span>
-                            <span id="summary_item_price" class="font-bold">Rp 0</span>
-                        </div>
-                        <div id="summary_bump_row" class="flex justify-between text-xs text-gray-500 hidden">
-                            <span id="summary_bump_name">Extra</span>
-                            <span id="summary_bump_price" class="font-bold">Rp 0</span>
-                        </div>
-                        <div class="border-t border-gray-300 my-2 pt-2 flex justify-between items-center">
-                            <span class="font-bold text-gray-700">Total Pembayaran</span>
-                            <span id="summary_total" class="font-black text-xl text-blue-700">Rp 0</span>
-                        </div>
-                    </div>
-
-                    <div class="space-y-4 mb-8">
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase">Data Pengiriman</label>
-                            <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-blue-500">
-                            <input type="tel" id="c_phone" placeholder="No. WhatsApp (Aktif)" class="w-full mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:border-blue-500">
-                        </div>
-                    </div>
-
-                    <div class="mb-6">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase block mb-2">Metode Pembayaran</label>
-                        <div class="grid gap-2">
-                            \${paymentListHTML || '<p class="text-red-500 text-[10px]">Pilih metode pembayaran di editor!</p>'}
-                        </div>
-                    </div>
-
-                    <button id="btn-submit-order" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition transform active:scale-95 uppercase tracking-widest">
-                        BAYAR SEKARANG
-                    </button>
-                </div>\`;
-
-            container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', formHTML);
-
-            // --- FUNGSI KALKULATOR ---
-            window.changeQty = (delta) => {
-                let input = document.getElementById('qty_input');
-                let newVal = parseInt(input.value) + delta;
-                if(newVal < 1) newVal = 1;
-                input.value = newVal;
-                updateCalc();
-            };
-
-            window.updateCalc = () => {
-                // 1. Get Base Price
-                let basePrice = ${config.price || 0};
-                let productName = "${page.title}";
-                
-                // Cek Varian
-                const vIdx = document.querySelector('input[name="v_idx"]:checked')?.value;
-                if(config.variants && config.variants[vIdx]) {
-                    basePrice = config.variants[vIdx].price;
-                    productName = config.variants[vIdx].name;
-                }
-
-                // 2. Get Qty
-                const qty = parseInt(document.getElementById('qty_input').value);
-
-                // 3. Subtotal Item
-                const subItem = basePrice * qty;
-
-                // 4. Check Bump
-                let bumpPrice = 0;
-                const bumpRow = document.getElementById('summary_bump_row');
-                const takeBump = document.getElementById('take_bump')?.checked;
-                
-                if (takeBump && config.order_bump?.active) {
-                    bumpPrice = config.order_bump.price;
-                    document.getElementById('summary_bump_name').innerText = config.order_bump.title;
-                    document.getElementById('summary_bump_price').innerText = 'Rp ' + new Intl.NumberFormat('id-ID').format(bumpPrice);
-                    bumpRow.classList.remove('hidden');
-                } else {
-                    bumpRow.classList.add('hidden');
-                }
-
-                // 5. Grand Total
-                const total = subItem + bumpPrice;
-
-                // 6. Update UI
-                document.getElementById('summary_item_name').innerText = productName + ' (x' + qty + ')';
-                document.getElementById('summary_item_price').innerText = 'Rp ' + new Intl.NumberFormat('id-ID').format(subItem);
-                document.getElementById('summary_total').innerText = 'Rp ' + new Intl.NumberFormat('id-ID').format(total);
-            };
-
-            // Init Calculator
-            updateCalc();
-
-            // --- SUBMIT ---
-            document.getElementById('btn-submit-order')?.addEventListener('click', async () => {
-                const selectedMethod = document.querySelector('input[name="pay_method"]:checked')?.value;
-                const name = document.getElementById('c_name').value;
-                const phone = document.getElementById('c_phone').value;
-                const qty = document.getElementById('qty_input').value;
-                const vIdx = document.querySelector('input[name="v_idx"]:checked')?.value;
-                const takeBump = document.getElementById('take_bump')?.checked;
-
-                if(!name || !phone) return alert('Lengkapi data pengiriman!');
-                if(!selectedMethod) return alert('Pilih metode pembayaran!');
-
-                const btn = document.getElementById('btn-submit-order');
-                btn.disabled = true;
-                btn.innerText = 'MEMPROSES...';
-
-                try {
-                    const res = await fetch('/api/public/checkout', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            page_id: ${page.id},
-                            slug_payment: selectedMethod,
-                            variant_index: vIdx,
-                            quantity: qty,
-                            take_bump: takeBump,
-                            customer: { name, phone }
-                        })
-                    });
-                    const data = await res.json();
-                    if(data.payment_url) window.location.href = data.payment_url;
-                    else if(data.error) alert(data.error);
-                } catch(e) {
-                    alert('Gagal membuat pesanan. Coba lagi.');
-                    btn.disabled = false;
-                    btn.innerText = 'BAYAR SEKARANG';
-                }
-            });
-        });
+        <style>
+            ${bridgeCSS}
+            ${page.css_content}
+        </style>
+    </head>
+    <body>
+        ${page.html_content}
+        ${liveScripts}
+    </body>
+    </html>
+    `);
+}
     </script>`;
 
     const appScript = `<script>window.PAGE_ID=${page.id};</script>`;
