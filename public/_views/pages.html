@@ -16,62 +16,63 @@
 
     <div class="flex h-screen overflow-hidden" x-cloak>
         
-        <aside class="flex flex-col h-screen">
-    <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0">
-        <span x-show="sidebarOpen" class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span>
-        <span x-show="!sidebarOpen" class="text-xl font-bold text-blue-600 hidden md:block">B</span>
-    </div>
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" 
+               class="fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700 transition-transform duration-300 ease-in-out md:relative md:flex md:flex-col shadow-xl md:shadow-none">
+            
+            <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0">
+                <span class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span>
+            </div>
 
-    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md group">
-            <i class="ph ph-squares-four text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Dashboard</span>
-        </a>
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-squares-four text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Dashboard</span>
+                </a>
 
-        <a href="/admin/pages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-files text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Halaman</span>
-        </a>
+                <a href="/admin/pages" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md group">
+                    <i class="ph ph-files text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Halaman</span>
+                </a>
 
-        <a href="/admin/reports" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-chart-line-up text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Laporan</span>
-        </a>
+                <a href="/admin/reports" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-chart-line-up text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Laporan</span>
+                </a>
 
-        <a href="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-trend-up text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Traffic</span>
-        </a>
+                <a href="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-trend-up text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Traffic</span>
+                </a>
 
-        <a href="/admin/messages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-envelope-simple text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Pesan Masuk</span>
-        </a>
+                <a href="/admin/messages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-envelope-simple text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Pesan Masuk</span>
+                </a>
 
-        <a href="/admin/settings" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-gear text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Settings</span>
-        </a>
-    </nav>
+                <a href="/admin/settings" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <i class="ph ph-gear text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Settings</span>
+                </a>
+            </nav>
 
-    <div class="p-4 border-t dark:border-gray-700 shrink-0">
-        <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors group">
-            <i class="ph ph-sign-out text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Keluar</span>
-        </button>
-    </div>
-</aside>
+            <div class="p-4 border-t dark:border-gray-700 shrink-0">
+                <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors group">
+                    <i class="ph ph-sign-out text-xl shrink-0"></i>
+                    <span class="font-medium whitespace-nowrap">Keluar</span>
+                </button>
+            </div>
+        </aside>
 
         <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
             <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-4 shadow-sm z-20 shrink-0">
                 <div class="flex items-center gap-4">
-                    <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <i class="ph ph-list text-2xl"></i>
+                    <button @click="sidebarOpen = !sidebarOpen" class="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <i class="ph ph-list text-2xl dark:text-white"></i>
                     </button>
-                    <h1 class="font-bold text-lg truncate">Daftar Halaman</h1>
+                    <h1 class="font-bold text-lg truncate dark:text-white">Daftar Halaman</h1>
                 </div>
                 <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors">
-                    <i x-show="!darkMode" class="ph ph-moon text-xl"></i>
+                    <i x-show="!darkMode" class="ph ph-moon text-xl text-gray-600"></i>
                     <i x-show="darkMode" class="ph ph-sun text-xl text-yellow-400"></i>
                 </button>
             </header>
@@ -92,8 +93,7 @@
                     <table x-show="!loading && pages.length > 0" class="w-full text-left">
                         <thead class="bg-gray-50 dark:bg-gray-700 border-b dark:border-gray-600 text-gray-500 dark:text-gray-300 text-xs uppercase font-bold tracking-wider">
                             <tr>
-                                <th class="p-4 w-10 text-center text-xl"><i class="ph ph-star"></i></th>
-                                <th class="p-4">Judul / Slug</th>
+                                <th class="p-4 w-24 text-center">Status</th> <th class="p-4">Judul / Slug</th>
                                 <th class="p-4">Tipe Produk</th>
                                 <th class="p-4">Tanggal Dibuat</th>
                                 <th class="p-4 text-right">Aksi</th>
@@ -102,12 +102,20 @@
                         <tbody class="divide-y dark:divide-gray-700 text-sm">
                             <template x-for="p in pages" :key="p.id">
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition group">
+                                    
                                     <td class="p-4 text-center">
-                                        <button @click="setHomepage(p.slug)" class="transition transform hover:scale-110">
-                                            <i class="ph-fill ph-star text-yellow-400 text-xl" x-show="homepageSlug === p.slug"></i>
-                                            <i class="ph ph-star text-gray-300 hover:text-yellow-400 text-xl" x-show="homepageSlug !== p.slug"></i>
-                                        </button>
+                                        <template x-if="homepageSlug === p.slug">
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-green-100 text-green-700 border border-green-200 text-[10px] font-bold uppercase tracking-wide">
+                                                <i class="ph-fill ph-house"></i> Home
+                                            </span>
+                                        </template>
+                                        <template x-if="homepageSlug !== p.slug">
+                                            <button @click="setHomepage(p.slug)" class="px-3 py-1.5 rounded-md bg-white border border-gray-300 text-gray-600 text-[10px] font-bold hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition shadow-sm flex items-center justify-center mx-auto gap-1">
+                                                Set Home
+                                            </button>
+                                        </template>
                                     </td>
+
                                     <td class="p-4">
                                         <div class="font-bold text-gray-800 dark:text-white text-base" x-text="p.title"></div>
                                         <a :href="'/' + p.slug" target="_blank" class="text-blue-500 hover:underline flex items-center gap-1 mt-1 font-mono text-xs">
@@ -122,7 +130,7 @@
                                     </td>
                                     <td class="p-4 text-gray-500" x-text="new Date(p.created_at).toLocaleDateString('id-ID')"></td>
                                     <td class="p-4 text-right">
-                                        <a :href="'/admin/editor?slug=' + p.slug" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-xs inline-flex items-center gap-2">
+                                        <a :href="'/admin/editor?slug=' + p.slug" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-xs inline-flex items-center gap-2 shadow-sm transition">
                                             <i class="ph ph-pencil-simple"></i> Edit
                                         </a>
                                     </td>
@@ -130,33 +138,37 @@
                             </template>
                         </tbody>
                     </table>
+                    
+                    <div x-show="!loading && pages.length === 0" class="p-10 text-center text-gray-500">
+                        Belum ada halaman. Buat halaman baru sekarang!
+                    </div>
                 </div>
             </main>
         </div>
 
         <div x-show="openCreate" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak x-transition>
             <div @click.outside="openCreate = false" class="bg-white dark:bg-gray-800 p-6 rounded-xl w-96 shadow-2xl border dark:border-gray-700">
-                <h3 class="font-bold text-xl mb-4">Buat Halaman Baru</h3>
+                <h3 class="font-bold text-xl mb-4 dark:text-white">Buat Halaman Baru</h3>
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Judul Halaman</label>
-                        <input x-model="newPage.title" @input="generateSlug" placeholder="Promo Spesial" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 outline-none">
+                        <input x-model="newPage.title" @input="generateSlug" placeholder="Promo Spesial" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none focus:border-blue-500 transition">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">URL Slug</label>
-                        <input x-model="newPage.slug" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 font-mono text-sm">
+                        <input x-model="newPage.slug" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white font-mono text-sm outline-none focus:border-blue-500 transition">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Tipe Produk</label>
-                        <select x-model="newPage.type" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600">
+                        <select x-model="newPage.type" class="w-full border p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-600 dark:text-white outline-none">
                             <option value="physical">Produk Fisik</option>
                             <option value="digital">Produk Digital</option>
                         </select>
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 mt-6">
-                    <button @click="openCreate = false" class="px-4 py-2 text-gray-400 font-bold">Batal</button>
-                    <button @click="createPage" :disabled="creating" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">
+                    <button @click="openCreate = false" class="px-4 py-2 text-gray-400 font-bold hover:text-gray-600 dark:hover:text-gray-200">Batal</button>
+                    <button @click="createPage" :disabled="creating" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition shadow-lg">
                         <span x-text="creating ? 'Loading...' : 'Buat Halaman'"></span>
                     </button>
                 </div>
