@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LandingBuilder - Pro Edition</title>
+    <title>LandingBuilder - Pro Edition (Integrated)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -67,7 +67,7 @@
         .input-std { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; }
         .input-std:focus { border-color: #6366f1; ring: 2px solid #e0e7ff; }
         
-        /* HIDE DEFAULT FORMS (Sesuai Request: Buang Form Bawaan) */
+        /* HIDE DEFAULT FORMS */
         .gjs-block[title="Form"], .gjs-block[title="Input"], .gjs-block[title="Textarea"], .gjs-block[title="Select"], .gjs-block[title="Button"], .gjs-block[title="Label"], .gjs-block[title="Checkbox"], .gjs-block[title="Radio"] { display: none !important; }
     </style>
 </head>
@@ -134,6 +134,91 @@
         </div>
     </div>
 
+    <div x-show="showSettings" x-cloak class="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-sm flex justify-end" @click.self="showSettings = false">
+        <div class="w-[450px] h-full bg-white shadow-2xl flex flex-col border-l border-gray-200" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0">
+            <div class="p-5 border-b flex justify-between items-center bg-gray-50">
+                <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ph-faders text-indigo-600 text-xl"></i> Konfigurasi Halaman</h2>
+                <button @click="showSettings = false" class="text-gray-400 hover:text-red-500 transition"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6 space-y-8 custom-scroll bg-white">
+                <div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2"><i class="ph ph-package"></i> Tipe Produk</h3>
+                    <div class="flex bg-gray-100 p-1 rounded-lg mb-4">
+                        <button @click="page.product_type='physical'" :class="page.product_type=='physical'?'bg-white shadow-sm text-indigo-600':'text-gray-500'" class="flex-1 py-2 text-xs font-bold rounded-md transition flex items-center justify-center gap-2"><i class="ph ph-cube"></i> Fisik</button>
+                        <button @click="page.product_type='digital'" :class="page.product_type=='digital'?'bg-white shadow-sm text-indigo-600':'text-gray-500'" class="flex-1 py-2 text-xs font-bold rounded-md transition flex items-center justify-center gap-2"><i class="ph ph-file-cloud"></i> Digital</button>
+                        <button @click="page.product_type='donation'" :class="page.product_type=='donation'?'bg-white shadow-sm text-indigo-600':'text-gray-500'" class="flex-1 py-2 text-xs font-bold rounded-md transition flex items-center justify-center gap-2"><i class="ph ph-heart"></i> Donasi</button>
+                    </div>
+                    
+                    <div x-show="page.product_type==='physical'" class="space-y-3 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <div>
+                            <label class="text-[11px] font-bold text-gray-600">Berat Produk (gram)</label>
+                            <input x-model="page.config.shipping.weight" type="number" class="input-std mt-1" placeholder="1000">
+                        </div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="checkbox" id="enable_cod" x-model="page.config.shipping.cod" class="w-4 h-4 text-blue-600 rounded cursor-pointer">
+                            <label for="enable_cod" class="text-xs font-medium text-gray-700 cursor-pointer">Aktifkan COD (Bayar di Tempat)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-100 pt-6" x-show="page.product_type !== 'donation'">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-tag"></i> Harga & Varian</h3>
+                        <div class="text-[10px] text-gray-400">Harga Satuan</div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <template x-for="(v, i) in page.config.variants">
+                            <div class="flex gap-2 items-center group">
+                                <div class="bg-gray-100 h-8 w-6 flex items-center justify-center rounded text-[10px] font-mono text-gray-400" x-text="i+1"></div>
+                                <input x-model="v.name" class="input-std flex-1" placeholder="Nama Paket (mis: Paket Hemat)">
+                                <div class="relative w-28">
+                                    <span class="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">Rp</span>
+                                    <input x-model="v.price" type="number" class="input-std pl-7" placeholder="0">
+                                </div>
+                                <button @click="page.config.variants.splice(i,1)" class="text-gray-300 hover:text-red-500 transition px-1"><i class="ph ph-trash text-lg"></i></button>
+                            </div>
+                        </template>
+                        <button @click="addVariant" class="w-full border-2 border-dashed border-gray-300 text-gray-500 font-bold text-xs py-3 rounded-lg hover:border-blue-400 hover:text-blue-500 transition flex items-center justify-center gap-2"><i class="ph ph-plus-circle"></i> Tambah Varian Produk</button>
+                    </div>
+                    
+                    <div x-show="page.config.variants.length === 0" class="mt-4 p-4 bg-gray-50 rounded-lg border">
+                        <label class="text-[11px] font-bold text-gray-600">Harga Produk (Single)</label>
+                        <div class="relative mt-1">
+                            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-xs">Rp</span>
+                            <input x-model="page.config.price" type="number" class="input-std pl-8 font-bold text-gray-700" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-100 pt-6">
+                    <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-2"><i class="ph ph-credit-card"></i> Pembayaran</h3>
+                    <label class="text-[10px] font-bold text-gray-500">Provider Default</label>
+                    <div class="relative">
+                        <select x-model="page.slug_payment" class="input-std mt-1 mb-4 bg-white">
+                            <option value="whatsapp">WhatsApp (Manual)</option>
+                            <template x-for="p in paymentProviders" :key="p.slug">
+                                <option :value="p.slug" x-text="p.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-100 pt-6 space-y-4">
+                    <h3 class="text-xs font-bold text-green-600 uppercase tracking-wider flex items-center gap-2"><i class="ph ph-globe"></i> SEO & Meta</h3>
+                    <div><label class="text-[10px] font-bold text-gray-500">Judul Halaman</label><input x-model="page.title" class="input-std mt-1"></div>
+                    <div><label class="text-[10px] font-bold text-gray-500">Deskripsi</label><textarea x-model="page.config.settings.seo_description" class="input-std mt-1" rows="3"></textarea></div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
+                <button @click="showSettings=false" class="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">TUTUP</button>
+                <button @click="savePage(); showSettings=false" class="px-6 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200">SIMPAN SEMUA</button>
+            </div>
+        </div>
+    </div>
+
     <div id="iconify-picker-modal" class="fixed inset-0 hidden z-[99999] bg-black/40 flex items-start justify-center p-6 backdrop-blur-sm">
       <div class="bg-white rounded-xl w-full max-w-xl shadow-2xl overflow-hidden mt-10">
         <div class="flex items-center justify-between p-4 border-b bg-gray-50">
@@ -179,29 +264,91 @@
     }
 })();
 
-// --- APP LOGIC ---
+// --- APP LOGIC (RESTORED FROM OLD FILE) ---
 function editorApp() {
     return {
-        loading: false, showSettings: false, device: 'desktop', tab: 'blocks', notifications: [],
-        page: { slug: '', config: { price: 0 } },
-        init() {
+        loading: false, 
+        showSettings: false, 
+        device: 'desktop', 
+        tab: 'blocks', 
+        notifications: [],
+        paymentProviders: [],
+        page: { 
+            slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', 
+            config: { 
+                price: 0,
+                variants: [], 
+                shipping: { weight: 1000, cod: false }, 
+                order_bump: { active: false, title: '', price: 0, desc: '' }, 
+                coupons: [], 
+                settings: {}, 
+                active_payments: [] 
+            } 
+        },
+
+        async init() {
             const params = new URLSearchParams(window.location.search);
-            this.page.slug = params.get('slug') || 'new-page';
+            this.page.slug = params.get('slug');
+            
+            // 1. Fetch Payment Providers (RESTORED)
+            await this.fetchPaymentProviders();
+            
+            // 2. Init GrapesJS & Load Content
             this.initGrapes();
         },
+
+        // --- FETCH LOGIC RESTORED ---
+        async fetchPaymentProviders() {
+            try {
+                const res = await fetch('/api/admin/templates?type=payment', { credentials: 'same-origin' });
+                if (res.status === 401) return;
+                const json = await res.json();
+                if (Array.isArray(json)) this.paymentProviders = json;
+                else if (Array.isArray(json.data)) this.paymentProviders = json.data;
+                else if (Array.isArray(json.results)) this.paymentProviders = json.results;
+                else this.paymentProviders = json || [];
+            } catch (e) { console.error('Failed to fetch providers', e); }
+        },
+
+        addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
+
+        // --- SAVE LOGIC RESTORED ---
+        async savePage() {
+            this.loading = true;
+            try {
+                const rawHtml = window.editor.getHtml();
+                const rawCss = window.editor.getCss();
+                
+                const res = await fetch('/api/admin/pages', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        slug: this.page.slug, 
+                        title: this.page.title, 
+                        product_type: this.page.product_type,
+                        provider: this.page.slug_payment, 
+                        html: rawHtml, 
+                        css: rawCss, 
+                        product_config: this.page.config
+                    })
+                });
+                
+                if (res.status === 401) { window.location.href = '/login'; return; }
+                if (res.ok) this.notify('Sukses', 'Halaman tersimpan!');
+                else this.notify('Error', 'Gagal simpan', 'error');
+            } catch (e) { 
+                this.notify('Error', 'Gagal simpan (Network)', 'error'); 
+            }
+            this.loading = false;
+        },
+
         notify(title, msg, type = 'success') {
             const id = Date.now(); this.notifications.push({ id, title, msg, type, show: true });
             setTimeout(() => { this.notifications = this.notifications.filter(n => n.id !== id); }, 3000);
         },
         setDevice(d) { this.device = d; window.editor.setDevice(d); },
         cmd(c) { window.editor.runCommand(c); },
-        async savePage() {
-            this.loading = true;
-            // Di sini nanti logic save ke database
-            await new Promise(r => setTimeout(r, 800));
-            this.notify('Success', 'Halaman berhasil disimpan!');
-            this.loading = false;
-        },
 
         initGrapes() {
             window.editor = grapesjs.init({
@@ -247,6 +394,34 @@ function editorApp() {
                 styleManager: { appendTo: '#styles-container', sectors: [{ name: 'Typography', open:true, buildProps:['font-family','font-size','font-weight','color','text-align'] }, { name: 'Decorations', open:false, buildProps:['background-color','border','border-radius','box-shadow'] }] }
             });
 
+            // --- LOAD CONTENT LOGIC (RESTORED) ---
+            if (this.page.slug) {
+                fetch('/api/admin/pages/' + this.page.slug, { credentials: 'same-origin' })
+                .then(r => {
+                    if (r.status === 401) { window.location.href = '/login'; throw new Error('Unauthorized'); }
+                    return r.json();
+                })
+                .then(d => {
+                    if (d.id) {
+                        this.page.title = d.title; this.page.product_type = d.product_type || 'physical'; this.page.slug_payment = d.provider || 'whatsapp';
+                        try {
+                            const c = JSON.parse(d.product_config_json || '{}');
+                            this.page.config = { 
+                                price: c.price || 0,
+                                variants: c.variants || [], 
+                                shipping: c.shipping || { weight: 1000, cod: false }, 
+                                order_bump: c.order_bump || { active: false, title:'', price:0, desc:'' }, 
+                                coupons: c.coupons || [], 
+                                settings: c.settings || {},
+                                active_payments: c.active_payments || []
+                            };
+                        } catch (e) {}
+                        if (d.html_content) window.editor.setComponents(d.html_content);
+                        if (d.css_content) window.editor.setStyle(d.css_content);
+                    }
+                }).catch(()=>{});
+            }
+
             const domc = window.editor.DomComponents;
             const bm = window.editor.BlockManager;
 
@@ -285,22 +460,23 @@ function editorApp() {
                 content: `<header style="${headerStyle}"><div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between flex-row-reverse"><div class="font-bold text-xl text-theme-600">RightLogo</div><nav class="hidden md:flex gap-6"><a href="#" class="text-sm font-medium text-gray-700 hover:text-theme-600">Home</a><a href="#" class="text-sm font-medium text-gray-700 hover:text-theme-600">Contact</a></nav><button class="btn btn-sm btn-ghost md:hidden">Menu</button></div></header>`
             });
 
-            // --- 3. CUSTOM FORM (No Default Form) ---
+            // --- 3. CUSTOM FORM (INTEGRATED) ---
+            // Menggunakan method="POST" dan nama input yang standar agar bisa ditangkap API
             bm.add('contact-pro', {
                 label: 'Custom Form', category: 'Forms', media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/><rect x="7" y="7" width="10" height="2"/><rect x="7" y="11" width="10" height="2"/><rect x="7" y="15" width="6" height="2"/></svg>',
                 content: `
                     <div class="max-w-md mx-auto p-6 bg-white rounded-xl shadow-lg border border-gray-100">
                         <h3 class="text-lg font-bold text-gray-800 mb-4">Send us a message</h3>
-                        <form class="space-y-4">
+                        <form method="POST" action="/api/submit-form" class="space-y-4">
                             <div>
                                 <label class="label"><span class="label-text font-semibold">Email</span></label>
-                                <input type="email" placeholder="you@example.com" class="input input-bordered w-full focus:input-primary" />
+                                <input type="email" name="email" placeholder="you@example.com" class="input input-bordered w-full focus:input-primary" required />
                             </div>
                             <div>
                                 <label class="label"><span class="label-text font-semibold">Message</span></label>
-                                <textarea class="textarea textarea-bordered w-full h-24 focus:textarea-primary" placeholder="How can we help?"></textarea>
+                                <textarea name="message" class="textarea textarea-bordered w-full h-24 focus:textarea-primary" placeholder="How can we help?" required></textarea>
                             </div>
-                            <button type="button" class="btn btn-primary w-full">Send Message</button>
+                            <button type="submit" class="btn btn-primary w-full">Send Message</button>
                         </form>
                     </div>
                 `
