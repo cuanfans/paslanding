@@ -19,6 +19,9 @@
     <script src="https://unpkg.com/grapesjs-custom-code@1.0.1"></script>
     <script src="https://unpkg.com/grapesjs-tooltip@0.1.7"></script>
     <script src="https://unpkg.com/grapesjs-blocks-flexbox@0.1.1"></script>
+    <script src="https://unpkg.com/grapesjs-plugin-export@1.0.11"></script>
+    <script src="https://unpkg.com/grapesjs-typed@1.0.5"></script>
+    <script src="https://unpkg.com/grapesjs-style-bg@2.0.1"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
@@ -312,6 +315,7 @@
             async savePage() {
                 this.loading = true;
                 let html = window.editor.getHtml();
+                // Inject Page ID untuk Form Contact agar API tahu ini dari page mana
                 html = html.replace('name="page_id" value="0"', `name="page_id" value="${this.page.id||0}"`);
                 try {
                     const res = await fetch('/api/admin/pages', {
@@ -326,6 +330,7 @@
 
             initGrapes() {
                 // --- CSS WIDGET INJECTION (AGAR TIDAK HANCUR DI CANVAS) ---
+                // CSS ini akan disuntikkan ke dalam iframe GrapesJS agar widget terlihat benar
                 const widgetStyles = `
                     /* Pricing Card */
                     .pricing-card { background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%); border-radius: 12px; padding: 24px; border: 1px solid #e6eef8; box-shadow: 0 8px 24px rgba(14,42,71,0.06); display:flex; flex-direction:column; gap:12px; }
@@ -333,6 +338,7 @@
                     .pricing-card .price { font-size:28px; font-weight:900; color:#0b5cff; }
                     .pricing-card .features { color:#475569; font-size:13px; line-height:1.6; }
                     .pricing-card .cta { margin-top:auto; display:block; text-align:center; padding:10px 16px; border-radius:10px; font-weight:800; text-decoration:none; }
+                    
                     /* Carousel */
                     .editable-carousel { position: relative; overflow: hidden; border-radius:12px; }
                     .editable-carousel .slides { display:flex; transition: transform 0.5s ease; will-change: transform; }
@@ -342,6 +348,7 @@
                     .editable-carousel .carousel-controls button { pointer-events:auto; background:rgba(255,255,255,0.85); border:none; width:40px; height:40px; border-radius:999px; display:flex; align-items:center; justify-content:center; margin:0 8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
                     .editable-carousel .carousel-dots { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:6px; }
                     .editable-carousel .carousel-dots button { width:8px; height:8px; border-radius:999px; background:rgba(255,255,255,0.6); border:none; }
+                    
                     /* Animations */
                     @keyframes slideInUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
                     .animate-slide-up { animation: slideInUp 0.5s ease-out forwards; }
@@ -355,7 +362,7 @@
                     container: '#gjs', height: '100%', fromElement: false, storageManager: false,
                     canvas: {
                         styles: ['https://cdn.tailwindcss.com', '@media (max-width: 480px) { body { padding: 0 16px; } }'],
-                        // INJECT CSS WIDGET
+                        // INJECT CSS WIDGET DI SINI
                         content: `<style>${widgetStyles}</style>`
                     },
                     plugins: ['gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-component-countdown', 'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'],
@@ -381,26 +388,26 @@
 
                 const bm = window.editor.BlockManager;
                 
-                // Hapus Form Bawaan
+                // Hapus Form Bawaan agar tidak membingungkan
                 setTimeout(() => { ['form','input','textarea','select','button','label','checkbox','radio'].forEach(id => bm.remove(id)); }, 1000);
 
                 // --- 1. HEADERS (4 Variants) ---
-                bm.add('header-left', { label: 'Header Kiri', category: 'Headers', media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>', content: `<header style="padding:20px;background:#fff;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:900;font-size:24px;color:#2563eb;">LOGO</div><nav style="display:flex;gap:20px;font-weight:bold;color:#666;"><a href="#">Home</a><a href="#">Fitur</a></nav><a href="#checkout-box" style="background:#2563eb;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:12px;">BELI</a></header>` });
-                bm.add('header-center', { label: 'Header Tengah', category: 'Headers', content: `<header style="padding:20px;background:#fff;border-bottom:1px solid #eee;text-align:center;"><div style="font-weight:900;font-size:24px;color:#2563eb;margin-bottom:10px;">BRAND</div><nav style="display:flex;justify-content:center;gap:20px;font-weight:bold;color:#666;"><a href="#">Home</a><a href="#">Produk</a></nav></header>` });
-                bm.add('header-right', { label: 'Header Kanan', category: 'Headers', content: `<header style="padding:20px;background:#fff;border-bottom:1px solid #eee;display:flex;flex-direction:row-reverse;justify-content:space-between;align-items:center;"><div style="font-weight:900;font-size:24px;color:#2563eb;">LOGO</div><nav style="display:flex;gap:20px;font-weight:bold;color:#666;"><a href="#">Menu</a></nav></header>` });
+                bm.add('header-left', { label: 'Header Left', category: 'Headers', media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>', content: `<header style="padding:20px;background:#fff;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:900;font-size:24px;color:#2563eb;">LOGO</div><nav style="display:flex;gap:20px;font-weight:bold;color:#666;"><a href="#">Home</a><a href="#">Fitur</a></nav><a href="#checkout-box" style="background:#2563eb;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:12px;">BELI</a></header>` });
+                bm.add('header-center', { label: 'Header Center', category: 'Headers', content: `<header style="padding:20px;background:#fff;border-bottom:1px solid #eee;text-align:center;"><div style="font-weight:900;font-size:24px;color:#2563eb;margin-bottom:10px;">BRAND</div><nav style="display:flex;justify-content:center;gap:20px;font-weight:bold;color:#666;"><a href="#">Home</a><a href="#">Produk</a></nav></header>` });
+                bm.add('header-right', { label: 'Header Right', category: 'Headers', content: `<header style="padding:20px;background:#fff;border-bottom:1px solid #eee;display:flex;flex-direction:row-reverse;justify-content:space-between;align-items:center;"><div style="font-weight:900;font-size:24px;color:#2563eb;">LOGO</div><nav style="display:flex;gap:20px;font-weight:bold;color:#666;"><a href="#">Menu</a></nav></header>` });
                 bm.add('header-sticky', { label: 'Header Sticky', category: 'Headers', content: `<header style="position:sticky;top:0;z-index:999;padding:15px 20px;background:rgba(255,255,255,0.9);backdrop-filter:blur(5px);display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,0.05);"><div style="font-weight:900;font-size:20px;">STICKY</div><a href="#checkout-box" style="background:black;color:white;padding:8px 16px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:12px;">ORDER</a></header>` });
 
-                // --- 2. SLIDER (Swiper Style) ---
+                // --- 2. SLIDER / CAROUSEL ---
                 bm.add('hero-slider', { label: 'Slider', category: 'Media', content: `<div class="editable-carousel" data-gjs-type="editable-carousel" data-auto="true" data-interval="5000" style="height:380px;"><div class="slides"><div class="slide" data-gjs-editable="true"><img src="https://via.placeholder.com/1200x380/2563eb/ffffff?text=Promo+1" style="width:100%;height:100%;object-fit:cover;"></div><div class="slide" data-gjs-editable="true"><img src="https://via.placeholder.com/1200x380/10b981/ffffff?text=Promo+2" style="width:100%;height:100%;object-fit:cover;"></div></div><div class="carousel-controls"><button class="prev">&lt;</button><button class="next">&gt;</button></div><div class="carousel-dots"></div><script>(function(){const w=document.currentScript.parentElement;if(!w)return;const s=w.querySelector('.slides'),sl=w.querySelectorAll('.slide');let i=0;function g(n){i=(n+sl.length)%sl.length;s.style.transform='translateX('+(-i*100)+'%)';}w.querySelector('.prev').onclick=()=>g(i-1);w.querySelector('.next').onclick=()=>g(i+1);setInterval(()=>g(i+1),5000);})();<\/script></div>` });
 
                 // --- 3. PRICING & COMPARISON ---
-                bm.add('pricing-compact', { label: 'Pricing Card', category: 'Pricing', content: `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;padding:40px 20px;"><div class="pricing-card"><div class="title">Basic</div><div class="price">Rp 99rb</div><div class="features">- Fitur Dasar<br>- Support Email</div><a href="#checkout-box" class="cta" style="background:#eef6ff;color:#0b5cff;">Pilih</a></div><div class="pricing-card" style="border:2px solid #2563eb;"><div class="title" style="color:#2563eb;">Pro</div><div class="price">Rp 199rb</div><div class="features">- Semua Fitur<br>- Support Prioritas</div><a href="#checkout-box" class="cta" style="background:#2563eb;color:white;">Ambil Promo</a></div></div>` });
+                bm.add('pricing-compact', { label: 'Pricing Table', category: 'Pricing', content: `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;padding:40px 20px;"><div class="pricing-card"><div class="title">Basic</div><div class="price">Rp 99rb</div><div class="features">- Fitur Dasar<br>- Support Email</div><a href="#checkout-box" class="cta" style="background:#eef6ff;color:#0b5cff;">Pilih</a></div><div class="pricing-card" style="border:2px solid #2563eb;"><div class="title" style="color:#2563eb;">Pro</div><div class="price">Rp 199rb</div><div class="features">- Semua Fitur<br>- Support Prioritas</div><a href="#checkout-box" class="cta" style="background:#2563eb;color:white;">Ambil Promo</a></div></div>` });
                 bm.add('comparison-table', { label: 'Comparison', category: 'Pricing', content: `<div style="overflow-x:auto;padding:20px;"><table style="width:100%;border-collapse:collapse;font-size:14px;"><thead style="background:#f8fafc;text-transform:uppercase;color:#64748b;"><tr><th style="padding:15px;text-align:left;">Fitur</th><th style="padding:15px;text-align:center;">Free</th><th style="padding:15px;text-align:center;color:#2563eb;">Pro</th></tr></thead><tbody><tr style="border-bottom:1px solid #eee;"><td style="padding:15px;">Akses</td><td style="padding:15px;text-align:center;">Terbatas</td><td style="padding:15px;text-align:center;font-weight:bold;color:#2563eb;">Full</td></tr><tr style="border-bottom:1px solid #eee;"><td style="padding:15px;">Support</td><td style="padding:15px;text-align:center;">-</td><td style="padding:15px;text-align:center;">24/7</td></tr></tbody></table></div>` });
 
-                // --- 4. MARKETING WIDGETS ---
+                // --- 4. MARKETING TOOLS ---
                 bm.add('news-flash', { label: 'News Flash', category: 'Marketing', content: `<div style="background:#2563eb;color:white;padding:10px;overflow:hidden;white-space:nowrap;"><div class="animate-marquee" style="display:inline-block;padding-left:100%;">🔥 PROMO TERBATAS! DISKON 50% HARI INI! 🔥</div></div>` });
                 bm.add('promo-countdown', { label: 'Countdown', category: 'Marketing', content: `<div style="text-align:center;padding:40px 20px;background:#fff1f2;"><h3 style="color:#e11d48;font-weight:bold;margin-bottom:20px;">PENAWARAN BERAKHIR:</h3><div style="display:flex;justify-content:center;gap:10px;font-size:2rem;font-weight:900;color:#e11d48;" data-gjs-type="countdown"><div>00</div>:<div>15</div>:<div>00</div></div></div>` });
-                // Smart Social Proof (Real API + Fake Fallback)
+                // Social Proof with Fake Logic Fallback
                 bm.add('social-proof', { 
                     label: 'Social Proof', category: 'Marketing', 
                     content: `<div id="sp-notify" style="position:fixed;bottom:20px;left:20px;background:white;padding:15px;border-radius:10px;box-shadow:0 10px 25px rgba(0,0,0,0.1);display:flex;gap:15px;z-index:999;border-left:4px solid #10b981;animation:slideInUp 0.5s ease-out;"><div style="font-weight:bold;">Budi baru saja membeli Paket Pro</div><script>(async()=>{ const el=document.getElementById('sp-notify'); if(!el)return; const names=['Andi','Budi','Citra','Dewi']; try{ const r=await fetch('/api/admin/analytics/data'); const d=await r.json(); if(d.recent && d.recent.length > 0) el.querySelector('div').innerText = d.recent[0].title + ' baru saja dilihat'; else el.querySelector('div').innerText = names[Math.floor(Math.random()*names.length)] + ' baru saja membeli produk'; }catch(e){} setTimeout(()=>{el.style.display='none'},5000); })();<\/script></div>` 
@@ -412,7 +419,7 @@
                 bm.add('section-std', { label: 'Section', category: 'Layout', content: `<section style="padding:60px 20px; background-color:#fff;"><div style="width:90%; max-width:1100px; margin:0 auto; padding:0 20px;"></div></section>` });
                 bm.add('iconify-blk', { label: 'Iconify', category: 'Media', attributes: { class: 'ph ph-star' }, content: { type: 'iconify-icon' } });
 
-                // --- 6. FORMS (Contact Pro & Checkout) ---
+                // --- 6. FORMS (Contact & Checkout) ---
                 const contactFormHTML = `<div style="padding:40px 20px;"><form action="/api/public/contact" method="POST" style="max-width:500px;margin:0 auto;background:white;padding:30px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);border:1px solid #e2e8f0;"><input type="hidden" name="page_id" value="0"><h3 style="text-align:center;margin-bottom:20px;font-weight:bold;">Hubungi Kami</h3><div style="margin-bottom:15px;"><label style="display:block;font-size:12px;font-weight:bold;margin-bottom:5px;">Perihal</label><select name="subject" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;"><option>Info</option><option>Support</option></select></div><div style="margin-bottom:15px;"><label style="display:block;font-size:12px;font-weight:bold;margin-bottom:5px;">Nama</label><input type="text" name="name" required style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;"></div><div style="margin-bottom:15px;"><label style="display:block;font-size:12px;font-weight:bold;margin-bottom:5px;">Pesan</label><textarea name="message" rows="4" required style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;"></textarea></div><button type="submit" style="width:100%;padding:12px;background:#2563eb;color:white;font-weight:bold;border:none;border-radius:6px;cursor:pointer;">KIRIM PESAN</button></form></div>`;
                 bm.add('contact-pro', { label: 'Contact Pro', category: 'Forms', content: contactFormHTML });
                 bm.add('checkout-card', { label: 'Checkout Card', category: 'E-Commerce', content: `<section style="padding:50px 20px; background:#f8fafc;"><div style="max-width:500px; margin:0 auto; background:#fff; padding:30px; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.05); border:1px solid #e2e8f0;">[ CHECKOUT ]</div></section>` });
