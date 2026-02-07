@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LandingBuilder - Ultimate Editor</title>
+    <title>LandingBuilder - Remix Compatible Editor</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
     <link rel="stylesheet" href="https://unpkg.com/grapesjs@0.21.2/dist/css/grapes.min.css">
     <script src="https://unpkg.com/grapesjs@0.21.2/dist/grapes.min.js"></script>
@@ -24,94 +26,64 @@
     <script src="https://unpkg.com/grapesjs-plugin-export@1.0.11"></script>
     <script src="https://unpkg.com/grapesjs-typed@1.0.5"></script>
     <script src="https://unpkg.com/grapesjs-style-bg@2.0.1"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
-        /* --- RESET & BASE --- */
+        /* Base Reset */
         body, html { height: 100%; margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; }
         [x-cloak] { display: none !important; }
         
-        /* --- GRAPESJS UI OVERRIDES --- */
+        /* GrapesJS UI Overrides */
         .gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views { display: none !important; }
         
-        /* Layout Utama: Canvas di Kiri, Sidebar di Kanan */
+        /* Canvas Position (Kiri) */
         .gjs-cv-canvas { 
             width: calc(100% - 320px) !important; 
             height: calc(100% - 60px) !important; 
             top: 60px !important; 
             left: 0 !important;
-            background-color: #f1f5f9; 
+            background-color: #f3f4f6; /* Warna bg canvas area */
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
         }
 
-        .gjs-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; }
+        /* Highlight saat elemen dipilih */
+        .gjs-selected { outline: 2px solid #6366f1 !important; outline-offset: -2px; }
         
-        /* --- COLOR PICKER FIX (Agar tidak tertutup) --- */
-        .gjs-color-picker, .gjs-field-color-picker {
-            z-index: 99999 !important; 
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
+        /* Fix Color Picker agar tidak tertutup */
+        .gjs-color-picker, .gjs-field-color-picker { z-index: 99999 !important; }
         .gjs-field-colorp-c { overflow: visible !important; }
         
-        /* SCROLLBAR */
-        ::-webkit-scrollbar { width: 6px; height: 6px; } 
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-
-        /* PANEL TABS */
-        .panel-tabs { display: flex; border-bottom: 1px solid #e2e8f0; background: #fff; }
-        .panel-tabs button { flex: 1; padding: 12px; color: #94a3b8; font-size: 20px; transition: all 0.2s; border: none; background: none; cursor: pointer; }
-        .panel-tabs button:hover { color: #334155; background: #f8fafc; }
-        .panel-tabs button.active { color: #2563eb; border-bottom: 2px solid #2563eb; background: #eff6ff; }
-        
-        /* BLOCKS GRID */
-        .gjs-blocks-c { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 12px; background: #fff; }
-        .gjs-block { 
-            width: 100% !important; 
-            min-height: auto !important; 
-            padding: 15px 5px !important; 
-            margin: 0 !important; 
-            background: #fff; 
-            border: 1px solid #e2e8f0; 
-            border-radius: 8px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            gap: 6px; 
-            cursor: grab; 
-            transition: all 0.2s; 
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        }
-        .gjs-block:hover { border-color: #3b82f6; color: #2563eb; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.15); }
-        .gjs-block-label { font-size: 10px; font-weight: 600; text-align: center; margin-top: 4px; color: #475569; }
-        .gjs-block-category .gjs-title { background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 10px 12px; font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-
-        /* INPUTS STANDARDIZATION */
-        .input-std { width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; transition: border-color 0.2s; background: #fff; }
-        .input-std:focus { border-color: #2563eb; ring: 2px solid #eff6ff; }
-        
-        /* PANEL KANAN (SIDEBAR) */
+        /* Sidebar Styling */
         .sidebar-desktop {
-            position: fixed;
-            top: 56px;
-            right: 0;
-            bottom: 0;
-            width: 320px;
-            background: white;
-            border-left: 1px solid #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            z-index: 100;
-            box-shadow: -4px 0 15px rgba(0,0,0,0.02);
+            position: fixed; top: 60px; right: 0; bottom: 0; width: 320px;
+            background: white; border-left: 1px solid #e5e7eb;
+            display: flex; flex-direction: column; z-index: 100;
         }
 
-        /* RESPONSIVE TWEAKS */
-        .bottom-editor-nav, .sidebar-panel { display: none !important; }
-        
-        @media (max-width: 768px) {
-            .header-slug-section span { display: none; }
-            .header-slug-section input { width: 120px; }
+        /* Block Manager Grid */
+        .gjs-blocks-c { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 12px; }
+        .gjs-block { 
+            width: 100% !important; min-height: auto !important; padding: 12px 8px !important; 
+            background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; 
+            display: flex; flex-direction: column; align-items: center; gap: 5px; 
+            cursor: grab; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
+        .gjs-block:hover { border-color: #6366f1; color: #6366f1; transform: translateY(-2px); }
+        .gjs-block-label { font-size: 10px; font-weight: 600; text-align: center; color: #4b5563; }
+        .gjs-block-category .gjs-title { background: #f9fafb; border-bottom: 1px solid #e5e7eb; padding: 8px 12px; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; }
+
+        /* Scrollbar Halus */
+        ::-webkit-scrollbar { width: 5px; height: 5px; } 
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        
+        /* Panel Tabs */
+        .panel-tabs button.active { color: #6366f1; border-bottom: 2px solid #6366f1; background: #eef2ff; }
+
+        /* Input Standard */
+        .input-std { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; }
+        .input-std:focus { border-color: #6366f1; ring: 2px solid #e0e7ff; }
+        
+        /* Sembunyikan blok default GrapesJS yang jelek */
+        .gjs-block[title="Text"], .gjs-block[title="Image"], .gjs-block[title="Link"], .gjs-block[title="Map"] { display: none; }
     </style>
 </head>
 
@@ -126,201 +98,260 @@
         </template>
     </div>
 
-    <div id="iconify-picker-modal" class="fixed inset-0 hidden z-[99999] bg-black/40 flex items-start justify-center p-6 backdrop-blur-sm">
-      <div class="bg-white rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden mt-10 border border-gray-200">
-        <div class="flex items-center justify-between p-4 border-b bg-gray-50">
-          <div class="flex items-center gap-2 w-full">
-            <i class="ph ph-magnifying-glass text-lg text-gray-500"></i>
-            <input id="iconify-picker-search" placeholder="Cari icon, mis. ph:shopping-cart atau 'cart'" class="w-full bg-transparent outline-none text-sm ml-2" />
-            <button id="iconify-picker-clear" class="ml-2 text-xs font-bold text-gray-400 hover:text-red-500">CLEAR</button>
-          </div>
-          <button id="iconify-picker-close" class="ml-4 text-gray-400 hover:text-gray-600"><i class="ph ph-x text-xl"></i></button>
-        </div>
-        <div id="iconify-picker-results" class="p-4 grid grid-cols-6 gap-3 max-h-[400px] overflow-y-auto custom-scroll">
-            <div class="col-span-full text-center text-gray-400 text-xs py-8">Ketik pencarian di atas...</div>
-        </div>
-        <div class="p-3 text-[10px] text-gray-400 border-t bg-gray-50 flex justify-between">
-            <span>Tip: Double-click icon di canvas untuk mengganti.</span>
-            <span class="font-mono">Powered by Iconify</span>
-        </div>
-      </div>
-    </div>
-
-    <header class="h-14 bg-white border-b border-gray-200 flex justify-between items-center px-4 z-50 relative shrink-0 shadow-sm">
+    <header class="h-[60px] bg-white border-b border-gray-200 flex justify-between items-center px-4 z-50 relative shrink-0">
         <div class="flex items-center gap-4">
-            <a href="/admin/pages" class="text-gray-400 hover:text-blue-600 transition p-1 rounded-md hover:bg-gray-100"><i class="ph ph-arrow-left text-xl"></i></a>
-            <div class="h-6 w-px bg-gray-200 header-slug-section"></div>
-            <div class="header-slug-section">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Page Slug</span>
-                <input x-model="page.slug" class="bg-transparent font-mono font-bold text-sm text-gray-700 outline-none w-48 placeholder-gray-300 focus:text-blue-600 transition" placeholder="nama-halaman">
+            <a href="/admin/pages" class="text-gray-400 hover:text-indigo-600 transition"><i class="ph ph-arrow-left text-xl"></i></a>
+            <div class="h-6 w-px bg-gray-200"></div>
+            <div>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Page URL</span>
+                <input x-model="page.slug" class="bg-transparent font-mono font-bold text-sm text-gray-700 outline-none w-48 placeholder-gray-300 focus:text-indigo-600 transition" placeholder="nama-halaman">
             </div>
         </div>
         
-        <div class="absolute left-1/2 transform -translate-x-1/2 flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200 shadow-inner">
-            <button @click="setDevice('desktop')" :class="device=='desktop'?'bg-white shadow text-blue-600':'text-gray-400 hover:text-gray-600'" class="p-1.5 rounded-md transition" title="Desktop"><i class="ph ph-desktop text-lg"></i></button>
-            <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-blue-600':'text-gray-400 hover:text-gray-600'" class="p-1.5 rounded-md transition" title="Tablet"><i class="ph ph-device-tablet text-lg"></i></button>
-            <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-blue-600':'text-gray-400 hover:text-gray-600'" class="p-1.5 rounded-md transition" title="Mobile"><i class="ph ph-device-mobile text-lg"></i></button>
+        <div class="absolute left-1/2 transform -translate-x-1/2 flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+            <button @click="setDevice('desktop')" :class="device=='desktop'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-desktop text-lg"></i></button>
+            <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-tablet text-lg"></i></button>
+            <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-mobile text-lg"></i></button>
             <div class="w-px h-5 bg-gray-300 mx-2"></div>
-            <button @click="cmd('core:preview')" class="text-gray-500 hover:text-blue-600 p-1.5" title="Preview"><i class="ph ph-eye text-lg"></i></button>
-            <button @click="cmd('core:undo')" class="text-gray-400 hover:text-gray-700 p-1.5" title="Undo"><i class="ph ph-arrow-u-up-left text-lg"></i></button>
-            <button @click="cmd('core:redo')" class="text-gray-400 hover:text-gray-700 p-1.5" title="Redo"><i class="ph ph-arrow-u-up-right text-lg"></i></button>
+            <button @click="cmd('core:preview')" class="text-gray-500 hover:text-indigo-600 p-1.5"><i class="ph ph-eye text-lg"></i></button>
+            <button @click="cmd('core:undo')" class="text-gray-400 hover:text-gray-700 p-1.5"><i class="ph ph-arrow-u-up-left text-lg"></i></button>
+            <button @click="cmd('core:redo')" class="text-gray-400 hover:text-gray-700 p-1.5"><i class="ph ph-arrow-u-up-right text-lg"></i></button>
         </div>
 
         <div class="flex items-center gap-3">
-            <button @click="cmd('gjs-export-zip')" class="text-gray-500 hover:text-green-600 flex items-center gap-1 text-xs font-bold px-2 hidden md:flex hover:bg-green-50 p-1.5 rounded transition"><i class="ph ph-download-simple text-lg"></i> ZIP</button>
-            <button @click="showSettings=true" class="bg-gray-100 text-gray-600 hover:bg-gray-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition"><i class="ph ph-gear-six text-lg"></i> Config</button>
-            <button @click="savePage" :disabled="loading" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-blue-500/30 hover:shadow-blue-600/40">
+            <button @click="showSettings=true" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition">
+                <i class="ph ph-gear-six text-lg"></i> Config
+            </button>
+            <button @click="savePage" :disabled="loading" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-500/30">
                 <i x-show="loading" class="ph ph-spinner animate-spin"></i>
                 <span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
             </button>
         </div>
     </header>
 
-    <div class="flex h-[calc(100vh-3.5rem)] overflow-hidden relative">
-        <div class="flex-1 relative bg-[#e2e8f0] overflow-hidden">
+    <div class="flex h-[calc(100vh-60px)] overflow-hidden relative">
+        <div class="flex-1 relative bg-[#f3f4f6] overflow-hidden">
             <div id="gjs" class="w-full h-full"></div>
         </div>
         
         <div class="sidebar-desktop">
-            <div class="panel-tabs">
-                <button @click="tab='blocks'" :class="tab=='blocks'?'active':''" title="Elements"><i class="ph ph-squares-four"></i></button>
-                <button @click="tab='styles'" :class="tab=='styles'?'active':''" title="Style"><i class="ph ph-paint-brush"></i></button>
-                <button @click="tab='traits'" :class="tab=='traits'?'active':''" title="Settings"><i class="ph ph-sliders"></i></button>
-                <button @click="tab='layers'" :class="tab=='layers'?'active':''" title="Layers"><i class="ph ph-stack"></i></button>
+            <div class="panel-tabs flex border-bottom border-gray-200 bg-white">
+                <button @click="tab='blocks'" :class="tab=='blocks'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-squares-four text-xl"></i></button>
+                <button @click="tab='styles'" :class="tab=='styles'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-paint-brush text-xl"></i></button>
+                <button @click="tab='traits'" :class="tab=='traits'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-sliders text-xl"></i></button>
+                <button @click="tab='layers'" :class="tab=='layers'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-stack text-xl"></i></button>
             </div>
+            
             <div class="flex-1 overflow-y-auto bg-white relative custom-scroll">
                 <div x-show="tab=='blocks'" id="blocks-container" class="absolute inset-0 pb-20"></div>
                 <div x-show="tab=='styles'"><div id="selectors-container" class="p-3 border-b bg-gray-50"></div><div id="styles-container" class="pb-20"></div></div>
-                <div x-show="tab=='traits'"><div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b">Element Config</div><div id="traits-container" class="p-2 pb-20"></div></div>
+                <div x-show="tab=='traits'"><div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b">Element Settings</div><div id="traits-container" class="p-2 pb-20"></div></div>
                 <div x-show="tab=='layers'" id="layers-container" class="absolute inset-0 pb-20"></div>
             </div>
         </div>
     </div>
 
+    <div x-show="showSettings" x-cloak class="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-sm flex justify-end" @click.self="showSettings = false">
+        <div class="w-[400px] h-full bg-white shadow-2xl flex flex-col border-l border-gray-200" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0">
+            <div class="p-5 border-b flex justify-between items-center bg-gray-50">
+                <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ph-faders text-indigo-600 text-xl"></i> Page Config</h2>
+                <button @click="showSettings = false" class="text-gray-400 hover:text-red-500"><i class="ph ph-x text-xl"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scroll">
+                <div>
+                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Product Type</label>
+                    <div class="flex bg-gray-100 p-1 rounded-lg">
+                        <button @click="page.product_type='physical'" :class="page.product_type=='physical'?'bg-white shadow text-indigo-600':'text-gray-500'" class="flex-1 py-2 text-xs font-bold rounded transition">Physical</button>
+                        <button @click="page.product_type='digital'" :class="page.product_type=='digital'?'bg-white shadow text-indigo-600':'text-gray-500'" class="flex-1 py-2 text-xs font-bold rounded transition">Digital</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">Base Price</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">Rp</span>
+                        <input x-model="page.config.price" type="number" class="input-std pl-8 font-bold text-gray-800" placeholder="0">
+                    </div>
+                </div>
+                
+                <div class="border-t pt-4">
+                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">SEO Title</label>
+                    <input x-model="page.title" class="input-std" placeholder="Judul Halaman di Google">
+                </div>
+            </div>
+            
+            <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
+                <button @click="showSettings=false" class="px-4 py-2 text-xs font-bold text-gray-500">CLOSE</button>
+                <button @click="savePage(); showSettings=false" class="px-6 py-2 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700">SAVE ALL</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="iconify-picker-modal" class="fixed inset-0 hidden z-[99999] bg-black/40 flex items-start justify-center p-6 backdrop-blur-sm">
+      <div class="bg-white rounded-xl w-full max-w-xl shadow-2xl overflow-hidden mt-10">
+        <div class="flex items-center justify-between p-4 border-b bg-gray-50">
+          <input id="iconify-picker-search" placeholder="Search icon (e.g. check, user, cart)..." class="w-full bg-transparent outline-none text-sm" />
+          <button id="iconify-picker-close"><i class="ph ph-x text-lg"></i></button>
+        </div>
+        <div id="iconify-picker-results" class="p-4 grid grid-cols-6 gap-3 max-h-[300px] overflow-y-auto"></div>
+      </div>
+    </div>
+
 <script>
-// --- 1. SETUP CSS CUSTOM (Disimpan dalam variabel agar rapi) ---
-const customCanvasCss = `
-    /* Reset & Base */
-    body { background-color: #ffffff; overflow-x: hidden; }
+// --- A. ICON PICKER HELPER ---
+(function(){
+    let activeModel = null;
+    const modal = document.getElementById('iconify-picker-modal');
+    const input = document.getElementById('iconify-picker-search');
+    const results = document.getElementById('iconify-picker-results');
     
-    /* Animasi & Utils */
-    .scrollbar-hide::-webkit-scrollbar { display: none; }
-    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-    @keyframes slideInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .animate-slide-up { animation: slideInUp 0.5s ease-out forwards; }
+    window.openIconifyPicker = function(model) {
+        activeModel = model;
+        modal.classList.remove('hidden');
+        input.value = '';
+        input.focus();
+        searchIcons('star'); // default
+    };
+    
+    document.getElementById('iconify-picker-close').onclick = () => modal.classList.add('hidden');
+    input.oninput = (e) => searchIcons(e.target.value);
+    
+    async function searchIcons(q) {
+        if(!q) return;
+        const res = await fetch(`https://api.iconify.design/search?query=${q}&limit=18`);
+        const data = await res.json();
+        results.innerHTML = '';
+        if(data.icons) {
+            data.icons.forEach(icon => {
+                const btn = document.createElement('button');
+                btn.className = 'p-2 hover:bg-indigo-50 rounded flex flex-col items-center gap-1 border border-transparent hover:border-indigo-100';
+                btn.innerHTML = `<iconify-icon icon="${icon}" width="24"></iconify-icon><span class="text-[9px] text-gray-400 truncate w-full text-center">${icon.split(':')[1]}</span>`;
+                btn.onclick = () => {
+                    if(activeModel) activeModel.setAttributes({ icon: icon });
+                    modal.classList.add('hidden');
+                };
+                results.appendChild(btn);
+            });
+        }
+    }
+})();
 
-    /* --- KOMPONEN KHUSUS (Pricing, Slider, dll) --- */
-    /* Pricing Card Styling */
-    .pricing-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
-    @media (min-width: 768px) { .pricing-grid { grid-template-columns: repeat(3, 1fr); } }
-    
-    .pricing-card {
-        display: flex; flex-direction: column; height: 100%;
-        padding: 1.5rem; border-radius: 1rem; 
-        background: white; border: 1px solid #e2e8f0;
-        transition: all 0.3s ease;
-    }
-    .pricing-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
-    .pricing-highlight { border: 2px solid #2563eb; position: relative; z-index: 10; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.1); }
-    
-    /* Slider / Carousel Styling */
-    .editable-carousel { position: relative; width: 100%; overflow: hidden; border-radius: 0.75rem; }
-    .editable-carousel .slides { display: flex; transition: transform 0.5s ease-in-out; height: 100%; }
-    .editable-carousel .slide { min-width: 100%; position: relative; height: 100%; }
-    .editable-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
-    
-    /* Navigation Buttons */
-    .carousel-controls button {
-        position: absolute; top: 50%; transform: translateY(-50%);
-        background: rgba(255,255,255,0.8); border: none; width: 40px; height: 40px;
-        border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 20;
-        font-weight: bold; color: #1e293b;
-    }
-    .carousel-controls .prev { left: 1rem; }
-    .carousel-controls .next { right: 1rem; }
-    
-    /* Dots */
-    .carousel-dots {
-        position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%);
-        display: flex; gap: 0.5rem; z-index: 20;
-    }
-    .carousel-dots button {
-        width: 8px; height: 8px; border-radius: 50%; border: none;
-        background: rgba(255,255,255,0.5); cursor: pointer; padding: 0;
-    }
-`;
-
-// --- 2. LOGIC EDITOR UTAMA ---
+// --- B. MAIN EDITOR APPLICATION ---
 function editorApp() {
     return {
-        loading: false, showSettings: false, device: 'desktop', tab: 'blocks', 
-        notifications: [], paymentProviders: [],
-        page: { 
-            slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', 
-            config: { price: 0, variants: [], shipping: { weight: 1000, cod: false }, order_bump: { active: false, title: '', price: 0, desc: '' }, coupons: [], settings: {}, active_payments: [] } 
-        },
+        // State
+        loading: false,
+        showSettings: false,
+        device: 'desktop',
+        tab: 'blocks',
+        notifications: [],
+        page: { slug: '', title: '', product_type: 'physical', config: { price: 0 } },
 
-        async init() {
-            // ... (Kode fetch logic biarkan sama seperti sebelumnya) ...
-            // Mock provider agar tidak error saat tes file lokal
-            this.paymentProviders = [{slug:'bca', name:'Bank BCA'}, {slug:'mandiri', name:'Mandiri'}];
+        // Initialization
+        init() {
+            // Cek URL params
+            const params = new URLSearchParams(window.location.search);
+            this.page.slug = params.get('slug') || 'new-page';
             
+            // Start GrapesJS
             this.initGrapes();
         },
 
-        // ... (Fungsi notify, setDevice, dll biarkan sama) ...
-        notify(title, msg, type = 'success') { /* ... */ },
-        setDevice(d) { this.device = d; if (window.editor) window.editor.setDevice(d); },
-        cmd(c) { if (window.editor) window.editor.runCommand(c); },
-        addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
-        async savePage() { /* ... Logic save sama ... */ this.notify('Info', 'Simulasi Save (Demo Mode)'); },
+        // Helper Functions
+        notify(title, msg, type = 'success') {
+            const id = Date.now();
+            this.notifications.push({ id, title, msg, type, show: true });
+            setTimeout(() => { this.notifications = this.notifications.filter(n => n.id !== id); }, 3000);
+        },
+        setDevice(d) { this.device = d; window.editor.setDevice(d); },
+        cmd(c) { window.editor.runCommand(c); },
+        
+        async savePage() {
+            this.loading = true;
+            try {
+                // Simulasi Save (Karena ini standalone file)
+                console.log('Saving HTML:', window.editor.getHtml());
+                console.log('Saving CSS:', window.editor.getCss());
+                await new Promise(r => setTimeout(r, 1000));
+                this.notify('Success', 'Halaman berhasil disimpan!');
+            } catch(e) {
+                this.notify('Error', 'Gagal menyimpan', 'error');
+            }
+            this.loading = false;
+        },
 
-        // --- 3. INIT GRAPESJS DENGAN CONFIG TAILWIND YANG BENAR ---
+        // --- C. GRAPESJS CONFIGURATION (THE EXPERT FIX) ---
         initGrapes() {
             window.editor = grapesjs.init({
                 container: '#gjs',
                 height: '100%',
                 fromElement: false,
-                storageManager: false,
+                storageManager: false, // Matikan local storage auto-save
                 
-                // === BAGIAN KRUSIAL: INJECTION ===
+                // === 1. CANVAS INJECTION (INTI SOLUSI) ===
                 canvas: {
-                    // 1. Masukkan Library JS disini (Tailwind + Iconify + Phosphor)
+                    // Script JS yang akan jalan DI DALAM Canvas (Iframe)
                     scripts: [
-                        'https://cdn.tailwindcss.com', // Tailwind JIT Compiler
-                        'https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js',
-                        'https://unpkg.com/@phosphor-icons/web'
+                        'https://cdn.tailwindcss.com', // Tailwind JIT
+                        'https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js' // Web Component Icon
                     ],
-                    // 2. Masukkan CSS Eksternal (Jika ada font Google, dll)
+                    // CSS yang akan di-load DI DALAM Canvas
                     styles: [
-                        'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap'
+                        'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap',
+                        'https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css' // Library UI yang dipakai Repo
                     ],
-                    // 3. Masukkan Konfigurasi Tailwind & CSS Custom
+                    // Konten HTML/Script custom yang disuntikkan ke body canvas
                     content: `
                         <script>
                             tailwind.config = {
+                                darkMode: 'class',
                                 theme: {
                                     extend: {
                                         fontFamily: { sans: ['Inter', 'sans-serif'] },
-                                        colors: { primary: '#2563eb', secondary: '#475569' }
+                                        colors: {
+                                            // Warna dari tailwind.config.ts Repo
+                                            theme: {
+                                                50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
+                                                400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+                                                800: '#3730a3', 900: '#312e81'
+                                            },
+                                            accent: {
+                                                50: '#f9fafb', 100: '#f3f4f6', 200: '#e5e7eb', 300: '#d1d5db',
+                                                400: '#9ca3af', 500: '#6b7280', 600: '#4b5563', 700: '#374151',
+                                                800: '#1f2937', 900: '#111827'
+                                            }
+                                        }
                                     }
                                 }
                             }
                         <\/script>
+                        
                         <style>
-                            ${customCanvasCss}
+                            body { background-color: #ffffff; }
+                            .btn { text-transform: none !important; } /* Fix DaisyUI uppercase */
+                            .tooltip { visibility: hidden; position: absolute; }
+                            .has-tooltip:hover .tooltip { visibility: visible; z-index: 50; }
+                            /* Hide Scrollbar util */
+                            .scrollbar-hide::-webkit-scrollbar { display: none; }
+                            .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
                         </style>
                     `
                 },
-                // =================================
+                // ==========================================
 
                 plugins: [
                     'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-component-countdown', 
                     'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 
                     'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'
                 ],
-                deviceManager: { devices: [{ id: 'desktop', width: '' }, { id: 'tablet', width: '768px' }, { id: 'mobile', width: '375px' }] },
+                deviceManager: {
+                    devices: [
+                        { id: 'desktop', name: 'Desktop', width: '' },
+                        { id: 'tablet', name: 'Tablet', width: '768px', widthMedia: '768px' },
+                        { id: 'mobile', name: 'Mobile', width: '375px', widthMedia: '375px' }
+                    ]
+                },
                 blockManager: { appendTo: '#blocks-container' },
                 layerManager: { appendTo: '#layers-container' },
                 selectorManager: { appendTo: '#selectors-container' },
@@ -328,27 +359,27 @@ function editorApp() {
                 styleManager: { 
                     appendTo: '#styles-container',
                     sectors: [
-                        { name: 'Typography', open: true, buildProps: ['font-family', 'font-size', 'font-weight', 'color', 'text-align'] },
+                        { name: 'Typography', open: true, buildProps: ['font-family', 'font-size', 'font-weight', 'color', 'text-align', 'line-height'] },
                         { name: 'Dimensions', open: false, buildProps: ['width', 'height', 'padding', 'margin'] },
                         { name: 'Decorations', open: false, buildProps: ['background-color', 'border', 'border-radius', 'box-shadow'] }
                     ]
                 }
             });
 
-            // --- DEFINISI KOMPONEN & BLOCK (Sama seperti sebelumnya) ---
             const domc = window.editor.DomComponents;
             const bm = window.editor.BlockManager;
 
-            // 1. Iconify Component
+            // --- REGISTER COMPONENT: ICONIFY ---
             domc.addType('iconify-icon', {
                 model: {
                     defaults: {
-                        tagName: 'iconify-icon', droppable: false,
-                        attributes: { icon: 'ph:star', width: '32', style: 'color:#fbbf24' },
+                        tagName: 'iconify-icon',
+                        droppable: false,
+                        attributes: { icon: 'ph:star-fill', width: '32', class: 'text-yellow-400' },
                         traits: [
-                            { type: 'button', text: 'Ganti Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) },
-                            { name: 'width', type: 'number', label: 'Size' },
-                            { name: 'color', type: 'color', label: 'Color' }
+                            { type: 'button', text: '🔍 Change Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) },
+                            { name: 'width', type: 'number', label: 'Size (px)' },
+                            { name: 'class', type: 'text', label: 'Tailwind Class' }
                         ]
                     }
                 }
@@ -357,120 +388,126 @@ function editorApp() {
                 if(model.get('tagName') === 'iconify-icon') window.openIconifyPicker(model);
             });
 
-            // 2. Carousel Logic (Script untuk Canvas)
-            domc.addType('editable-carousel', {
-                model: {
-                    defaults: {
-                        script: function() {
-                            const el = this;
-                            const slides = el.querySelectorAll('.slide');
-                            const dots = el.querySelector('.carousel-dots');
-                            let idx = 0;
-                            
-                            // Build Dots
-                            if(dots) {
-                                dots.innerHTML = '';
-                                slides.forEach((_, i) => {
-                                    const btn = document.createElement('button');
-                                    btn.onclick = () => show(i);
-                                    dots.appendChild(btn);
-                                });
-                            }
+            // --- REGISTER BLOCKS (ADAPTED FROM REPO) ---
 
-                            function show(n) {
-                                idx = (n + slides.length) % slides.length;
-                                const track = el.querySelector('.slides');
-                                if(track) track.style.transform = 'translateX(-'+(idx*100)+'%)';
-                                if(dots) {
-                                    Array.from(dots.children).forEach((b, i) => {
-                                        b.style.background = i === idx ? '#fff' : 'rgba(255,255,255,0.5)';
-                                    });
-                                }
-                            }
-                            
-                            const prev = el.querySelector('.prev');
-                            const next = el.querySelector('.next');
-                            if(prev) prev.onclick = () => show(idx - 1);
-                            if(next) next.onclick = () => show(idx + 1);
-                            
-                            show(0);
-                        }
-                    }
-                }
+            // 1. Hero Block (Repo Style)
+            bm.add('hero-repo', {
+                label: 'Hero Saas',
+                category: 'Hero',
+                media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v16H4V4m2 4v10h12V8H6z"/></svg>',
+                content: `
+                    <div class="relative bg-white overflow-hidden">
+                        <div class="max-w-7xl mx-auto">
+                            <div class="relative z-10 pb-8 bg-white sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
+                                <main class="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
+                                    <div class="sm:text-center lg:text-left">
+                                        <h1 class="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+                                            <span class="block xl:inline">Data to enrich your</span>
+                                            <span class="block text-theme-600 xl:inline">online business</span>
+                                        </h1>
+                                        <p class="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+                                            Anim aute id magna aliqua ad ad non deserunt sunt. Qui irure qui lorem cupidatat commodo. Elit sunt amet fugiat veniam occaecat fugiat aliqua.
+                                        </p>
+                                        <div class="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start gap-3">
+                                            <div class="rounded-md shadow">
+                                                <a href="#" class="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-theme-600 hover:bg-theme-700 md:py-4 md:text-lg md:px-10">
+                                                    Get started
+                                                </a>
+                                            </div>
+                                            <div class="mt-3 sm:mt-0 sm:ml-3">
+                                                <a href="#" class="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-theme-700 bg-theme-100 hover:bg-theme-200 md:py-4 md:text-lg md:px-10">
+                                                    Live demo
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </main>
+                            </div>
+                        </div>
+                        <div class="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
+                            <img class="h-56 w-full object-cover sm:h-72 md:h-96 lg:w-full lg:h-full" src="https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-1.2.1&auto=format&fit=crop&w=2850&q=80" alt="">
+                        </div>
+                    </div>
+                `
             });
 
-            // --- BLOCK MANAGER ENTRIES ---
-            
-            // Layout Blocks
-            bm.add('section', { label: 'Section', category: 'Layout', content: '<section class="py-12 px-4 bg-white"><div class="max-w-6xl mx-auto"></div></section>' });
-            bm.add('container', { label: 'Container', category: 'Layout', content: '<div class="max-w-6xl mx-auto p-4"></div>' });
-            bm.add('grid-2', { label: '2 Columns', category: 'Layout', content: '<div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4"><div class="p-4 border border-dashed border-gray-300">Col 1</div><div class="p-4 border border-dashed border-gray-300">Col 2</div></div>' });
-
-            // Media & Components
-            bm.add('iconify', { label: 'Icon', category: 'Media', content: { type: 'iconify-icon' } });
-            
-            // Complex Widgets (Pricing)
-            bm.add('pricing-3', {
-                label: 'Pricing Table',
-                category: 'E-Commerce',
+            // 2. Pricing Block (Repo Style using DaisyUI)
+            bm.add('pricing-repo', {
+                label: 'Pricing Cards',
+                category: 'Pricing',
+                media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2L1 7l11 5 9-4.09V17h2V7z"/></svg>',
                 content: `
-                    <div class="py-10 px-4">
-                        <div class="pricing-grid max-w-6xl mx-auto">
-                            <div class="pricing-card">
-                                <h3 class="text-lg font-bold text-gray-800">Basic</h3>
-                                <div class="text-3xl font-black text-blue-600 my-4">Rp 50k</div>
-                                <ul class="space-y-2 mb-6 text-sm text-gray-500 flex-1">
-                                    <li>• Fitur Dasar</li>
-                                    <li>• Support Email</li>
-                                </ul>
-                                <a href="#" class="block text-center py-2 px-4 border border-blue-600 text-blue-600 font-bold rounded hover:bg-blue-50">Pilih</a>
+                    <div class="py-12 bg-gray-50">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div class="text-center">
+                                <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">Pricing Plans</h2>
+                                <p class="mt-4 text-xl text-gray-500">Choose the perfect plan for your needs.</p>
                             </div>
-                            <div class="pricing-card pricing-highlight shadow-xl">
-                                <div class="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-bl">POPULAR</div>
-                                <h3 class="text-lg font-bold text-gray-800">Pro</h3>
-                                <div class="text-3xl font-black text-blue-600 my-4">Rp 150k</div>
-                                <ul class="space-y-2 mb-6 text-sm text-gray-500 flex-1">
-                                    <li>• Semua Fitur Basic</li>
-                                    <li>• Prioritas Support</li>
-                                    <li>• Akses Premium</li>
-                                </ul>
-                                <a href="#" class="block text-center py-3 px-4 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700">Ambil Promo</a>
-                            </div>
-                            <div class="pricing-card">
-                                <h3 class="text-lg font-bold text-gray-800">Expert</h3>
-                                <div class="text-3xl font-black text-blue-600 my-4">Rp 500k</div>
-                                <ul class="space-y-2 mb-6 text-sm text-gray-500 flex-1">
-                                    <li>• White Label</li>
-                                    <li>• Dedicated Manager</li>
-                                </ul>
-                                <a href="#" class="block text-center py-2 px-4 border border-blue-600 text-blue-600 font-bold rounded hover:bg-blue-50">Kontak Kami</a>
+                            <div class="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:mx-0">
+                                <div class="border border-gray-200 rounded-lg shadow-sm bg-white flex flex-col">
+                                    <div class="p-6 flex-1">
+                                        <h2 class="text-lg leading-6 font-medium text-gray-900">Basic</h2>
+                                        <p class="mt-4 text-sm text-gray-500">Essential features for starters.</p>
+                                        <p class="mt-8"><span class="text-4xl font-extrabold text-gray-900">$12</span> <span class="text-base font-medium text-gray-500">/mo</span></p>
+                                        <ul class="mt-6 space-y-4">
+                                            <li class="flex"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 mr-2"></iconify-icon> <span class="text-sm text-gray-500">5 Projects</span></li>
+                                            <li class="flex"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 mr-2"></iconify-icon> <span class="text-sm text-gray-500">Basic Analytics</span></li>
+                                        </ul>
+                                    </div>
+                                    <div class="p-6 border-t border-gray-100">
+                                        <button class="block w-full btn btn-outline btn-primary">Buy Basic</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="border border-theme-500 rounded-lg shadow-md bg-white relative flex flex-col transform scale-105 z-10">
+                                    <div class="absolute top-0 right-0 bg-theme-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">POPULAR</div>
+                                    <div class="p-6 flex-1">
+                                        <h2 class="text-lg leading-6 font-bold text-gray-900">Growth</h2>
+                                        <p class="mt-4 text-sm text-gray-500">For growing businesses.</p>
+                                        <p class="mt-8"><span class="text-4xl font-extrabold text-gray-900">$24</span> <span class="text-base font-medium text-gray-500">/mo</span></p>
+                                        <ul class="mt-6 space-y-4">
+                                            <li class="flex"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 mr-2"></iconify-icon> <span class="text-sm text-gray-500">Unlimited Projects</span></li>
+                                            <li class="flex"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 mr-2"></iconify-icon> <span class="text-sm text-gray-500">Advanced Analytics</span></li>
+                                            <li class="flex"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 mr-2"></iconify-icon> <span class="text-sm text-gray-500">Priority Support</span></li>
+                                        </ul>
+                                    </div>
+                                    <div class="p-6 border-t border-gray-100">
+                                        <button class="block w-full btn btn-primary">Buy Growth</button>
+                                    </div>
+                                </div>
+
+                                <div class="border border-gray-200 rounded-lg shadow-sm bg-white flex flex-col">
+                                    <div class="p-6 flex-1">
+                                        <h2 class="text-lg leading-6 font-medium text-gray-900">Enterprise</h2>
+                                        <p class="mt-4 text-sm text-gray-500">For large scale needs.</p>
+                                        <p class="mt-8"><span class="text-4xl font-extrabold text-gray-900">$48</span> <span class="text-base font-medium text-gray-500">/mo</span></p>
+                                        <ul class="mt-6 space-y-4">
+                                            <li class="flex"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 mr-2"></iconify-icon> <span class="text-sm text-gray-500">Everything in Growth</span></li>
+                                            <li class="flex"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 mr-2"></iconify-icon> <span class="text-sm text-gray-500">Dedicated Manager</span></li>
+                                        </ul>
+                                    </div>
+                                    <div class="p-6 border-t border-gray-100">
+                                        <button class="block w-full btn btn-outline btn-primary">Contact Sales</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 `
             });
 
-            // Carousel Widget
-            bm.add('hero-carousel', {
-                label: 'Hero Slider',
+            // 3. Layout Container
+            bm.add('container-std', {
+                label: 'Container',
+                category: 'Layout',
+                content: '<div class="container mx-auto p-4 border-2 border-dashed border-gray-300 min-h-[100px] flex items-center justify-center text-gray-400">Drop Content Here</div>'
+            });
+            
+            // 4. Iconify Block
+            bm.add('iconify-blk', {
+                label: 'Icon',
                 category: 'Media',
-                content: `
-                    <div class="editable-carousel h-[400px]" data-gjs-type="editable-carousel">
-                        <div class="slides">
-                            <div class="slide">
-                                <img src="https://via.placeholder.com/1200x400/2563eb/ffffff?text=Promo+Spesial" alt="Slide 1">
-                            </div>
-                            <div class="slide">
-                                <img src="https://via.placeholder.com/1200x400/10b981/ffffff?text=Diskon+Akhir+Tahun" alt="Slide 2">
-                            </div>
-                        </div>
-                        <div class="carousel-controls">
-                            <button class="prev">&lt;</button>
-                            <button class="next">&gt;</button>
-                        </div>
-                        <div class="carousel-dots"></div>
-                    </div>
-                `
+                content: { type: 'iconify-icon' }
             });
         }
     };
