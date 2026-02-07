@@ -462,14 +462,13 @@ app.post('/api/public/checkout', async (c) => {
 });
 
 // ===============================================
-// GANTI TOTAL FUNGSI RENDERPAGE DI [[path]] (14).js DENGAN INI
+// 7. PAGE RENDERING (FIXED BUILD ERROR)
 // ===============================================
 async function renderPage(c, page) {
-    // 1. Ambil Config
     const config = JSON.parse(page.product_config_json || '{}');
+    const activePayments = config.active_payments || [];
     
-    // 2. DEFISINIKAN CSS WIDGET (BRIDGE) - SAMA SEPERTI DI EDITOR
-    // Tanpa ini, Carousel, Pricing, dan Gallery akan hancur di halaman live
+    // 1. INJEKSI CSS KRITIS (BRIDGE CSS)
     const bridgeCSS = `
         body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
         
@@ -503,8 +502,22 @@ async function renderPage(c, page) {
         .btn { text-transform: none !important; }
     `;
 
-    // 3. LOGIC SCRIPT (Interaksi di halaman Live)
-    // Berisi fungsi Checkout, Ganti Slide Carousel, dan Notifikasi Contact Form
+    // 2. INJEKSI KONFIGURASI TAILWIND
+    const tailwindConfig = `
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        theme: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca', 800:'#3730a3' }
+                    }
+                }
+            }
+        }
+    `;
+
+    // 3. SCRIPT LOGIC (PERHATIKAN: <\/script> SUDAH DIESCAPE)
     const liveScripts = `
     <script>
         // A. Notifikasi Pesan Terkirim
@@ -513,7 +526,7 @@ async function renderPage(c, page) {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
-        // B. Inisialisasi Ulang Komponen (Agar interaktif)
+        // B. Inisialisasi Ulang Komponen
         document.addEventListener('DOMContentLoaded', () => {
             
             // 1. Gallery Thumbnail Logic
@@ -543,19 +556,17 @@ async function renderPage(c, page) {
                 const next = el.querySelector('.next'); if(next) next.onclick = () => show(idx+1);
                 const prev = el.querySelector('.prev'); if(prev) prev.onclick = () => show(idx-1);
                 
-                // Auto Play
                 let timer = setInterval(() => show(idx+1), 5000);
                 el.onmouseenter = () => clearInterval(timer);
                 el.onmouseleave = () => timer = setInterval(() => show(idx+1), 5000);
             });
 
-            // 3. Logic Checkout (Jika ada form checkout)
+            // 3. Logic Checkout
             const container = document.body;
             if (container.innerHTML.includes('[ CHECKOUT ]')) {
                 const config = ${JSON.stringify(config)};
                 const activePayments = ${JSON.stringify(config.active_payments || [])};
                 
-                // RENDER PAYMENT LIST
                 const paymentHTML = activePayments.length > 0 ? activePayments.map(slug => 
                     '<label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200 mb-2">' +
                     '<input type="radio" name="pay_method" value="' + slug + '" class="mr-3 w-4 h-4 text-blue-600">' +
@@ -563,26 +574,21 @@ async function renderPage(c, page) {
                     '</label>'
                 ).join('') : '<p class="text-red-500 text-xs">Belum ada metode pembayaran.</p>';
 
-                // REPLACE PLACEHOLDER
                 const checkoutHTML = \`
                     <div class="max-w-md mx-auto my-8 p-6 bg-white rounded-2xl shadow-xl border border-gray-100 font-sans">
                         <h2 class="text-xl font-black text-gray-800 mb-6 text-center">Formulir Pemesanan</h2>
-                        
                         <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6">
                             <span class="font-bold text-blue-900">${page.title}</span>
                             <span class="font-black text-blue-700">Rp \${new Intl.NumberFormat('id-ID').format(config.price || 0)}</span>
                         </div>
-
                         <div class="space-y-4 mb-6">
                             <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full p-3 border rounded-lg">
                             <input type="tel" id="c_phone" placeholder="No. WhatsApp" class="w-full p-3 border rounded-lg">
                         </div>
-
                         <div class="mb-6">
                             <label class="text-xs font-bold text-gray-400 uppercase block mb-2">Pembayaran</label>
                             <div class="grid gap-2">\${paymentHTML}</div>
                         </div>
-
                         <button id="btn-submit-order" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-700 transition">
                             BAYAR SEKARANG
                         </button>
@@ -591,7 +597,6 @@ async function renderPage(c, page) {
                 
                 container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', checkoutHTML);
 
-                // HANDLE SUBMIT
                 document.getElementById('btn-submit-order')?.addEventListener('click', async () => {
                     const payMethod = document.querySelector('input[name="pay_method"]:checked')?.value;
                     const name = document.getElementById('c_name').value;
@@ -618,10 +623,10 @@ async function renderPage(c, page) {
                 });
             }
         });
-    </script>
+    <\/script>
     `;
 
-    // 4. RETURN HTML LENGKAP DENGAN LIBRARY & CSS
+    // 4. RETURN HTML LENGKAP
     return c.html(`
     <!DOCTYPE html>
     <html lang='id'>
@@ -630,20 +635,11 @@ async function renderPage(c, page) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${page.title}</title>
         
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script>
-            tailwind.config = { 
-                theme: { 
-                    extend: { 
-                        fontFamily: { sans: ['Inter', 'sans-serif'] },
-                        colors: { theme: { 50:'#eef2ff', 500:'#6366f1', 600:'#4f46e5' } }
-                    } 
-                } 
-            }
-        </script>
+        <script src="https://cdn.tailwindcss.com"><\/script>
+        <script>${tailwindConfig}<\/script>
         <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-        <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+        <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"><\/script>
 
         <style>
             ${bridgeCSS}
@@ -652,6 +648,7 @@ async function renderPage(c, page) {
     </head>
     <body>
         ${page.html_content}
+        <script>window.PAGE_ID=${page.id};<\/script>
         ${liveScripts}
     </body>
     </html>
