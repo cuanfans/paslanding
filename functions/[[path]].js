@@ -462,6 +462,42 @@ app.post('/api/public/checkout', async (c) => {
 });
 
 // ===============================================
+// 8. HOMEPAGE HANDLER (ROOT URL)
+// ===============================================
+app.get('/', async (c) => {
+    try {
+        // 1. Cek tabel settings untuk mencari 'homepage_slug'
+        const setting = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
+        
+        // 2. Jika belum di-set di database, tampilkan pesan default
+        if (!setting || !setting.value) {
+            return c.html(`
+                <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+                    <h1>Welcome</h1>
+                    <p>Homepage belum diatur. Silakan set 'homepage_slug' di database atau admin panel.</p>
+                    <a href="/login" style="color: blue;">Login Admin</a>
+                </div>
+            `);
+        }
+
+        // 3. Ambil data halaman berdasarkan slug yang ditemukan (misal: 'blink-site-landingpage')
+        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(setting.value).first();
+        
+        if (!page) return c.text(`Error: Halaman dengan slug '${setting.value}' tidak ditemukan di tabel pages.`, 404);
+
+        // 4. Track Analytics (Opsional: anggap ini kunjungan ke homepage)
+        c.env.DB.prepare("INSERT INTO analytics (page_id, event_type, referrer) VALUES (?, 'view', ?)")
+            .bind(page.id, 'direct-homepage')
+            .run().catch(()=>{});
+
+        // 5. Render halaman tersebut menggunakan fungsi renderPage yang sudah kita perbaiki
+        return renderPage(c, page);
+
+    } catch (e) {
+        return c.text(`Server Error: ${e.message}`, 500);
+    }
+});
+// ===============================================
 // 7. PAGE RENDERING (FINAL FIX & CLEAN)
 // ===============================================
 app.get('/:slug', async (c) => {
