@@ -36,7 +36,7 @@
     <script src="https://unpkg.com/grapesjs-style-bg@2.0.1"></script>
 
     <style>
-        /* 1. RESET DASAR */
+        /* 1. RESET & BASE */
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; }
         [x-cloak] { display: none !important; }
 
@@ -47,12 +47,12 @@
             display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
         }
 
-        /* 3. WADAH UTAMA (WRAPPER) */
-        /* Menggunakan Flexbox agar Canvas otomatis mengisi sisa ruang */
+        /* 3. WORKSPACE WRAPPER */
         .workspace-wrapper {
             display: flex;
-            height: calc(100vh - 60px); /* Full height dikurangi header */
-            margin-top: 60px; /* Dorong ke bawah header */
+            /* Default Desktop: Full height minus header */
+            height: calc(100vh - 60px); 
+            margin-top: 60px;
             width: 100%;
             overflow: hidden;
             position: relative;
@@ -60,84 +60,73 @@
 
         /* 4. CANVAS AREA (#gjs) */
         #gjs {
-            flex: 1; /* Mengisi sisa ruang kosong (Desktop: Sisa kiri, Mobile: Full) */
+            flex: 1;
             height: 100%;
-            overflow: hidden;
             background: #f3f4f6;
             position: relative;
-            min-width: 0; /* Mencegah overflow flex */
+            min-width: 0;
+            /* Default Desktop: Ada sisa ruang untuk sidebar */
         }
         
-        /* Reset Canvas GrapesJS */
         .gjs-cv-canvas { width: 100%; height: 100%; top: 0 !important; }
 
-        /* 5. SIDEBAR (DESKTOP DEFAULT) */
+        /* 5. SIDEBAR (DESKTOP) */
         .sidebar-desktop {
-            width: 320px; /* Lebar tetap di Desktop */
+            width: 320px;
             height: 100%;
             background: white;
             border-left: 1px solid #e2e8f0;
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
             z-index: 40;
-            flex-shrink: 0; /* Jangan mengecil */
+            flex-shrink: 0;
             transition: transform 0.3s ease;
         }
 
         /* 6. LOGIC MOBILE (Layar < 768px) */
         @media (max-width: 768px) {
-            .sidebar-desktop {
-                position: fixed; /* Ubah jadi melayang di atas */
-                top: 60px;
-                right: 0;
-                bottom: 0;
-                width: 85%; /* Lebar sidebar di HP */
-                transform: translateX(100%); /* Sembunyi ke kanan defaultnya */
-                box-shadow: -5px 0 15px rgba(0,0,0,0.1);
-            }
-            
-            /* Class saat menu dibuka */
-            .sidebar-desktop.is-open {
-                transform: translateX(0);
+            /* Kurangi tinggi workspace agar tidak tertutup bottom bar (60px) */
+            .workspace-wrapper {
+                height: calc(100vh - 120px); /* 60px Header + 60px Bottom Bar */
             }
 
-            /* Overlay hitam */
-            .mobile-overlay {
-                position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 30;
+            /* Sidebar Melayang & Sembunyi */
+            .sidebar-desktop {
+                position: fixed;
                 top: 60px;
+                right: 0;
+                bottom: 60px; /* Stop di atas bottom bar */
+                width: 85%;
+                transform: translateX(100%);
+                box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+                z-index: 60; /* Di atas segalanya */
+            }
+            
+            .sidebar-desktop.is-open { transform: translateX(0); }
+
+            .mobile-overlay {
+                position: fixed; inset: 0; background: rgba(0,0,0,0.5); 
+                z-index: 55; top: 60px; bottom: 60px;
                 display: none;
             }
             .mobile-overlay.show { display: block; }
         }
 
-        /* 7. UI GRAPESJS TWEAKS */
+        /* 7. SCROLLBAR & UI TWEAKS */
         .gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views { display: none !important; }
         .gjs-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; }
-        
-        /* Block Manager Grid */
         .gjs-blocks-c { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
-        .gjs-block { 
-            width: 100% !important; min-height: auto !important; padding: 10px 8px !important; 
-            background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; 
-            display: flex; flex-direction: column; align-items: center; gap: 4px; 
-            cursor: grab; transition: all 0.2s; box-shadow: 0 1px 1px rgba(0,0,0,0.05);
-        }
-        .gjs-block:hover { border-color: #6366f1; color: #6366f1; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2); }
+        .gjs-block { width: 100% !important; min-height: auto !important; padding: 10px 8px !important; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: grab; transition: all 0.2s; box-shadow: 0 1px 1px rgba(0,0,0,0.05); }
+        .gjs-block:hover { border-color: #6366f1; color: #6366f1; transform: translateY(-1px); }
         .gjs-block-label { font-size: 9px; font-weight: 600; text-align: center; color: #4b5563; margin-top: 4px; }
-        
-        /* Hide Default Blocks (Opsional, matikan jika ingin default muncul) */
         .gjs-block[title="Form"], .gjs-block[title="Input"], .gjs-block[title="Textarea"], .gjs-block[title="Select"], .gjs-block[title="Button"], .gjs-block[title="Label"], .gjs-block[title="Checkbox"], .gjs-block[title="Radio"], .gjs-block[title="Text"], .gjs-block[title="Link"], .gjs-block[title="Image"], .gjs-block[title="Video"], .gjs-block[title="Map"] { display: none !important; }
-        
-        /* Scrollbar */
         ::-webkit-scrollbar { width: 5px; height: 5px; } 
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .input-std { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; }
         .input-std:focus { border-color: #6366f1; ring: 2px solid #e0e7ff; }
     </style>
-<body x-data="editorApp()">
+    <body x-data="editorApp()">
 
-    <div class="fixed bottom-5 left-5 z-[9999] flex flex-col gap-2 pointer-events-none">
-        <template x-for="n in notifications" :key="n.id">
+    <div class="fixed bottom-20 left-5 z-[9999] flex flex-col gap-2 pointer-events-none"> <template x-for="n in notifications" :key="n.id">
             <div x-show="n.show" x-transition class="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border-l-4 bg-white min-w-[250px]" :class="n.type==='success'?'border-green-500':'border-red-500'">
                 <i class="ph text-xl" :class="n.type==='success'?'ph-check-circle text-green-500':'ph-warning-circle text-red-500'"></i>
                 <div><h4 class="text-xs font-bold text-gray-800" x-text="n.title"></h4><p class="text-[10px] text-gray-500" x-text="n.msg"></p></div>
@@ -146,16 +135,16 @@
     </div>
 
     <header>
-        <div class="flex items-center gap-4">
-            <a href="/admin/pages" class="text-gray-400 hover:text-indigo-600 transition p-1.5 rounded hover:bg-gray-50"><i class="ph ph-arrow-left text-xl"></i></a>
-            <div class="h-6 w-px bg-gray-200"></div>
-            <div>
+        <div class="flex items-center gap-3 overflow-hidden">
+            <a href="/admin/pages" class="text-gray-400 hover:text-indigo-600 transition p-1.5 rounded hover:bg-gray-50 shrink-0"><i class="ph ph-arrow-left text-xl"></i></a>
+            <div class="h-6 w-px bg-gray-200 shrink-0"></div>
+            <div class="flex-1 min-w-0">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Page Slug</span>
-                <input x-model="page.slug" class="bg-transparent font-mono font-bold text-sm text-gray-700 outline-none w-48 placeholder-gray-300 focus:text-indigo-600 transition" placeholder="nama-halaman">
+                <input x-model="page.slug" class="bg-transparent font-mono font-bold text-sm text-gray-700 outline-none w-full placeholder-gray-300 focus:text-indigo-600 transition truncate" placeholder="nama-halaman">
             </div>
         </div>
         
-        <div class="flex items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+        <div class="hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
             <button @click="setDevice('desktop')" :class="device=='desktop'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-desktop text-lg"></i></button>
             <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-tablet text-lg"></i></button>
             <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-mobile text-lg"></i></button>
@@ -165,16 +154,60 @@
             <button @click="cmd('core:redo')" class="text-gray-400 hover:text-gray-700 p-1.5" title="Redo"><i class="ph ph-arrow-u-up-right text-lg"></i></button>
         </div>
 
-        <div class="flex items-center gap-3">
-            <button @click="showSettings=true" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition"><i class="ph ph-gear-six text-lg"></i> Config</button>
-            <button @click="savePage" :disabled="loading" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-500/30">
-                <i x-show="loading" class="ph ph-spinner animate-spin"></i><span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
-            </button>
+        <div class="flex items-center gap-2">
+            <div class="hidden md:flex items-center gap-2">
+                <button @click="showSettings=true" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition"><i class="ph ph-gear-six text-lg"></i> Config</button>
+                <button @click="savePage" :disabled="loading" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-500/30">
+                    <i x-show="loading" class="ph ph-spinner animate-spin"></i><span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
+                </button>
+            </div>
+
             <button @click="mobileMenuOpen = !mobileMenuOpen" 
-                    class="md:hidden bg-white text-gray-700 p-2 rounded-lg border border-gray-300 shadow-sm active:bg-gray-100">
-                <i class="ph" :class="mobileMenuOpen ? 'ph-x' : 'ph-list'" style="font-size: 20px;"></i>
+                    class="md:hidden p-2 rounded-lg border border-gray-200 shadow-sm text-gray-700 active:bg-gray-100"
+                    :class="mobileMenuOpen ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-white'">
+                <i class="ph" :class="mobileMenuOpen ? 'ph-x' : 'ph-list'" style="font-size: 24px;"></i>
             </button>
         </div>
+    </header>
+
+    <div class="workspace-wrapper">
+        <div id="gjs"></div>
+
+        <div class="mobile-overlay md:hidden" :class="mobileMenuOpen ? 'show' : ''" @click="mobileMenuOpen = false"></div>
+        
+        <div class="sidebar-desktop" :class="mobileMenuOpen ? 'is-open' : ''">
+            <div class="panel-tabs flex border-bottom border-gray-200 bg-white shrink-0">
+                <button @click="tab='blocks'" :class="tab=='blocks'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-squares-four text-xl"></i></button>
+                <button @click="tab='styles'" :class="tab=='styles'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-paint-brush text-xl"></i></button>
+                <button @click="tab='traits'" :class="tab=='traits'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-sliders text-xl"></i></button>
+                <button @click="tab='layers'" :class="tab=='layers'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition"><i class="ph ph-stack text-xl"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto bg-white relative custom-scroll">
+                <div x-show="tab=='blocks'" id="blocks-container" class="absolute inset-0 pb-20"></div>
+                <div x-show="tab=='styles'"><div id="selectors-container" class="p-3 border-b bg-gray-50"></div><div id="styles-container" class="pb-20"></div></div>
+                <div x-show="tab=='traits'"><div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b">Element Config</div><div id="traits-container" class="p-2 pb-20"></div></div>
+                <div x-show="tab=='layers'" id="layers-container" class="absolute inset-0 pb-20"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="md:hidden fixed bottom-0 left-0 w-full h-[60px] bg-white border-t border-gray-200 flex items-center justify-around z-[100] px-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <button @click="cmd('core:preview')" class="flex flex-col items-center justify-center w-16 h-full text-gray-500 active:text-indigo-600">
+            <i class="ph ph-eye text-2xl mb-0.5"></i>
+            <span class="text-[9px] font-bold">Preview</span>
+        </button>
+
+        <button @click="showSettings=true" class="flex flex-col items-center justify-center w-16 h-full text-gray-500 active:text-indigo-600">
+            <i class="ph ph-gear-six text-2xl mb-0.5"></i>
+            <span class="text-[9px] font-bold">Config</span>
+        </button>
+
+        <button @click="savePage" :disabled="loading" class="flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-full shadow-lg active:scale-95 transition">
+            <i x-show="loading" class="ph ph-spinner animate-spin text-xl"></i>
+            <i x-show="!loading" class="ph ph-paper-plane-right-fill text-xl"></i>
+            <span class="font-bold text-xs">PUBLISH</span>
+        </button>
+    </div>
     </header>
 
     <div class="workspace-wrapper">
