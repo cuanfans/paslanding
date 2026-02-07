@@ -276,7 +276,7 @@
         if(clearBtn) clearBtn.addEventListener('click', ()=>{ input.value=''; input.focus(); });
     })();
 
-    // --- MAIN EDITOR APP ---
+    // --- MAIN APP ---
     function editorApp() {
         return {
             loading: false, showSettings: false, device: 'desktop', tab: 'blocks', notifications: [], paymentProviders: [],
@@ -312,7 +312,6 @@
             async savePage() {
                 this.loading = true;
                 let html = window.editor.getHtml();
-                // Inject Page ID untuk Form Contact
                 html = html.replace('name="page_id" value="0"', `name="page_id" value="${this.page.id||0}"`);
                 try {
                     const res = await fetch('/api/admin/pages', {
