@@ -524,6 +524,60 @@ function editorApp() {
             }
         });
 
+            // Dynamic Countdown
+                editor.DomComponents.addType('countdown-dynamic', {
+                model: {
+                    defaults: {
+                        traits: [
+                            { type: 'text', name: 'data-key', label: 'ID Unik (Storage Key)' },
+                            { type: 'number', name: 'data-reset', label: 'Siklus Reset (Jam)', min: 1 }
+                        ],
+                        attributes: { 'data-key': 'promo_kiosk_01', 'data-reset': '2' },
+                        script: function() {
+                            const el = this;
+                            const key = el.getAttribute('data-key') || 'countdown_timer';
+                            const resetHours = parseFloat(el.getAttribute('data-reset')) || 2;
+                            
+                            const f = (n) => String(Math.floor(n)).padStart(2, '0');
+                            
+                            const getTarget = () => {
+                                let stored = localStorage.getItem(key);
+                                let now = Date.now();
+                                
+                                if (!stored || parseInt(stored) < now) {
+                                    // Jika baru atau expired, buat baru. 
+                                    // Pertama kali acak 1-2 jam, selanjutnya (reset) sesuai input (2 jam)
+                                    let duration = !stored 
+                                        ? (Math.random() * (2 - 1) + 1) * 3600000 
+                                        : resetHours * 3600000;
+                                    let newTarget = now + duration;
+                                    localStorage.setItem(key, newTarget);
+                                    return newTarget;
+                                }
+                                return parseInt(stored);
+                            };
+            
+                            let targetTime = getTarget();
+            
+                            const update = () => {
+                                let now = Date.now();
+                                let dist = targetTime - now;
+            
+                                if (dist < 0) {
+                                    targetTime = getTarget(); // Reset siklus
+                                    dist = targetTime - now;
+                                }
+            
+                                el.querySelector('.js-h').innerText = f((dist % 864e5) / 36e5);
+                                el.querySelector('.js-m').innerText = f((dist % 36e5) / 6e4);
+                                el.querySelector('.js-s').innerText = f((dist % 6e4) / 1e3);
+                            };
+            
+                            setInterval(update, 1000); update();
+                        }
+                    }
+                }
+            });
             
             // --- 3. BLOCK DEFINITIONS (RESTORED ALL) ---
 
@@ -552,6 +606,7 @@ function editorApp() {
             bm.add('faq-pro', { label: 'FAQ Pro', category: '3. Content', content: `<section class="max-w-3xl mx-auto py-16 px-4"><h2 class="text-3xl font-black text-center mb-12 text-gray-900 uppercase tracking-tighter">Pertanyaan Populer</h2><div class="grid gap-6"><div class="p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-blue-500 transition-all shadow-sm"><h3 class="text-lg font-bold text-blue-600 mb-3">Tuliskan Pertanyaan Anda di Sini?</h3><p class="text-gray-600 leading-relaxed text-sm">Klik dua kali untuk mulai menuliskan jawaban lengkap Anda. Desain ini dijamin 100% bisa langsung diketik tanpa gangguan radio button atau input yang menghalangi kursor.</p></div><div class="p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-blue-500 transition-all shadow-sm"><h3 class="text-lg font-bold text-blue-600 mb-3">Bagaimana cara mengubah isi teks ini?</h3><p class="text-gray-600 leading-relaxed text-sm">Cukup klik dua kali tepat pada teksnya. GrapesJS akan langsung memunculkan kursor pengetikan karena elemen ini menggunakan tag standar yang sangat disukai editor.</p></div><div class="p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-blue-500 transition-all shadow-sm"><h3 class="text-lg font-bold text-blue-600 mb-3">Apakah desain ini responsif?</h3><p class="text-gray-600 leading-relaxed text-sm">Tentu saja. Di layar monitor 19 inci Anda akan terlihat lega, dan di layar HP otomatis akan menyesuaikan lebarnya tanpa merusak konten.</p></div></div></section>` });           bm.add('trust-badges', { label: 'Trust Badges', category: '3. Content', content: `<div class="flex flex-wrap justify-center gap-8 py-8 opacity-60 grayscale hover:grayscale-0 transition duration-500"><iconify-icon icon="logos:visa" width="48"></iconify-icon><iconify-icon icon="logos:mastercard" width="48"></iconify-icon><iconify-icon icon="logos:bca" width="48"></iconify-icon><iconify-icon icon="logos:stripe" width="48"></iconify-icon></div>` });
             bm.add('steps', { label: 'Steps', category: '3. Content', content: `<ul class="steps steps-vertical lg:steps-horizontal w-full py-8"><li class="step step-primary">Pilih Produk</li><li class="step step-primary">Isi Data</li><li class="step">Bayar</li><li class="step">Selesai</li></ul>` });
             bm.add('countdown-smart', { label: 'Countdown Pro', category: '3. Content', content: { type: 'countdown-timer', content: `<div class="py-10 bg-indigo-900 rounded-3xl text-white max-w-[800px] mx-auto shadow-xl"><div class="flex justify-center gap-4 js-wrap"><div class="text-center"><div class="bg-white/10 rounded-lg p-4 min-w-[80px]"><span class="js-d text-4xl font-bold">00</span></div><div class="text-[10px] mt-2 opacity-50">HARI</div></div><div class="text-center"><div class="bg-white/10 rounded-lg p-4 min-w-[80px]"><span class="js-h text-4xl font-bold">00</span></div><div class="text-[10px] mt-2 opacity-50">JAM</div></div><div class="text-center"><div class="bg-white/10 rounded-lg p-4 min-w-[80px]"><span class="js-m text-4xl font-bold">00</span></div><div class="text-[10px] mt-2 opacity-50">MENIT</div></div><div class="text-center"><div class="bg-white/10 rounded-lg p-4 min-w-[80px] text-yellow-400"><span class="js-s text-4xl font-bold">00</span></div><div class="text-[10px] mt-2 opacity-50">DETIK</div></div></div></div>` } });
+            bm.add('countdown-dynamic', { label: 'Evergreen Timer', category: '3. Content', content: { type: 'countdown-dynamic', content: `<div class="py-6 bg-gradient-to-r from-red-600 to-orange-500 rounded-2xl text-white max-w-[500px] mx-auto shadow-lg border-2 border-white/20"><div class="text-center mb-2 text-[10px] font-bold tracking-[0.2em] opacity-80 uppercase">Promo Berakhir Dalam</div><div class="flex justify-center gap-4"><div class="text-center"><span class="js-h text-4xl font-black block">00</span><span class="text-[9px] opacity-70 font-bold">JAM</span></div><span class="text-3xl font-light opacity-50">:</span><div class="text-center"><span class="js-m text-4xl font-black block">00</span><span class="text-[9px] opacity-70 font-bold">MENIT</span></div><span class="text-3xl font-light opacity-50">:</span><div class="text-center"><span class="js-s text-4xl font-black block text-yellow-200">00</span><span class="text-[9px] opacity-70 font-bold">DETIK</span></div></div></div>` } });
             // COMMERCE (Pricing, Form API, Checkout)
             bm.add('pricing-table', { label: 'Pricing Edit', category: '4. Commerce', content: `<section class="py-20 bg-gray-50"><div class="container mx-auto px-4 max-w-6xl"><div class="text-center mb-12"><h2 class="text-3xl font-black text-gray-900 mb-2">Pilih Paket</h2><p class="text-gray-500">Sesuaikan dengan kebutuhan bisnis Anda.</p></div><div class="grid md:grid-cols-3 gap-8"><div class="flex flex-col bg-white p-8 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition h-full"><h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Starter</h3><div class="text-4xl font-black text-gray-900 mb-6">Rp 0<span class="text-base font-normal text-gray-400">/bln</span></div><ul class="space-y-4 mb-8 flex-1 text-sm text-gray-600"><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>Fitur Dasar Terbatas</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>1 Admin User</span></li><li class="flex items-start gap-3 text-gray-400"><iconify-icon icon="ph:x-circle" class="text-gray-300 text-xl shrink-0"></iconify-icon><span>Tanpa Laporan Bulanan</span></li></ul><a href="#" class="block w-full py-3 rounded-xl border-2 border-gray-100 font-bold text-gray-600 text-center hover:border-gray-300 hover:bg-gray-50 transition mt-auto">Mulai Gratis</a></div><div class="flex flex-col bg-white p-8 rounded-2xl border-2 border-indigo-600 shadow-xl relative transform md:-translate-y-4 h-full"><div class="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">Terlaris</div><h3 class="text-sm font-bold text-indigo-600 uppercase tracking-widest mb-4">Professional</h3><div class="text-4xl font-black text-gray-900 mb-6">Rp 99k<span class="text-base font-normal text-gray-400">/bln</span></div><ul class="space-y-4 mb-8 flex-1 text-sm text-gray-700 font-medium"><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-indigo-600 text-xl shrink-0"></iconify-icon><span>Semua Fitur Starter</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-indigo-600 text-xl shrink-0"></iconify-icon><span>5 Admin User</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-indigo-600 text-xl shrink-0"></iconify-icon><span>Laporan Penjualan Lengkap</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-indigo-600 text-xl shrink-0"></iconify-icon><span>Prioritas Support 24/7</span></li></ul><a href="#" class="block w-full py-3 rounded-xl bg-indigo-600 font-bold text-white text-center hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition mt-auto">Pilih Pro</a></div><div class="flex flex-col bg-white p-8 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition h-full"><h3 class="text-sm font-bold text-rose-500 uppercase tracking-widest mb-4">Enterprise</h3><div class="text-4xl font-black text-gray-900 mb-6">Custom</div><ul class="space-y-4 mb-8 flex-1 text-sm text-gray-600"><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>Unlimited User</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>Dedicated Server</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>Akses API Full</span></li></ul><a href="#" class="block w-full py-3 rounded-xl border-2 border-gray-100 font-bold text-gray-600 text-center hover:border-gray-300 hover:bg-gray-50 transition mt-auto">Hubungi Kami</a></div></div></div></section>` });
             bm.add('contact-form', { label: 'Contact Form', category: '4. Commerce', content: `<div class="max-w-md mx-auto p-8 bg-white rounded-2xl shadow-xl border border-gray-100"><h3 class="text-2xl font-bold text-gray-800 mb-2">Hubungi Kami</h3><p class="text-gray-500 mb-6 text-sm">Isi form di bawah, kami akan membalas secepatnya.</p><form method="POST" action="/api/public/contact" class="space-y-4"><input type="hidden" name="page_id" value="0"><div><label class="label font-bold text-xs uppercase text-gray-500">Nama Lengkap</label><input type="text" name="name" class="input input-bordered w-full focus:input-primary bg-gray-50" placeholder="John Doe" required /></div><div><label class="label font-bold text-xs uppercase text-gray-500">Email</label><input type="email" name="email" class="input input-bordered w-full focus:input-primary bg-gray-50" placeholder="email@anda.com" required /></div><div><label class="label font-bold text-xs uppercase text-gray-500">Pesan</label><textarea name="message" class="textarea textarea-bordered w-full h-32 focus:textarea-primary bg-gray-50" placeholder="Tulis pesan Anda..." required></textarea></div><button type="submit" class="btn btn-primary w-full shadow-lg shadow-indigo-200">Kirim Pesan <iconify-icon icon="ph:paper-plane-right-fill"></iconify-icon></button></form></div>` });
