@@ -283,7 +283,41 @@ app.get('/api/logout', (c) => { deleteCookie(c, 'auth_token'); return c.redirect
 app.get('/login', (c) => serveAsset(c, '/login.html'));
 app.get('/admin', (c) => c.redirect('/admin/dashboard'));
 app.get('/admin/*', (c) => serveAsset(c, '/_views' + c.req.path.replace('/admin','').replace(/^\/$/,'/dashboard') + '.html'));
+// --- MODULE: HOMEPAGE SETTING ---
 
+// 1. GET Homepage Slug (Dipanggil saat dashboard load)
+app.get('/api/admin/homepage-slug', async (c) => {
+    try {
+        const setting = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
+        return c.json({ slug: setting?.value || null });
+    } catch (e) {
+        return c.json({ error: e.message }, 500);
+    }
+});
+
+// 2. SET Homepage (Dipanggil saat tombol bintang diklik)
+app.post('/api/admin/set-homepage', async (c) => {
+    try {
+        const { slug } = await c.req.json();
+        
+        if (!slug) return c.json({ error: "Slug tidak valid" }, 400);
+
+        // Validasi: Pastikan halaman benar-benar ada di database
+        const page = await c.env.DB.prepare("SELECT id FROM pages WHERE slug = ?").bind(slug).first();
+        if (!page) return c.json({ error: "Halaman tidak ditemukan di database" }, 404);
+
+        // Simpan/Update ke tabel settings
+        // Menggunakan ON CONFLICT agar jika key 'homepage_slug' sudah ada, nilainya di-update
+        await c.env.DB.prepare(`
+            INSERT INTO settings (key, value) VALUES ('homepage_slug', ?) 
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value
+        `).bind(slug).run();
+
+        return c.json({ success: true, message: "Homepage berhasil diatur", slug });
+    } catch (e) {
+        return c.json({ error: e.message }, 500);
+    }
+});
 // --- MODULE: PAGES ---
 app.get('/api/admin/pages', async (c) => {
     const res = await c.env.DB.prepare("SELECT id, slug, title, product_type, created_at FROM pages ORDER BY created_at DESC").all();
