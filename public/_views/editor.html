@@ -131,6 +131,36 @@
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         
+    /* --- STYLING FOR ENHANCED WIDGETS --- */
+    /* Pricing table variants */
+    .pricing-grid { display:grid; grid-template-columns: repeat(1,1fr); gap:16px; }
+    @media(min-width:768px){ .pricing-grid { grid-template-columns: repeat(3,1fr); } }
+
+    .pricing-card { background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%); border-radius: 12px; padding: 24px; border: 1px solid #e6eef8; box-shadow: 0 8px 24px rgba(14,42,71,0.06); display:flex; flex-direction:column; gap:12px; }
+    .pricing-card .title { font-weight:800; font-size:14px; color:#0f172a; text-transform:uppercase; letter-spacing:0.6px; }
+    .pricing-card .price { font-size:28px; font-weight:900; color:#0b5cff; }
+    .pricing-card .features { color:#475569; font-size:13px; line-height:1.6; }
+    .pricing-card .cta { margin-top:auto; display:block; text-align:center; padding:10px 16px; border-radius:10px; font-weight:800; text-decoration:none; }
+
+    .pricing-compact .pricing-card { padding:18px; border-radius:10px; }
+    .pricing-illustrated .pricing-card { background: linear-gradient(135deg,#f0f9ff 0%,#fff 100%); border: none; }
+    .pricing-highlight .pricing-card { border: 2px solid #2563eb; transform: translateY(-6px); box-shadow: 0 12px 40px rgba(37,99,235,0.12); }
+
+    /* Carousel editable styling */
+    .editable-carousel { position: relative; overflow: hidden; border-radius:12px; }
+    .editable-carousel .slides { display:flex; transition: transform 0.5s ease; will-change: transform; }
+    .editable-carousel .slide { min-width:100%; flex: 0 0 100%; position:relative; }
+    .editable-carousel .slide img { width:100%; height:100%; object-fit:cover; display:block; border-radius:10px; }
+    .editable-carousel .carousel-controls { position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); display:flex; justify-content:space-between; pointer-events:none; }
+    .editable-carousel .carousel-controls button { pointer-events:auto; background:rgba(255,255,255,0.85); border:none; width:40px; height:40px; border-radius:999px; display:flex; align-items:center; justify-content:center; margin:0 8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+    .editable-carousel .carousel-dots { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:6px; }
+    .editable-carousel .carousel-dots button { width:8px; height:8px; border-radius:999px; background:rgba(255,255,255,0.6); border:none; }
+
+    /* Hide built-in contact/pro block in block manager */
+    .gjs-block[data-id="contact-pro"] { display: none !important; }
+    /* Also hide from categories list if any element shows label */
+    .gjs-block-category .gjs-block[data-id="contact-pro"] { display: none !important; }
+    /* Keep component still available in canvas if already present (we did not remove bm.add), just hide block */
     </style>
 </head>
 
@@ -608,7 +638,7 @@ function editorApp() {
                 content: `<section style="padding:60px 20px; background:#fff;"><div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:50px; align-items:start;"><div class="product-info"><h1>Nama Produk Premium</h1><p style="line-height:1.6; color:#666; margin-bottom:20px;">Deskripsi lengkap produk yang meyakinkan pembeli bahwa ini adalah investasi terbaik mereka.</p><ul style="list-style:none; padding:0; margin-bottom:30px;"><li style="margin-bottom:10px; display:flex; align-items:center; gap:10px;"><iconify-icon icon="ph:check-circle-fill" style="color:#22c55e"></iconify-icon> Garansi 30 Hari</li><li style="margin-bottom:10px; display:flex; align-items:center; gap:10px;"><iconify-icon icon="ph:check-circle-fill" style="color:#22c55e"></iconify-icon> Support Prioritas</li></ul><img src="https://via.placeholder.com/500x300" style="width:100%; border-radius:10px;"></div><div style="background:#f8fafc; padding:30px; border-radius:15px; border:1px solid #e2e8f0;">[ CHECKOUT ]</div></div></section>` 
             });
 
-            // --- WIDGET CONTACT PRO BARU ---
+            // --- WIDGET CONTACT PRO BARU (keberadaan tetap, tapi block manager entry disembunyikan via CSS) ---
             const contactFormHTML = `
                 <div style="padding: 40px 20px;">
                     <form action="/api/public/contact" method="POST" style="max-width: 500px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
@@ -659,193 +689,202 @@ function editorApp() {
                 </div>
             `;
 
+            // Add contact-pro but block entry will be hidden by CSS above
             bm.add('contact-pro', {
                 label: 'Contact Pro',
                 category: 'Forms',
-                media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>',
+                attributes: { class: 'contact-pro-hidden' },
                 content: contactFormHTML
             });
 
-            // --- 1. SLIDER GAMBAR DENGAN LINK (Carousel) ---
-            bm.add('hero-slider', {
-                label: 'Slider Gambar', category: 'Media',
-                media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM8 17h8v-2H8v2zm0-4h8v-2H8v2zm0-4h8V7H8v2z"/></svg>',
-                content: `
-                <div class="relative w-full overflow-hidden group" style="height: 350px;">
-                    <div class="flex overflow-x-auto snap-x snap-mandatory h-full scrollbar-hide" style="scroll-behavior: smooth;">
-                        <div class="snap-center shrink-0 w-full h-full relative bg-gray-200 flex items-center justify-center">
-                            <img src="https://via.placeholder.com/800x400/2563eb/ffffff?text=Promo+1" class="absolute inset-0 w-full h-full object-cover">
-                            <a href="#checkout-box" class="relative z-10 bg-white text-blue-600 px-6 py-2 rounded-full font-bold shadow-lg hover:bg-gray-100 transition">Beli Sekarang</a>
+            // --- 1. SLIDER (Editable Carousel) ---
+            // Make carousel content editable: each slide is a normal component with editable text and image.
+            const carouselEditable = `
+                <div class="editable-carousel" data-gjs-type="editable-carousel" data-auto="true" data-interval="5000" style="height:380px;">
+                    <div class="slides">
+                        <div class="slide" data-gjs-editable="true">
+                            <img src="https://via.placeholder.com/1200x380/2563eb/ffffff?text=Promo+1" alt="Slide 1"/>
+                            <div style="position:absolute; left:40px; bottom:40px; color:#fff; max-width:50%;">
+                                <h2 contenteditable="true" style="font-size:28px; font-weight:900; margin:0;">Big Sale Hari Ini</h2>
+                                <p contenteditable="true" style="margin:6px 0 0; font-size:14px;">Diskon sampai 50% untuk pembelian pertama.</p>
+                            </div>
                         </div>
-                        <div class="snap-center shrink-0 w-full h-full relative bg-gray-200 flex items-center justify-center">
-                            <img src="https://via.placeholder.com/800x400/10b981/ffffff?text=Promo+2" class="absolute inset-0 w-full h-full object-cover">
-                            <a href="#" class="relative z-10 bg-white text-green-600 px-6 py-2 rounded-full font-bold shadow-lg hover:bg-gray-100 transition">Lihat Detail</a>
+                        <div class="slide" data-gjs-editable="true">
+                            <img src="https://via.placeholder.com/1200x380/10b981/ffffff?text=Promo+2" alt="Slide 2"/>
+                            <div style="position:absolute; left:40px; bottom:40px; color:#fff; max-width:50%;">
+                                <h2 contenteditable="true" style="font-size:28px; font-weight:900; margin:0;">Free Shipping</h2>
+                                <p contenteditable="true" style="margin:6px 0 0; font-size:14px;">Gratis ongkir untuk wilayah Jabodetabek.</p>
+                            </div>
+                        </div>
+                        <div class="slide" data-gjs-editable="true">
+                            <img src="https://via.placeholder.com/1200x380/f59e0b/ffffff?text=Promo+3" alt="Slide 3"/>
+                            <div style="position:absolute; left:40px; bottom:40px; color:#fff; max-width:50%;">
+                                <h2 contenteditable="true" style="font-size:28px; font-weight:900; margin:0;">Limited Offer</h2>
+                                <p contenteditable="true" style="margin:6px 0 0; font-size:14px;">Hanya untuk 100 pembeli pertama.</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="absolute bottom-4 w-full text-center text-white text-xs opacity-75 pointer-events-none">Geser untuk melihat</div>
-                </div>`
-            });
-
-            // --- 2. HEADER VARIAN (4 JENIS) ---
-            const headerStyle = 'padding: 20px; background: #fff; border-bottom: 1px solid #eee; display: flex; align-items: center;';
-            
-            // Header Logo Kiri
-            bm.add('header-left', {
-                label: 'Header Logo Kiri', category: 'Headers',
-                content: `<header style="${headerStyle} justify-content: space-between;">
-                    <div style="font-weight: 900; font-size: 24px; color: #2563eb;">LOGO</div>
-                    <nav class="hidden md:flex gap-6 text-sm font-bold text-gray-600"><a href="#">Home</a><a href="#">Fitur</a><a href="#">Harga</a></nav>
-                    <a href="#checkout-box" class="px-4 py-2 bg-blue-600 text-white rounded font-bold text-xs">Action</a>
-                </header>`
-            });
-
-            // Header Logo Tengah
-            bm.add('header-center', {
-                label: 'Header Logo Tengah', category: 'Headers',
-                content: `<header style="padding: 20px; background: #fff; border-bottom: 1px solid #eee; text-align: center;">
-                    <div style="font-weight: 900; font-size: 24px; color: #2563eb; margin-bottom: 10px;">LOGO</div>
-                    <nav class="flex justify-center gap-6 text-sm font-bold text-gray-600"><a href="#">Home</a><a href="#">Produk</a><a href="#">Kontak</a></nav>
-                </header>`
-            });
-
-            // Header Logo Kanan
-            bm.add('header-right', {
-                label: 'Header Logo Kanan', category: 'Headers',
-                content: `<header style="${headerStyle} flex-direction: row-reverse; justify-content: space-between;">
-                    <div style="font-weight: 900; font-size: 24px; color: #2563eb;">LOGO</div>
-                    <nav class="flex gap-6 text-sm font-bold text-gray-600"><a href="#">Menu 1</a><a href="#">Menu 2</a></nav>
-                </header>`
-            });
-
-            // Header Sticky
-            bm.add('header-sticky', {
-                label: 'Header Sticky', category: 'Headers',
-                content: `<header style="position: sticky; top: 0; z-index: 999; padding: 15px 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(5px); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-                    <div style="font-weight: 900; font-size: 20px;">STICKY</div>
-                    <a href="#checkout-box" class="px-4 py-2 bg-black text-white rounded-lg font-bold text-xs">ORDER NOW</a>
-                </header>`
-            });
-
-            // --- 3. PRICING PLAN (PILIHAN MENARIK) ---
-            bm.add('pricing-cards', {
-                label: 'Pricing Table', category: 'Pricing',
-                content: `<div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto p-6">
-                    <div class="border rounded-xl p-6 text-center bg-white hover:shadow-lg transition">
-                        <h3 class="text-gray-500 font-bold text-sm uppercase">Basic</h3>
-                        <div class="text-3xl font-black text-gray-800 my-4">Rp 99rb</div>
-                        <ul class="text-sm text-gray-600 space-y-2 mb-6"><li>Akses Selamanya</li><li>Tanpa Update</li></ul>
-                        <a href="#checkout-box" class="block w-full py-2 border border-blue-600 text-blue-600 font-bold rounded hover:bg-blue-50">Pilih</a>
+                    <div class="carousel-controls">
+                        <button class="prev" title="Previous">&lt;</button>
+                        <button class="next" title="Next">&gt;</button>
                     </div>
-                    <div class="border-2 border-blue-600 rounded-xl p-6 text-center bg-white shadow-xl transform scale-105 relative">
-                        <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white text-[10px] px-3 py-1 rounded-full font-bold">BEST SELLER</div>
-                        <h3 class="text-blue-600 font-bold text-sm uppercase">PRO VERSION</h3>
-                        <div class="text-4xl font-black text-gray-800 my-4">Rp 199rb</div>
-                        <ul class="text-sm text-gray-600 space-y-2 mb-6 font-medium"><li>Akses Selamanya</li><li><b>Update Gratis</b></li><li>Support Prioritas</li></ul>
-                        <a href="#checkout-box" class="block w-full py-3 bg-blue-600 text-white font-bold rounded shadow-lg hover:bg-blue-700">Ambil Promo</a>
-                    </div>
-                    <div class="border rounded-xl p-6 text-center bg-white hover:shadow-lg transition">
-                        <h3 class="text-gray-500 font-bold text-sm uppercase">Agency</h3>
-                        <div class="text-3xl font-black text-gray-800 my-4">Rp 499rb</div>
-                        <ul class="text-sm text-gray-600 space-y-2 mb-6"><li>Lisensi Komersial</li><li>White Label</li></ul>
-                        <a href="#checkout-box" class="block w-full py-2 border border-gray-300 text-gray-600 font-bold rounded hover:bg-gray-50">Hubungi Kami</a>
-                    </div>
-                </div>`
-            });
-
-            // --- 4. COMPARISON TABLE ---
-            bm.add('comparison-table', {
-                label: 'Comparison', category: 'Pricing',
-                content: `<div class="overflow-x-auto p-4 max-w-3xl mx-auto">
-                    <table class="w-full text-sm text-left border-collapse">
-                        <thead class="bg-gray-50 text-xs uppercase font-bold text-gray-500">
-                            <tr><th class="p-4 border-b">Fitur</th><th class="p-4 border-b text-center">Free</th><th class="p-4 border-b text-center text-blue-600">Premium</th></tr>
-                        </thead>
-                        <tbody class="divide-y">
-                            <tr class="hover:bg-gray-50"><td class="p-4 font-medium">Kualitas Video</td><td class="p-4 text-center text-gray-500">SD (480p)</td><td class="p-4 text-center font-bold text-blue-600">4K Ultra HD</td></tr>
-                            <tr class="hover:bg-gray-50"><td class="p-4 font-medium">Download Offline</td><td class="p-4 text-center text-red-400"><i class="ph ph-x"></i></td><td class="p-4 text-center text-green-500"><i class="ph ph-check-circle-fill text-xl"></i></td></tr>
-                            <tr class="hover:bg-gray-50"><td class="p-4 font-medium">Support</td><td class="p-4 text-center text-gray-500">Email</td><td class="p-4 text-center font-bold text-blue-600">WhatsApp 24/7</td></tr>
-                        </tbody>
-                    </table>
-                </div>`
-            });
-
-            // --- 5. STICKY MENU MOBILE (Iconify Integrasi) ---
-            bm.add('sticky-mobile-nav', {
-                label: 'Sticky Mobile', category: 'Layout',
-                content: `<div class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-[999] flex justify-around items-center py-2 pb-4 shadow-[0_-4px_15px_rgba(0,0,0,0.05)]">
-                    <a href="#" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition"><iconify-icon icon="ph:house-fill" width="24"></iconify-icon><span class="text-[10px] font-bold mt-1">Home</span></a>
-                    <a href="#" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition"><iconify-icon icon="ph:chats-circle-fill" width="24"></iconify-icon><span class="text-[10px] font-bold mt-1">CS</span></a>
-                    <a href="#checkout-box" class="flex flex-col items-center justify-center text-white bg-blue-600 rounded-full w-14 h-14 -mt-8 border-4 border-white shadow-lg"><iconify-icon icon="ph:shopping-cart-fill" width="24"></iconify-icon></a>
-                    <a href="#" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition"><iconify-icon icon="ph:user-fill" width="24"></iconify-icon><span class="text-[10px] font-bold mt-1">Akun</span></a>
-                    <a href="#" class="flex flex-col items-center text-gray-400 hover:text-blue-600 transition"><iconify-icon icon="ph:list-bold" width="24"></iconify-icon><span class="text-[10px] font-bold mt-1">Menu</span></a>
-                </div>`
-            });
-
-            // --- 6. NEWS FLASH (Running Text) ---
-            bm.add('news-flash', {
-                label: 'News Flash', category: 'Marketing',
-                content: `<div class="bg-blue-600 text-white text-xs font-bold py-2 overflow-hidden relative">
-                    <div class="animate-marquee inline-block px-4">
-                        🔥 PROMO SPESIAL HARI INI! BELI 2 GRATIS 1 UNTUK 10 PEMBELI PERTAMA! HUBUNGI ADMIN SEKARANG! 🔥
-                    </div>
-                </div>`
-            });
-
-            // --- 7. COUNTDOWN TIMER ---
-            bm.add('promo-countdown', {
-                label: 'Countdown', category: 'Marketing',
-                content: `<div class="py-8 px-4 bg-red-50 text-center rounded-xl border border-red-100 max-w-lg mx-auto my-4">
-                    <h4 class="text-red-600 font-black text-lg mb-4 uppercase tracking-wider">Penawaran Berakhir Dalam:</h4>
-                    <div class="flex justify-center gap-3" data-gjs-type="countdown">
-                        <div class="bg-white p-3 rounded-lg shadow-sm border border-red-100 w-16"><span data-js="countdown-day" class="block text-2xl font-black text-gray-800">00</span><span class="text-[9px] text-gray-400 font-bold uppercase">Hari</span></div>
-                        <div class="bg-white p-3 rounded-lg shadow-sm border border-red-100 w-16"><span data-js="countdown-hour" class="block text-2xl font-black text-gray-800">00</span><span class="text-[9px] text-gray-400 font-bold uppercase">Jam</span></div>
-                        <div class="bg-white p-3 rounded-lg shadow-sm border border-red-100 w-16"><span data-js="countdown-minute" class="block text-2xl font-black text-gray-800">00</span><span class="text-[9px] text-gray-400 font-bold uppercase">Menit</span></div>
-                        <div class="bg-white p-3 rounded-lg shadow-sm border border-red-100 w-16"><span data-js="countdown-second" class="block text-2xl font-black text-gray-800">00</span><span class="text-[9px] text-gray-400 font-bold uppercase">Detik</span></div>
-                    </div>
-                    <p class="text-xs text-red-400 mt-4 italic">Segera checkout sebelum harga naik!</p>
-                </div>`
-            });
-
-            // --- 8. SOCIAL PROOF (Real/Fake Sales) ---
-            // Ini menggunakan Script custom di dalamnya agar jalan di preview/live
-            bm.add('social-proof', {
-                label: 'Social Proof', category: 'Marketing',
-                content: `<div id="social-proof-notify" class="fixed bottom-20 left-4 bg-white p-4 rounded-xl shadow-2xl border-l-4 border-green-500 z-[990] flex items-center gap-3 animate-slide-up" style="max-width: 300px; display: none;">
-                    <div class="bg-green-100 p-2 rounded-full text-green-600"><iconify-icon icon="ph:check-circle-fill" width="24"></iconify-icon></div>
-                    <div>
-                        <p class="text-xs font-bold text-gray-800"><span id="sp-name">Budi</span> dari <span id="sp-city">Jakarta</span></p>
-                        <p class="text-[10px] text-gray-500">Baru saja membeli <span class="font-bold text-green-600">Paket Sultan</span></p>
-                        <p class="text-[9px] text-gray-400 mt-1">2 menit yang lalu</p>
-                    </div>
+                    <div class="carousel-dots"></div>
                     <script>
                         (function(){
-                            // DATABASE PALSU (Bisa diganti fetch API real)
-                            const names = ['Andi', 'Siti', 'Budi', 'Dewi', 'Rina', 'Eko', 'Fajar'];
-                            const cities = ['Jakarta', 'Bandung', 'Surabaya', 'Medan', 'Makassar'];
-                            const el = document.getElementById('social-proof-notify');
-                            
-                            function showProof() {
-                                if(!el) return;
-                                const name = names[Math.floor(Math.random() * names.length)];
-                                const city = cities[Math.floor(Math.random() * cities.length)];
-                                el.querySelector('#sp-name').innerText = name;
-                                el.querySelector('#sp-city').innerText = city;
-                                el.style.display = 'flex';
-                                el.classList.remove('hidden');
-                                
-                                setTimeout(() => { el.style.display = 'none'; }, 5000); // Hilang setelah 5 detik
+                            // Simple carousel behavior for preview only.
+                            const wrap = document.currentScript.parentElement;
+                            if(!wrap) return;
+                            const slidesWrap = wrap.querySelector('.slides');
+                            const slides = Array.from(wrap.querySelectorAll('.slide'));
+                            let idx = 0;
+                            function go(i){
+                                idx = (i + slides.length) % slides.length;
+                                slidesWrap.style.transform = 'translateX(' + (-idx * 100) + '%)';
+                                // dots
+                                const dots = wrap.querySelectorAll('.carousel-dots button');
+                                dots.forEach((b,bi)=> b.style.background = bi===idx? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.6)');
                             }
-                            
-                            // Muncul setiap 15 detik
-                            setInterval(showProof, 15000);
-                            setTimeout(showProof, 3000); // Muncul pertama kali
+                            function buildDots(){
+                                const dotsWrap = wrap.querySelector('.carousel-dots');
+                                dotsWrap.innerHTML='';
+                                slides.forEach((s,i)=>{
+                                    const b = document.createElement('button');
+                                    b.addEventListener('click',()=>go(i));
+                                    dotsWrap.appendChild(b);
+                                });
+                            }
+                            const prev = wrap.querySelector('.prev');
+                            const next = wrap.querySelector('.next');
+                            if(prev) prev.addEventListener('click',()=>go(idx-1));
+                            if(next) next.addEventListener('click',()=>go(idx+1));
+                            buildDots();
+                            go(0);
+                            // auto rotate
+                            const auto = wrap.getAttribute('data-auto') === 'true';
+                            const interval = parseInt(wrap.getAttribute('data-interval')||5000,10);
+                            if(auto){
+                                let timer = setInterval(()=>go(idx+1), interval);
+                                wrap.addEventListener('mouseenter', ()=> clearInterval(timer));
+                                wrap.addEventListener('mouseleave', ()=> timer = setInterval(()=>go(idx+1), interval));
+                            }
                         })();
                     <\/script>
-                </div>`
+                </div>
+            `;
+            bm.add('hero-slider-editable', {
+                label: 'Carousel (Editable)',
+                category: 'Media',
+                media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7 17l-2-2h4l2 2H7z"/></svg>',
+                content: carouselEditable
             });
-            
 
-            // Init Data
+            // --- PRICING TABLE VARIATIONS ---
+            // 1) Compact Clean
+            const pricingCompact = `
+                <div class="pricing-grid pricing-compact" style="max-width:1100px; margin:0 auto; padding:24px;">
+                    <div class="pricing-card" data-gjs-editable="true">
+                        <div class="title" contenteditable="true">Starter</div>
+                        <div class="price" contenteditable="true">Rp 49.000</div>
+                        <div class="features" contenteditable="true">- 1 Produk<br>- Email Support<br>- Update minor</div>
+                        <a href="#checkout-box" class="cta" style="background:#eef6ff;color:#0b5cff;padding:10px;border-radius:10px;margin-top:12px;display:inline-block;">Pilih Paket</a>
+                    </div>
+                    <div class="pricing-card pricing-highlight" data-gjs-editable="true">
+                        <div class="title" contenteditable="true">Pro</div>
+                        <div class="price" contenteditable="true">Rp 149.000</div>
+                        <div class="features" contenteditable="true">- Semua Fitur<br>- Update Berkala<br>- Support Prioritas</div>
+                        <a href="#checkout-box" class="cta" style="background:#2563eb;color:#fff;padding:10px;border-radius:10px;margin-top:12px;display:inline-block;">Ambil Sekarang</a>
+                    </div>
+                    <div class="pricing-card pricing-illustrated" data-gjs-editable="true">
+                        <div class="title" contenteditable="true">Agency</div>
+                        <div class="price" contenteditable="true">Rp 499.000</div>
+                        <div class="features" contenteditable="true">- Lisensi Komersial<br>- White Label<br>- Dedicated Support</div>
+                        <a href="#checkout-box" class="cta" style="background:#fff;border:1px solid #e6eef8;color:#0b5cff;padding:10px;border-radius:10px;margin-top:12px;display:inline-block;">Hubungi Kami</a>
+                    </div>
+                </div>
+            `;
+            bm.add('pricing-compact', {
+                label: 'Pricing - Compact',
+                category: 'Pricing',
+                media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2L1 7l11 5 9-4.09V17h2V7z"/></svg>',
+                content: pricingCompact
+            });
+
+            // 2) Illustrated pricing with icons
+            const pricingIllustrated = `
+                <div class="pricing-grid pricing-illustrated" style="max-width:1100px; margin:0 auto; padding:28px;">
+                    <div class="pricing-card" data-gjs-editable="true">
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <iconify-icon icon="ph:star" width="28" style="color:#f59e0b"></iconify-icon>
+                            <div class="title" contenteditable="true">Silver</div>
+                        </div>
+                        <div class="price" contenteditable="true">Rp 79.000</div>
+                        <div class="features" contenteditable="true">- 5 Produk<br>- Email Support</div>
+                        <a href="#checkout-box" class="cta" style="background:#10b981;color:#fff;padding:10px;border-radius:10px;margin-top:12px;display:inline-block;">Ambil Paket</a>
+                    </div>
+                    <div class="pricing-card pricing-highlight" data-gjs-editable="true">
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <iconify-icon icon="ph:star-four" width="28" style="color:#2563eb"></iconify-icon>
+                            <div class="title" contenteditable="true">Gold</div>
+                        </div>
+                        <div class="price" contenteditable="true">Rp 199.000</div>
+                        <div class="features" contenteditable="true">- Unlimited Produk<br>- Support 24/7</div>
+                        <a href="#checkout-box" class="cta" style="background:#2563eb;color:#fff;padding:10px;border-radius:10px;margin-top:12px;display:inline-block;">Best Seller</a>
+                    </div>
+                    <div class="pricing-card" data-gjs-editable="true">
+                        <div style="display:flex;gap:10px;align-items:center;">
+                            <iconify-icon icon="ph:rocket" width="28" style="color:#7c3aed"></iconify-icon>
+                            <div class="title" contenteditable="true">Enterprise</div>
+                        </div>
+                        <div class="price" contenteditable="true">Custom</div>
+                        <div class="features" contenteditable="true">- Integrasi custom<br>- SLA 24/7</div>
+                        <a href="#checkout-box" class="cta" style="background:#fff;border:1px solid #e6eef8;color:#7c3aed;padding:10px;border-radius:10px;margin-top:12px;display:inline-block;">Kontak Sales</a>
+                    </div>
+                </div>
+            `;
+            bm.add('pricing-illustrated', {
+                label: 'Pricing - Illustrated',
+                category: 'Pricing',
+                media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2L1 7l11 5 9-4.09V17h2V7z"/></svg>',
+                content: pricingIllustrated
+            });
+
+            // 3) Comparison / Highlight variant
+            const pricingHighlight = `
+                <div style="max-width:1100px;margin:0 auto;padding:28px;">
+                    <div style="display:flex;gap:18px;flex-wrap:wrap;">
+                        <div class="pricing-card" data-gjs-editable="true" style="flex:1;min-width:220px;">
+                            <div class="title" contenteditable="true">Basic</div>
+                            <div class="price" contenteditable="true">Rp 29.000</div>
+                            <div class="features" contenteditable="true">- Single Product<br>- No Support</div>
+                            <a class="cta" href="#checkout-box" style="background:#fff;border:1px solid #e6eef8;color:#0b5cff;padding:10px;border-radius:10px;margin-top:12px;display:inline-block;">Pilih</a>
+                        </div>
+                        <div class="pricing-card pricing-highlight" data-gjs-editable="true" style="flex:1;min-width:240px;">
+                            <div class="title" contenteditable="true">Pro</div>
+                            <div class="price" contenteditable="true">Rp 129.000</div>
+                            <div class="features" contenteditable="true">- Multi Product<br>- Priority Support</div>
+                            <a class="cta" href="#checkout-box" style="background:#2563eb;color:#fff;padding:12px;border-radius:10px;margin-top:12px;display:inline-block;">Ambil Paket</a>
+                        </div>
+                        <div class="pricing-card" data-gjs-editable="true" style="flex:1;min-width:220px;">
+                            <div class="title" contenteditable="true">Agency</div>
+                            <div class="price" contenteditable="true">Rp 399.000</div>
+                            <div class="features" contenteditable="true">- White Label<br>- Dedicated Manager</div>
+                            <a class="cta" href="#checkout-box" style="background:#fff;border:1px solid #e6eef8;color:#0b5cff;padding:10px;border-radius:10px;margin-top:12px;display:inline-block;">Hubungi Kami</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            bm.add('pricing-highlight', {
+                label: 'Pricing - Highlight',
+                category: 'Pricing',
+                media: '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zM3 9h2V7H3v2zm4 8h2v-2H7v2zM7 9h2V7H7v2zM7 5h2V3H7v2zm8 12h2v-2h-2v2zm0-4h2V7h-2v6z"/></svg>',
+                content: pricingHighlight
+            });
+
+            // --- TEMPLATE CHECKOUT EKSKLUSIF END ---
+
+            // --- WIDGETS: Slider / pricing / hero added. ---
+
+            // --- Init Data ---
             if (this.page.slug) {
                 fetch('/api/admin/pages/' + this.page.slug, { credentials: 'same-origin' })
                 .then(r => {
