@@ -645,5 +645,284 @@ function editorApp() {
     };
 }
 </script>
+<script>
+// --- 1. SETUP CSS CUSTOM (Disimpan dalam variabel agar rapi) ---
+const customCanvasCss = `
+    /* Reset & Base */
+    body { background-color: #ffffff; overflow-x: hidden; }
+    
+    /* Animasi & Utils */
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes slideInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .animate-slide-up { animation: slideInUp 0.5s ease-out forwards; }
+
+    /* --- KOMPONEN KHUSUS (Pricing, Slider, dll) --- */
+    /* Pricing Card Styling */
+    .pricing-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+    @media (min-width: 768px) { .pricing-grid { grid-template-columns: repeat(3, 1fr); } }
+    
+    .pricing-card {
+        display: flex; flex-direction: column; height: 100%;
+        padding: 1.5rem; border-radius: 1rem; 
+        background: white; border: 1px solid #e2e8f0;
+        transition: all 0.3s ease;
+    }
+    .pricing-card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+    .pricing-highlight { border: 2px solid #2563eb; position: relative; z-index: 10; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.1); }
+    
+    /* Slider / Carousel Styling */
+    .editable-carousel { position: relative; width: 100%; overflow: hidden; border-radius: 0.75rem; }
+    .editable-carousel .slides { display: flex; transition: transform 0.5s ease-in-out; height: 100%; }
+    .editable-carousel .slide { min-width: 100%; position: relative; height: 100%; }
+    .editable-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
+    
+    /* Navigation Buttons */
+    .carousel-controls button {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        background: rgba(255,255,255,0.8); border: none; width: 40px; height: 40px;
+        border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); z-index: 20;
+        font-weight: bold; color: #1e293b;
+    }
+    .carousel-controls .prev { left: 1rem; }
+    .carousel-controls .next { right: 1rem; }
+    
+    /* Dots */
+    .carousel-dots {
+        position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%);
+        display: flex; gap: 0.5rem; z-index: 20;
+    }
+    .carousel-dots button {
+        width: 8px; height: 8px; border-radius: 50%; border: none;
+        background: rgba(255,255,255,0.5); cursor: pointer; padding: 0;
+    }
+`;
+
+// --- 2. LOGIC EDITOR UTAMA ---
+function editorApp() {
+    return {
+        loading: false, showSettings: false, device: 'desktop', tab: 'blocks', 
+        notifications: [], paymentProviders: [],
+        page: { 
+            slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', 
+            config: { price: 0, variants: [], shipping: { weight: 1000, cod: false }, order_bump: { active: false, title: '', price: 0, desc: '' }, coupons: [], settings: {}, active_payments: [] } 
+        },
+
+        async init() {
+            // ... (Kode fetch logic biarkan sama seperti sebelumnya) ...
+            // Mock provider agar tidak error saat tes file lokal
+            this.paymentProviders = [{slug:'bca', name:'Bank BCA'}, {slug:'mandiri', name:'Mandiri'}];
+            
+            this.initGrapes();
+        },
+
+        // ... (Fungsi notify, setDevice, dll biarkan sama) ...
+        notify(title, msg, type = 'success') { /* ... */ },
+        setDevice(d) { this.device = d; if (window.editor) window.editor.setDevice(d); },
+        cmd(c) { if (window.editor) window.editor.runCommand(c); },
+        addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
+        async savePage() { /* ... Logic save sama ... */ this.notify('Info', 'Simulasi Save (Demo Mode)'); },
+
+        // --- 3. INIT GRAPESJS DENGAN CONFIG TAILWIND YANG BENAR ---
+        initGrapes() {
+            window.editor = grapesjs.init({
+                container: '#gjs',
+                height: '100%',
+                fromElement: false,
+                storageManager: false,
+                
+                // === BAGIAN KRUSIAL: INJECTION ===
+                canvas: {
+                    // 1. Masukkan Library JS disini (Tailwind + Iconify + Phosphor)
+                    scripts: [
+                        'https://cdn.tailwindcss.com', // Tailwind JIT Compiler
+                        'https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js',
+                        'https://unpkg.com/@phosphor-icons/web'
+                    ],
+                    // 2. Masukkan CSS Eksternal (Jika ada font Google, dll)
+                    styles: [
+                        'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap'
+                    ],
+                    // 3. Masukkan Konfigurasi Tailwind & CSS Custom
+                    content: `
+                        <script>
+                            tailwind.config = {
+                                theme: {
+                                    extend: {
+                                        fontFamily: { sans: ['Inter', 'sans-serif'] },
+                                        colors: { primary: '#2563eb', secondary: '#475569' }
+                                    }
+                                }
+                            }
+                        <\/script>
+                        <style>
+                            ${customCanvasCss}
+                        </style>
+                    `
+                },
+                // =================================
+
+                plugins: [
+                    'gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-component-countdown', 
+                    'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 
+                    'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'
+                ],
+                deviceManager: { devices: [{ id: 'desktop', width: '' }, { id: 'tablet', width: '768px' }, { id: 'mobile', width: '375px' }] },
+                blockManager: { appendTo: '#blocks-container' },
+                layerManager: { appendTo: '#layers-container' },
+                selectorManager: { appendTo: '#selectors-container' },
+                traitManager: { appendTo: '#traits-container' },
+                styleManager: { 
+                    appendTo: '#styles-container',
+                    sectors: [
+                        { name: 'Typography', open: true, buildProps: ['font-family', 'font-size', 'font-weight', 'color', 'text-align'] },
+                        { name: 'Dimensions', open: false, buildProps: ['width', 'height', 'padding', 'margin'] },
+                        { name: 'Decorations', open: false, buildProps: ['background-color', 'border', 'border-radius', 'box-shadow'] }
+                    ]
+                }
+            });
+
+            // --- DEFINISI KOMPONEN & BLOCK (Sama seperti sebelumnya) ---
+            const domc = window.editor.DomComponents;
+            const bm = window.editor.BlockManager;
+
+            // 1. Iconify Component
+            domc.addType('iconify-icon', {
+                model: {
+                    defaults: {
+                        tagName: 'iconify-icon', droppable: false,
+                        attributes: { icon: 'ph:star', width: '32', style: 'color:#fbbf24' },
+                        traits: [
+                            { type: 'button', text: 'Ganti Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) },
+                            { name: 'width', type: 'number', label: 'Size' },
+                            { name: 'color', type: 'color', label: 'Color' }
+                        ]
+                    }
+                }
+            });
+            window.editor.on('component:dblclick', (model) => {
+                if(model.get('tagName') === 'iconify-icon') window.openIconifyPicker(model);
+            });
+
+            // 2. Carousel Logic (Script untuk Canvas)
+            domc.addType('editable-carousel', {
+                model: {
+                    defaults: {
+                        script: function() {
+                            const el = this;
+                            const slides = el.querySelectorAll('.slide');
+                            const dots = el.querySelector('.carousel-dots');
+                            let idx = 0;
+                            
+                            // Build Dots
+                            if(dots) {
+                                dots.innerHTML = '';
+                                slides.forEach((_, i) => {
+                                    const btn = document.createElement('button');
+                                    btn.onclick = () => show(i);
+                                    dots.appendChild(btn);
+                                });
+                            }
+
+                            function show(n) {
+                                idx = (n + slides.length) % slides.length;
+                                const track = el.querySelector('.slides');
+                                if(track) track.style.transform = 'translateX(-'+(idx*100)+'%)';
+                                if(dots) {
+                                    Array.from(dots.children).forEach((b, i) => {
+                                        b.style.background = i === idx ? '#fff' : 'rgba(255,255,255,0.5)';
+                                    });
+                                }
+                            }
+                            
+                            const prev = el.querySelector('.prev');
+                            const next = el.querySelector('.next');
+                            if(prev) prev.onclick = () => show(idx - 1);
+                            if(next) next.onclick = () => show(idx + 1);
+                            
+                            show(0);
+                        }
+                    }
+                }
+            });
+
+            // --- BLOCK MANAGER ENTRIES ---
+            
+            // Layout Blocks
+            bm.add('section', { label: 'Section', category: 'Layout', content: '<section class="py-12 px-4 bg-white"><div class="max-w-6xl mx-auto"></div></section>' });
+            bm.add('container', { label: 'Container', category: 'Layout', content: '<div class="max-w-6xl mx-auto p-4"></div>' });
+            bm.add('grid-2', { label: '2 Columns', category: 'Layout', content: '<div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4"><div class="p-4 border border-dashed border-gray-300">Col 1</div><div class="p-4 border border-dashed border-gray-300">Col 2</div></div>' });
+
+            // Media & Components
+            bm.add('iconify', { label: 'Icon', category: 'Media', content: { type: 'iconify-icon' } });
+            
+            // Complex Widgets (Pricing)
+            bm.add('pricing-3', {
+                label: 'Pricing Table',
+                category: 'E-Commerce',
+                content: `
+                    <div class="py-10 px-4">
+                        <div class="pricing-grid max-w-6xl mx-auto">
+                            <div class="pricing-card">
+                                <h3 class="text-lg font-bold text-gray-800">Basic</h3>
+                                <div class="text-3xl font-black text-blue-600 my-4">Rp 50k</div>
+                                <ul class="space-y-2 mb-6 text-sm text-gray-500 flex-1">
+                                    <li>• Fitur Dasar</li>
+                                    <li>• Support Email</li>
+                                </ul>
+                                <a href="#" class="block text-center py-2 px-4 border border-blue-600 text-blue-600 font-bold rounded hover:bg-blue-50">Pilih</a>
+                            </div>
+                            <div class="pricing-card pricing-highlight shadow-xl">
+                                <div class="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-bl">POPULAR</div>
+                                <h3 class="text-lg font-bold text-gray-800">Pro</h3>
+                                <div class="text-3xl font-black text-blue-600 my-4">Rp 150k</div>
+                                <ul class="space-y-2 mb-6 text-sm text-gray-500 flex-1">
+                                    <li>• Semua Fitur Basic</li>
+                                    <li>• Prioritas Support</li>
+                                    <li>• Akses Premium</li>
+                                </ul>
+                                <a href="#" class="block text-center py-3 px-4 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700">Ambil Promo</a>
+                            </div>
+                            <div class="pricing-card">
+                                <h3 class="text-lg font-bold text-gray-800">Expert</h3>
+                                <div class="text-3xl font-black text-blue-600 my-4">Rp 500k</div>
+                                <ul class="space-y-2 mb-6 text-sm text-gray-500 flex-1">
+                                    <li>• White Label</li>
+                                    <li>• Dedicated Manager</li>
+                                </ul>
+                                <a href="#" class="block text-center py-2 px-4 border border-blue-600 text-blue-600 font-bold rounded hover:bg-blue-50">Kontak Kami</a>
+                            </div>
+                        </div>
+                    </div>
+                `
+            });
+
+            // Carousel Widget
+            bm.add('hero-carousel', {
+                label: 'Hero Slider',
+                category: 'Media',
+                content: `
+                    <div class="editable-carousel h-[400px]" data-gjs-type="editable-carousel">
+                        <div class="slides">
+                            <div class="slide">
+                                <img src="https://via.placeholder.com/1200x400/2563eb/ffffff?text=Promo+Spesial" alt="Slide 1">
+                            </div>
+                            <div class="slide">
+                                <img src="https://via.placeholder.com/1200x400/10b981/ffffff?text=Diskon+Akhir+Tahun" alt="Slide 2">
+                            </div>
+                        </div>
+                        <div class="carousel-controls">
+                            <button class="prev">&lt;</button>
+                            <button class="next">&gt;</button>
+                        </div>
+                        <div class="carousel-dots"></div>
+                    </div>
+                `
+            });
+        }
+    };
+}
+</script>
 </body>
 </html>
