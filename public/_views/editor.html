@@ -58,10 +58,40 @@
         }
         
         /* SIDEBAR STYLE */
+        /* --- SIDEBAR RESPONSIVE --- */
         .sidebar-desktop {
-            position: fixed; top: 60px; right: 0; bottom: 0; width: 320px;
-            background: white; border-left: 1px solid #e2e8f0;
-            display: flex; flex-direction: column; z-index: 90;
+            position: fixed;
+            top: 60px;
+            right: 0;
+            bottom: 0;
+            width: 320px;
+            background: white;
+            border-left: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000; /* Pastikan di atas canvas */
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* KHUSUS MOBILE (Layar < 768px) */
+        @media (max-width: 768px) {
+            .sidebar-desktop {
+                width: 85%; /* Lebar 85% layar HP */
+                transform: translateX(100%); /* Sembunyi ke kanan scr default */
+                box-shadow: -10px 0 20px rgba(0,0,0,0.1);
+            }
+            
+            /* Class untuk memunculkan sidebar */
+            .sidebar-desktop.is-open {
+                transform: translateX(0);
+            }
+            
+            /* Overlay Hitam saat sidebar buka */
+            .sidebar-overlay {
+                position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999;
+                display: none;
+            }
+            .sidebar-overlay.show { display: block; }
         }
 
         /* GRAPESJS UI OVERRIDES */
@@ -128,12 +158,25 @@
             <button @click="savePage" :disabled="loading" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-500/30">
                 <i x-show="loading" class="ph ph-spinner animate-spin"></i><span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
             </button>
+            <button @click="mobileMenuOpen = !mobileMenuOpen" 
+                    class="md:hidden bg-white text-gray-700 p-2 rounded-lg border border-gray-300 shadow-sm active:bg-gray-100">
+                <i class="ph" :class="mobileMenuOpen ? 'ph-x' : 'ph-list'" style="font-size: 20px;"></i>
+            </button>
         </div>
     </header>
 
     <div class="flex h-full w-full">
         <div id="gjs" class="w-full h-full"></div>
-        <div class="sidebar-desktop">
+        <div class="flex h-full w-full relative"> <div id="gjs" class="w-full h-full"></div>
+
+            <div class="mobile-overlay md:hidden" 
+             :class="mobileMenuOpen ? 'show' : ''" 
+             @click="mobileMenuOpen = false"></div>
+        
+                <div class="sidebar-desktop" :class="mobileMenuOpen ? 'is-open' : ''">
+             </div>
+
+            </div>
             <div class="panel-tabs flex border-bottom border-gray-200 bg-white">
                 <button @click="tab='blocks'" :class="tab=='blocks'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition" title="Blocks"><i class="ph ph-squares-four text-xl"></i></button>
                 <button @click="tab='styles'" :class="tab=='styles'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition" title="Styles"><i class="ph ph-paint-brush text-xl"></i></button>
@@ -237,6 +280,7 @@
 // --- APP LOGIC ---
 function editorApp() {
     return {
+        mobileMenuOpen: false,
         loading: false, showSettings: false, device: 'desktop', tab: 'blocks', notifications: [], paymentProviders: [],
         page: { 
             slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp', id: 0,
