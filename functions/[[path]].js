@@ -462,7 +462,7 @@ app.post('/api/public/checkout', async (c) => {
 });
 
 // ===============================================
-// 7. PAGE RENDERING (FIXED BUILD ERROR)
+// 7. PAGE RENDERING (FINAL FIX BUILD ERROR)
 // ===============================================
 async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
@@ -517,7 +517,8 @@ async function renderPage(c, page) {
         }
     `;
 
-    // 3. SCRIPT LOGIC (PERHATIKAN: <\/script> SUDAH DIESCAPE)
+    // 3. SCRIPT LOGIC (DENGAN ESCAPING YANG BENAR)
+    // Perhatikan: <\/script> digunakan di sini untuk menghindari error build
     const liveScripts = `
     <script>
         // A. Notifikasi Pesan Terkirim
@@ -626,7 +627,7 @@ async function renderPage(c, page) {
     <\/script>
     `;
 
-    // 4. RETURN HTML LENGKAP
+    // 4. RETURN HTML LENGKAP (DENGAN ESCAPING)
     return c.html(`
     <!DOCTYPE html>
     <html lang='id'>
