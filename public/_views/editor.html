@@ -2,10 +2,11 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LandingBuilder - Ultimate Fixed</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LandingBuilder - Fixed</title>
     
     <script>
+        // Suppress warning Tailwind CDN
         (function() {
             const originalWarn = console.warn;
             console.warn = function(...args) {
@@ -36,126 +37,102 @@
     <script src="https://unpkg.com/grapesjs-style-bg@2.0.1"></script>
 
     <style>
-        /* 1. RESET & BASE */
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; }
+        /* 1. RESET UTAMA */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; }
         [x-cloak] { display: none !important; }
 
         /* 2. HEADER FIXED */
         header {
-            height: 60px; width: 100%; position: fixed; top: 0; left: 0; z-index: 50;
+            height: 60px; width: 100%; position: fixed; top: 0; left: 0; z-index: 100;
             background: white; border-bottom: 1px solid #e2e8f0;
             display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
         }
 
-        /* 3. WORKSPACE WRAPPER */
-        .workspace-wrapper {
-            display: flex;
-            /* Default Desktop: Full height minus header */
-            height: calc(100vh - 60px); 
-            margin-top: 60px;
-            width: 100%;
+        /* 3. WORKSPACE AREA (ABSOLUTE) */
+        .workspace {
+            position: absolute;
+            top: 60px; /* Di bawah header */
+            bottom: 0;
+            left: 0;
+            right: 0;
             overflow: hidden;
-            position: relative;
+            background: #f3f4f6;
         }
 
-        /* 4. CANVAS AREA (#gjs) */
+        /* 4. CANVAS GJS (KIRI) */
         #gjs {
-            flex: 1;
-            height: 100%;
-            background: #f3f4f6;
-            position: relative;
-            min-width: 0;
-            /* Default Desktop: Ada sisa ruang untuk sidebar */
+            position: absolute !important;
+            top: 0 !important; left: 0 !important; bottom: 0 !important;
+            right: 320px !important; /* Desktop: Sisakan ruang 320px di kanan */
+            overflow: hidden;
         }
-        
         .gjs-cv-canvas { width: 100%; height: 100%; top: 0 !important; }
 
-        /* 5. SIDEBAR (DESKTOP) */
-        .sidebar-desktop {
+        /* 5. SIDEBAR (KANAN) */
+        .sidebar-panel {
+            position: absolute;
+            top: 0; right: 0; bottom: 0;
             width: 320px;
-            height: 100%;
             background: white;
             border-left: 1px solid #e2e8f0;
+            z-index: 50;
             display: flex; flex-direction: column;
-            z-index: 40;
-            flex-shrink: 0;
+            transform: translateX(0); /* Desktop: Muncul */
             transition: transform 0.3s ease;
         }
 
-        /* 6. LOGIC MOBILE (Layar < 768px) */
+        /* 6. LOGIC MOBILE */
         @media (max-width: 768px) {
-            /* Kurangi tinggi workspace agar tidak tertutup bottom bar (60px) */
-            .workspace-wrapper {
-                height: calc(100vh - 120px); /* 60px Header + 60px Bottom Bar */
-            }
-
-            /* Sidebar Melayang & Sembunyi */
-            .sidebar-desktop {
-                position: fixed;
-                top: 60px;
-                right: 0;
-                bottom: 60px; /* Stop di atas bottom bar */
-                width: 85%;
-                transform: translateX(100%);
-                box-shadow: -5px 0 15px rgba(0,0,0,0.1);
-                z-index: 60; /* Di atas segalanya */
-            }
+            /* Canvas Full Width di HP */
+            #gjs { right: 0 !important; bottom: 60px !important; /* Ruang utk bottom bar */ }
             
-            .sidebar-desktop.is-open { transform: translateX(0); }
+            /* Sidebar Melayang & Sembunyi */
+            .sidebar-panel {
+                position: fixed; /* Fixed agar melayang di atas canvas */
+                top: 60px; 
+                bottom: 60px; /* Stop di atas bottom bar */
+                width: 85%; 
+                transform: translateX(100%); /* Sembunyi ke kanan */
+                box-shadow: -5px 0 20px rgba(0,0,0,0.15);
+                z-index: 200;
+            }
+            .sidebar-panel.open { transform: translateX(0); }
 
+            /* Overlay Hitam */
             .mobile-overlay {
-                position: fixed; inset: 0; background: rgba(0,0,0,0.5); 
-                z-index: 55; top: 60px; bottom: 60px;
-                display: none;
+                position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150;
+                top: 60px; bottom: 60px; display: none;
             }
             .mobile-overlay.show { display: block; }
         }
 
-        /* TAMBAHKAN DI BAGIAN <style> */
-
-        /* Paksa container Blocks agar selalu terlihat isinya */
-        #blocks-container, 
-        #styles-container, 
-        #traits-container, 
-        #layers-container {
-            min-height: 100vh !important; /* Paksa tinggi penuh */
-            height: auto !important;
-            padding-bottom: 100px !important; /* Ruang untuk scroll */
-            display: block !important; /* Pastikan tidak hidden */
-            overflow: visible !important; 
-        }
-        
-        /* Pastikan grid block manager terlihat jelas */
-        .gjs-blocks-c {
-            display: grid !important;
-            grid-template-columns: repeat(2, 1fr) !important;
-            gap: 10px !important;
-            padding: 10px !important;
-            width: 100% !important;
-        }
-        
-        /* Fix Z-Index agar tidak tertutup layer putih misterius */
-        .sidebar-desktop .custom-scroll {
-            z-index: 50 !important;
-            position: relative !important;
-            background: transparent !important; /* Transparan agar kelihatan */
-        }
-        /* 7. SCROLLBAR & UI TWEAKS */
+        /* 7. UI TWEAKS */
         .gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views { display: none !important; }
         .gjs-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; }
-        .gjs-blocks-c { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
-        .gjs-block { width: 100% !important; min-height: auto !important; padding: 10px 8px !important; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: grab; transition: all 0.2s; box-shadow: 0 1px 1px rgba(0,0,0,0.05); }
-        .gjs-block:hover { border-color: #6366f1; color: #6366f1; transform: translateY(-1px); }
-        .gjs-block-label { font-size: 9px; font-weight: 600; text-align: center; color: #4b5563; margin-top: 4px; }
+        
+        /* Grid Widget */
+        .gjs-blocks-c { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 10px; }
+        .gjs-block { width: 100% !important; min-height: auto !important; padding: 10px 5px !important; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .gjs-block:hover { border-color: #6366f1; color: #6366f1; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2); }
+        .gjs-block-label { font-size: 10px; font-weight: 600; text-align: center; color: #4b5563; margin-top: 4px; line-height: 1.2; }
+        
+        /* Sembunyikan Blok Bawaan */
         .gjs-block[title="Form"], .gjs-block[title="Input"], .gjs-block[title="Textarea"], .gjs-block[title="Select"], .gjs-block[title="Button"], .gjs-block[title="Label"], .gjs-block[title="Checkbox"], .gjs-block[title="Radio"], .gjs-block[title="Text"], .gjs-block[title="Link"], .gjs-block[title="Image"], .gjs-block[title="Video"], .gjs-block[title="Map"] { display: none !important; }
-        ::-webkit-scrollbar { width: 5px; height: 5px; } 
+        
+        /* Scrollbar */
+        .custom-scroll { overflow-y: auto; height: 100%; -webkit-overflow-scrolling: touch; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; } 
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        
+        /* Inputs */
         .input-std { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; }
         .input-std:focus { border-color: #6366f1; ring: 2px solid #e0e7ff; }
     </style>
-    <body x-data="editorApp()">
+</head>
+<body x-data="editorApp()">
 
-    <div class="fixed bottom-20 left-5 z-[9999] flex flex-col gap-2 pointer-events-none"> <template x-for="n in notifications" :key="n.id">
+    <div class="fixed bottom-20 left-5 z-[9999] flex flex-col gap-2 pointer-events-none">
+        <template x-for="n in notifications" :key="n.id">
             <div x-show="n.show" x-transition class="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border-l-4 bg-white min-w-[250px]" :class="n.type==='success'?'border-green-500':'border-red-500'">
                 <i class="ph text-xl" :class="n.type==='success'?'ph-check-circle text-green-500':'ph-warning-circle text-red-500'"></i>
                 <div><h4 class="text-xs font-bold text-gray-800" x-text="n.title"></h4><p class="text-[10px] text-gray-500" x-text="n.msg"></p></div>
@@ -164,16 +141,16 @@
     </div>
 
     <header>
-        <div class="flex items-center gap-3 overflow-hidden">
+        <div class="flex items-center gap-3 overflow-hidden w-full">
             <a href="/admin/pages" class="text-gray-400 hover:text-indigo-600 transition p-1.5 rounded hover:bg-gray-50 shrink-0"><i class="ph ph-arrow-left text-xl"></i></a>
             <div class="h-6 w-px bg-gray-200 shrink-0"></div>
             <div class="flex-1 min-w-0">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Page Slug</span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Slug</span>
                 <input x-model="page.slug" class="bg-transparent font-mono font-bold text-sm text-gray-700 outline-none w-full placeholder-gray-300 focus:text-indigo-600 transition truncate" placeholder="nama-halaman">
             </div>
         </div>
         
-        <div class="hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center bg-gray-100 rounded-lg p-1 border border-gray-200">
+        <div class="hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center bg-gray-100 rounded-lg p-1 border border-gray-200 shadow-sm">
             <button @click="setDevice('desktop')" :class="device=='desktop'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-desktop text-lg"></i></button>
             <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-tablet text-lg"></i></button>
             <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-mobile text-lg"></i></button>
@@ -185,115 +162,76 @@
 
         <div class="flex items-center gap-2">
             <div class="hidden md:flex items-center gap-2">
-                <button @click="showSettings=true" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition"><i class="ph ph-gear-six text-lg"></i> Config</button>
+                <button @click="showSettings=true" class="bg-white hover:bg-gray-50 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition"><i class="ph ph-gear-six text-lg"></i> Config</button>
                 <button @click="savePage" :disabled="loading" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-500/30">
                     <i x-show="loading" class="ph ph-spinner animate-spin"></i><span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
                 </button>
             </div>
-
             <button @click="mobileMenuOpen = !mobileMenuOpen" 
-                    class="md:hidden p-2 rounded-lg border border-gray-200 shadow-sm text-gray-700 active:bg-gray-100"
+                    class="md:hidden p-2 rounded-lg border border-gray-200 shadow-sm text-gray-700 active:bg-gray-100 transition"
                     :class="mobileMenuOpen ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-white'">
                 <i class="ph" :class="mobileMenuOpen ? 'ph-x' : 'ph-list'" style="font-size: 24px;"></i>
             </button>
         </div>
     </header>
 
-    <div class="workspace-wrapper">
+    <div class="workspace">
+        
         <div id="gjs"></div>
 
         <div class="mobile-overlay md:hidden" :class="mobileMenuOpen ? 'show' : ''" @click="mobileMenuOpen = false"></div>
-        
-        <div class="sidebar-desktop" :class="mobileMenuOpen ? 'is-open' : ''">
+
+        <div class="sidebar-panel" :class="mobileMenuOpen ? 'open' : ''">
             
-            <div class="panel-tabs flex border-b border-gray-200 bg-white shrink-0 z-20">
+            <div class="flex border-b border-gray-200 bg-white shrink-0 z-20 relative">
                 <button @click="tab='blocks'" :class="tab=='blocks'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-squares-four text-xl"></i></button>
                 <button @click="tab='styles'" :class="tab=='styles'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-paint-brush text-xl"></i></button>
                 <button @click="tab='traits'" :class="tab=='traits'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-sliders text-xl"></i></button>
                 <button @click="tab='layers'" :class="tab=='layers'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-stack text-xl"></i></button>
             </div>
-            
-            <div class="flex-1 bg-white custom-scroll w-full z-10" style="overflow-y: auto; height: 100%;">
-                
-                <div x-show="tab=='blocks'">
-                    <div id="blocks-container"></div>
-                </div>
 
-                <div x-show="tab=='styles'">
-                    <div id="selectors-container" class="p-3 border-b bg-gray-50 sticky top-0"></div>
+            <div class="flex-1 bg-white custom-scroll relative w-full">
+                <div x-show="tab=='blocks'" class="h-full pb-20">
+                    <div id="blocks-container" class="p-2"></div>
+                </div>
+                <div x-show="tab=='styles'" class="h-full pb-20">
+                    <div id="selectors-container" class="p-3 border-b bg-gray-50 sticky top-0 z-10"></div>
                     <div id="styles-container" class="p-1"></div>
                 </div>
-
-                <div x-show="tab=='traits'">
-                    <div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b sticky top-0">Config</div>
+                <div x-show="tab=='traits'" class="h-full pb-20">
+                    <div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b sticky top-0 z-10">Config</div>
                     <div id="traits-container" class="p-4"></div>
                 </div>
-
-                <div x-show="tab=='layers'">
+                <div x-show="tab=='layers'" class="h-full pb-20">
                     <div id="layers-container"></div>
                 </div>
-
             </div>
         </div>
 
-    <div class="md:hidden fixed bottom-0 left-0 w-full h-[60px] bg-white border-t border-gray-200 flex items-center justify-around z-[100] px-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    </div>
+
+    <div class="md:hidden fixed bottom-0 left-0 w-full h-[60px] bg-white border-t border-gray-200 flex items-center justify-around z-[300] px-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <button @click="cmd('core:preview')" class="flex flex-col items-center justify-center w-16 h-full text-gray-500 active:text-indigo-600">
             <i class="ph ph-eye text-2xl mb-0.5"></i>
-            <span class="text-[9px] font-bold">Preview</span>
+            <span class="text-[9px] font-bold">View</span>
         </button>
-
         <button @click="showSettings=true" class="flex flex-col items-center justify-center w-16 h-full text-gray-500 active:text-indigo-600">
             <i class="ph ph-gear-six text-2xl mb-0.5"></i>
             <span class="text-[9px] font-bold">Config</span>
         </button>
-
         <button @click="savePage" :disabled="loading" class="flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-full shadow-lg active:scale-95 transition">
             <i x-show="loading" class="ph ph-spinner animate-spin text-xl"></i>
             <i x-show="!loading" class="ph ph-paper-plane-right-fill text-xl"></i>
             <span class="font-bold text-xs">PUBLISH</span>
         </button>
     </div>
-    </header>
 
-    <div class="workspace-wrapper">
-        
-        <div id="gjs"></div>
-
-        <div class="mobile-overlay md:hidden" 
-             :class="mobileMenuOpen ? 'show' : ''" 
-             @click="mobileMenuOpen = false"></div>
-        
-        <div class="sidebar-desktop" :class="mobileMenuOpen ? 'is-open' : ''">
-            
-            <div class="panel-tabs flex border-bottom border-gray-200 bg-white shrink-0">
-                <button @click="tab='blocks'" :class="tab=='blocks'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition" title="Blocks"><i class="ph ph-squares-four text-xl"></i></button>
-                <button @click="tab='styles'" :class="tab=='styles'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition" title="Styles"><i class="ph ph-paint-brush text-xl"></i></button>
-                <button @click="tab='traits'" :class="tab=='traits'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition" title="Settings"><i class="ph ph-sliders text-xl"></i></button>
-                <button @click="tab='layers'" :class="tab=='layers'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition" title="Layers"><i class="ph ph-stack text-xl"></i></button>
-            </div>
-            
-            <div class="flex-1 overflow-y-auto bg-white relative custom-scroll">
-                <div x-show="tab=='blocks'" id="blocks-container" class="absolute inset-0 pb-20"></div>
-                <div x-show="tab=='styles'">
-                    <div id="selectors-container" class="p-3 border-b bg-gray-50"></div>
-                    <div id="styles-container" class="pb-20"></div>
-                </div>
-                <div x-show="tab=='traits'">
-                    <div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b">Element Config</div>
-                    <div id="traits-container" class="p-2 pb-20"></div>
-                </div>
-                <div x-show="tab=='layers'" id="layers-container" class="absolute inset-0 pb-20"></div>
-            </div>
-        </div> 
-    </div>
-
-    <div x-show="showSettings" x-cloak class="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-sm flex justify-end" @click.self="showSettings = false">
-        <div class="w-[450px] h-full bg-white shadow-2xl flex flex-col border-l border-gray-200" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0">
+    <div x-show="showSettings" x-cloak class="fixed inset-0 z-[400] bg-slate-900/50 backdrop-blur-sm flex justify-end" @click.self="showSettings = false">
+        <div class="w-full md:w-[450px] h-full bg-white shadow-2xl flex flex-col border-l border-gray-200" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0">
             <div class="p-5 border-b flex justify-between items-center bg-gray-50">
                 <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ph-faders text-indigo-600 text-xl"></i> Page Settings</h2>
                 <button @click="showSettings = false" class="text-gray-400 hover:text-red-500"><i class="ph ph-x text-xl"></i></button>
             </div>
-            
             <div class="flex-1 overflow-y-auto p-6 space-y-8 custom-scroll bg-white">
                 <div>
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Product Type</h3>
@@ -310,7 +248,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="border-t border-gray-100 pt-6" x-show="page.product_type !== 'donation'">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Harga & Varian</h3>
                     <div class="space-y-2">
@@ -328,7 +265,6 @@
                         <input x-model="page.config.price" type="number" class="input-std mt-1" placeholder="0">
                     </div>
                 </div>
-
                 <div class="border-t border-gray-100 pt-6">
                     <h3 class="text-xs font-bold text-purple-600 uppercase tracking-wider mb-3 flex items-center gap-2"><i class="ph ph-lightning"></i> Order Bump</h3>
                     <div class="flex gap-2 items-center mb-2"><input type="checkbox" x-model="page.config.order_bump.active"> Aktifkan</div>
@@ -338,7 +274,6 @@
                         <textarea x-model="page.config.order_bump.desc" class="input-std" rows="2" placeholder="Deskripsi"></textarea>
                     </div>
                 </div>
-
                 <div class="border-t border-gray-100 pt-6">
                     <h3 class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Payment</h3>
                     <select x-model="page.slug_payment" class="input-std bg-white">
@@ -347,7 +282,6 @@
                     </select>
                 </div>
             </div>
-            
             <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
                 <button @click="showSettings=false" class="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">CLOSE</button>
                 <button @click="savePage(); showSettings=false" class="px-6 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 shadow-md">SAVE CHANGES</button>
@@ -356,12 +290,11 @@
     </div>
 
     <div id="iconify-picker-modal" class="fixed inset-0 hidden z-[99999] bg-black/40 flex items-start justify-center p-6 backdrop-blur-sm">
-      <div class="bg-white rounded-xl w-full max-w-xl shadow-2xl overflow-hidden mt-10">
-        <div class="flex items-center justify-between p-4 border-b bg-gray-50"><input id="iconify-picker-search" placeholder="Search icon..." class="w-full bg-transparent outline-none text-sm" /><button id="iconify-picker-close"><i class="ph ph-x text-lg"></i></button></div>
-        <div id="iconify-picker-results" class="p-4 grid grid-cols-6 gap-3 max-h-[300px] overflow-y-auto"></div>
-      </div>
+        <div class="bg-white rounded-xl w-full max-w-xl shadow-2xl overflow-hidden mt-10">
+            <div class="flex items-center justify-between p-4 border-b bg-gray-50"><input id="iconify-picker-search" placeholder="Search icon..." class="w-full bg-transparent outline-none text-sm" /><button id="iconify-picker-close"><i class="ph ph-x text-lg"></i></button></div>
+            <div id="iconify-picker-results" class="p-4 grid grid-cols-6 gap-3 max-h-[300px] overflow-y-auto"></div>
+        </div>
     </div>
-
 <script>
 // --- ICON PICKER LOGIC ---
 (function(){
