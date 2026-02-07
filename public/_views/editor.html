@@ -177,19 +177,17 @@
         </div>
     </header>
 
-    <div class="flex h-full w-full">
-        <div id="gjs" class="w-full h-full"></div>
-        <div class="flex h-full w-full relative"> <div id="gjs" class="w-full h-full"></div>
+    <div class="workspace-wrapper">
+        
+        <div id="gjs"></div>
 
-            <div class="mobile-overlay md:hidden" 
+        <div class="mobile-overlay md:hidden" 
              :class="mobileMenuOpen ? 'show' : ''" 
              @click="mobileMenuOpen = false"></div>
         
-                <div class="sidebar-desktop" :class="mobileMenuOpen ? 'is-open' : ''">
-             </div>
-
-            </div>
-            <div class="panel-tabs flex border-bottom border-gray-200 bg-white">
+        <div class="sidebar-desktop" :class="mobileMenuOpen ? 'is-open' : ''">
+            
+            <div class="panel-tabs flex border-bottom border-gray-200 bg-white shrink-0">
                 <button @click="tab='blocks'" :class="tab=='blocks'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition" title="Blocks"><i class="ph ph-squares-four text-xl"></i></button>
                 <button @click="tab='styles'" :class="tab=='styles'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition" title="Styles"><i class="ph ph-paint-brush text-xl"></i></button>
                 <button @click="tab='traits'" :class="tab=='traits'?'active':''" class="flex-1 p-3 text-gray-400 hover:bg-gray-50 transition" title="Settings"><i class="ph ph-sliders text-xl"></i></button>
@@ -198,11 +196,17 @@
             
             <div class="flex-1 overflow-y-auto bg-white relative custom-scroll">
                 <div x-show="tab=='blocks'" id="blocks-container" class="absolute inset-0 pb-20"></div>
-                <div x-show="tab=='styles'"><div id="selectors-container" class="p-3 border-b bg-gray-50"></div><div id="styles-container" class="pb-20"></div></div>
-                <div x-show="tab=='traits'"><div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b">Element Config</div><div id="traits-container" class="p-2 pb-20"></div></div>
+                <div x-show="tab=='styles'">
+                    <div id="selectors-container" class="p-3 border-b bg-gray-50"></div>
+                    <div id="styles-container" class="pb-20"></div>
+                </div>
+                <div x-show="tab=='traits'">
+                    <div class="p-3 bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b">Element Config</div>
+                    <div id="traits-container" class="p-2 pb-20"></div>
+                </div>
                 <div x-show="tab=='layers'" id="layers-container" class="absolute inset-0 pb-20"></div>
             </div>
-        </div>
+        </div> 
     </div>
 
     <div x-show="showSettings" x-cloak class="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-sm flex justify-end" @click.self="showSettings = false">
