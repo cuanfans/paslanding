@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LandingBuilder - Fixed</title>
+    <title>LandingBuilder - Perfect Mobile</title>
     
     <script>
-        // Suppress warning Tailwind CDN
         (function() {
             const originalWarn = console.warn;
             console.warn = function(...args) {
@@ -37,96 +36,104 @@
     <script src="https://unpkg.com/grapesjs-style-bg@2.0.1"></script>
 
     <style>
-        /* 1. RESET UTAMA */
+        /* 1. RESET & LAYOUT */
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; }
         [x-cloak] { display: none !important; }
 
-        /* 2. HEADER FIXED */
+        /* 2. HEADER UTAMA (Fixed Top) */
         header {
             height: 60px; width: 100%; position: fixed; top: 0; left: 0; z-index: 100;
             background: white; border-bottom: 1px solid #e2e8f0;
             display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
         }
 
-        /* 3. WORKSPACE AREA (ABSOLUTE) */
-        .workspace {
-            position: absolute;
-            top: 60px; /* Di bawah header */
-            bottom: 0;
-            left: 0;
-            right: 0;
-            overflow: hidden;
-            background: #f3f4f6;
+        /* 3. MOBILE TOOLS BAR (Sub-Header Khusus HP) */
+        .mobile-tools {
+            display: none; /* Default Hidden di Desktop */
+            height: 50px; width: 100%; position: fixed; top: 60px; left: 0; z-index: 90;
+            background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+            align-items: center; justify-content: center; gap: 15px;
         }
 
-        /* 4. CANVAS GJS (KIRI) */
+        /* 4. WORKSPACE AREA (Canvas Wrapper) */
+        .workspace {
+            position: absolute;
+            top: 60px; /* Desktop: Mulai setelah header (60px) */
+            bottom: 0; left: 0; right: 0;
+            overflow: hidden;
+            background: #f3f4f6;
+            transition: top 0.3s ease; /* Animasi halus saat resize */
+        }
+
+        /* 5. CANVAS GJS */
         #gjs {
             position: absolute !important;
             top: 0 !important; left: 0 !important; bottom: 0 !important;
-            right: 320px !important; /* Desktop: Sisakan ruang 320px di kanan */
+            right: 320px !important; /* Desktop: Sisakan ruang Sidebar */
             overflow: hidden;
         }
         .gjs-cv-canvas { width: 100%; height: 100%; top: 0 !important; }
 
-        /* 5. SIDEBAR (KANAN) */
+        /* 6. SIDEBAR (Desktop) */
         .sidebar-panel {
             position: absolute;
-            top: 0; right: 0; bottom: 0;
-            width: 320px;
-            background: white;
-            border-left: 1px solid #e2e8f0;
-            z-index: 50;
-            display: flex; flex-direction: column;
-            transform: translateX(0); /* Desktop: Muncul */
-            transition: transform 0.3s ease;
+            top: 0; right: 0; bottom: 0; width: 320px;
+            background: white; border-left: 1px solid #e2e8f0;
+            z-index: 50; display: flex; flex-direction: column;
+            transform: translateX(0); transition: transform 0.3s ease;
         }
 
-        /* 6. LOGIC MOBILE */
+        /* 7. RESPONSIVE MOBILE (Layar < 768px) */
         @media (max-width: 768px) {
-            /* Canvas Full Width di HP */
-            #gjs { right: 0 !important; bottom: 60px !important; /* Ruang utk bottom bar */ }
+            /* Tampilkan Toolbar Tambahan */
+            .mobile-tools { display: flex; }
+
+            /* TURUNKAN WORKSPACE (Solusi Canvas Tertutup) */
+            .workspace {
+                top: 110px; /* 60px Header + 50px Mobile Tools */
+            }
+
+            /* Canvas Full Width & Height (dikurangi bottom bar) */
+            #gjs { 
+                right: 0 !important; 
+                bottom: 60px !important; /* Ruang untuk Bottom Action Bar */
+            }
             
             /* Sidebar Melayang & Sembunyi */
             .sidebar-panel {
-                position: fixed; /* Fixed agar melayang di atas canvas */
-                top: 60px; 
-                bottom: 60px; /* Stop di atas bottom bar */
-                width: 85%; 
-                transform: translateX(100%); /* Sembunyi ke kanan */
-                box-shadow: -5px 0 20px rgba(0,0,0,0.15);
+                position: fixed;
+                top: 110px; /* Mulai di bawah Mobile Tools */
+                bottom: 60px; /* Stop di atas Bottom Bar */
+                width: 100%; /* Full width di HP biar lega */
+                max-width: 100%;
+                transform: translateX(100%);
                 z-index: 200;
+                border-left: none;
             }
             .sidebar-panel.open { transform: translateX(0); }
 
-            /* Overlay Hitam */
+            /* Overlay Mobile */
             .mobile-overlay {
                 position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150;
-                top: 60px; bottom: 60px; display: none;
+                top: 110px; bottom: 60px; display: none;
             }
             .mobile-overlay.show { display: block; }
         }
 
-        /* 7. UI TWEAKS */
-        .gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views { display: none !important; }
-        .gjs-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; }
+        /* 8. UI CLEANUP (Hapus Panel Hitam GrapesJS) */
+        .gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views, .gjs-pn-panels { display: none !important; }
         
         /* Grid Widget */
         .gjs-blocks-c { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 10px; }
         .gjs-block { width: 100% !important; min-height: auto !important; padding: 10px 5px !important; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .gjs-block:hover { border-color: #6366f1; color: #6366f1; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2); }
-        .gjs-block-label { font-size: 10px; font-weight: 600; text-align: center; color: #4b5563; margin-top: 4px; line-height: 1.2; }
+        .gjs-block:hover { border-color: #6366f1; color: #6366f1; transform: translateY(-2px); }
         
-        /* Sembunyikan Blok Bawaan */
-        .gjs-block[title="Form"], .gjs-block[title="Input"], .gjs-block[title="Textarea"], .gjs-block[title="Select"], .gjs-block[title="Button"], .gjs-block[title="Label"], .gjs-block[title="Checkbox"], .gjs-block[title="Radio"], .gjs-block[title="Text"], .gjs-block[title="Link"], .gjs-block[title="Image"], .gjs-block[title="Video"], .gjs-block[title="Map"] { display: none !important; }
-        
-        /* Scrollbar */
+        /* Custom Scroll */
         .custom-scroll { overflow-y: auto; height: 100%; -webkit-overflow-scrolling: touch; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; } 
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         
-        /* Inputs */
-        .input-std { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; }
-        .input-std:focus { border-color: #6366f1; ring: 2px solid #e0e7ff; }
+        /* Hide Default Blocks */
+        .gjs-block[title="Form"], .gjs-block[title="Input"], .gjs-block[title="Textarea"], .gjs-block[title="Select"], .gjs-block[title="Button"], .gjs-block[title="Label"], .gjs-block[title="Checkbox"], .gjs-block[title="Radio"], .gjs-block[title="Text"], .gjs-block[title="Link"], .gjs-block[title="Image"], .gjs-block[title="Video"], .gjs-block[title="Map"] { display: none !important; }
+        .gjs-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; }
     </style>
 </head>
 <body x-data="editorApp()">
@@ -155,7 +162,6 @@
             <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-tablet text-lg"></i></button>
             <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-mobile text-lg"></i></button>
             <div class="w-px h-5 bg-gray-300 mx-2"></div>
-            <button @click="cmd('core:preview')" class="text-gray-500 hover:text-indigo-600 p-1.5" title="Preview"><i class="ph ph-eye text-lg"></i></button>
             <button @click="cmd('core:undo')" class="text-gray-400 hover:text-gray-700 p-1.5" title="Undo"><i class="ph ph-arrow-u-up-left text-lg"></i></button>
             <button @click="cmd('core:redo')" class="text-gray-400 hover:text-gray-700 p-1.5" title="Redo"><i class="ph ph-arrow-u-up-right text-lg"></i></button>
         </div>
@@ -175,6 +181,14 @@
         </div>
     </header>
 
+    <div class="mobile-tools">
+        <button @click="setDevice('desktop')" :class="device=='desktop'?'text-indigo-600 bg-white border-indigo-200 shadow-sm':'text-gray-400 border-transparent'" class="p-1.5 rounded border transition"><i class="ph ph-desktop text-lg"></i></button>
+        <button @click="setDevice('mobile')" :class="device=='mobile'?'text-indigo-600 bg-white border-indigo-200 shadow-sm':'text-gray-400 border-transparent'" class="p-1.5 rounded border transition"><i class="ph ph-device-mobile text-lg"></i></button>
+        <div class="w-px h-4 bg-gray-300"></div>
+        <button @click="cmd('core:undo')" class="text-gray-500 active:text-indigo-600"><i class="ph ph-arrow-u-up-left text-lg"></i></button>
+        <button @click="cmd('core:redo')" class="text-gray-500 active:text-indigo-600"><i class="ph ph-arrow-u-up-right text-lg"></i></button>
+    </div>
+
     <div class="workspace">
         
         <div id="gjs"></div>
@@ -183,7 +197,7 @@
 
         <div class="sidebar-panel" :class="mobileMenuOpen ? 'open' : ''">
             
-            <div class="flex border-b border-gray-200 bg-white shrink-0 z-20 relative">
+            <div class="flex border-b border-gray-200 bg-white shrink-0 z-20 relative shadow-sm">
                 <button @click="tab='blocks'" :class="tab=='blocks'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-squares-four text-xl"></i></button>
                 <button @click="tab='styles'" :class="tab=='styles'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-paint-brush text-xl"></i></button>
                 <button @click="tab='traits'" :class="tab=='traits'?'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600':'text-gray-400'" class="flex-1 p-3 transition"><i class="ph ph-sliders text-xl"></i></button>
