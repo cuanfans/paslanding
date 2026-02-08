@@ -334,22 +334,23 @@
 // --- APP LOGIC ---
 function editorApp() {
     return {
-        // --- UI STATES (Pastikan nama variabel sesuai dengan x-model/x-show di HTML) ---
-        device: 'mobile',
-        tab: 'blocks',
+        // --- UI STATES (Jangan diubah namanya agar Alpine tidak error) ---
         mobileMenuOpen: false,
-        showSettings: false,
-        settingsTab: 'commerce',
-        loading: false,
-        notifications: [],
+        loading: false, 
+        showSettings: false, 
+        device: 'desktop', 
+        tab: 'blocks', 
+        notifications: [], 
+        paymentProviders: [],
+        settingsTab: 'commerce', // State tambahan untuk tab di dalam modal settings
 
-        // --- DATA STRUCTURE (Wajib lengkap agar tidak error 'undefined') ---
+        // --- DATA STRUCTURE (Lengkap dengan Meta, Analytics, dan Scripts) ---
         page: { 
-            id: 0,
             slug: '', 
             title: '', 
             product_type: 'physical', 
-            slug_payment: 'whatsapp',
+            slug_payment: 'whatsapp', 
+            id: 0,
             meta: {
                 description: '',
                 keywords: '',
@@ -378,112 +379,107 @@ function editorApp() {
 
         // --- INITIALIZATION ---
         async init() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const slug = urlParams.get('slug');
+            const params = new URLSearchParams(window.location.search);
+            const slug = params.get('slug');
+            
             if (slug) {
-                this.loading = true;
-                try {
-                    const res = await fetch(`/api/admin/pages/${slug}`);
-                    const data = await res.json();
-                    if (data) {
-                        // Mapping data dari server ke state Alpine
-                        this.page.id = data.id || 0;
-                        this.page.slug = data.slug || '';
-                        this.page.title = data.title || '';
-                        this.page.product_type = data.product_type || 'physical';
-                        this.page.slug_payment = data.provider || 'whatsapp';
-                        
-                        // Merge nested objects agar properti default tidak hilang
-                        if (data.meta) this.page.meta = Object.assign({}, this.page.meta, data.meta);
-                        if (data.analytics) this.page.analytics = Object.assign({}, this.page.analytics, data.analytics);
-                        if (data.scripts) this.page.scripts = Object.assign({}, this.page.scripts, data.scripts);
-                        if (data.product_config) this.page.config = Object.assign({}, this.page.config, data.product_config);
-
-                        // Load ke GrapesJS Editor
-                        if (data.html) {
-                            window.editor.setComponents(data.html);
-                            window.editor.setStyle(data.css || '');
-                        }
-                    }
-                } catch (e) {
-                    console.error('Error loading page:', e);
-                    this.addNotification('Gagal memuat data halaman', 'error');
-                }
-                this.loading = false;
+                await this.loadPageData(slug);
+            } else {
+                this.page.slug = 'new-page';
             }
+            
+            await this.fetchPaymentProviders();
+            this.initGrapes();
         },
 
-        // --- CORE ACTIONS ---
-        async savePage() {
-            if (this.loading) return;
-            this.loading = true;
-            
-            const html = window.editor.getHtml();
-            const css = window.editor.getCss();
-            
+        // --- LOAD DATA ---
+        async loadPageData(slug) {
             try {
-                const res = await fetch('/api/admin/pages', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        id: this.page.id,
-                        slug: this.page.slug,
-                        title: this.page.title,
-                        product_type: this.page.product_type,
-                        provider: this.page.slug_payment,
-                        html: html,
-                        css: css,
-                        meta: this.page.meta,
-                        analytics: this.page.analytics,
-                        scripts: this.page.scripts,
-                        product_config: this.page.config
-                    })
-                });
-                
-                if (res.ok) {
-                    this.addNotification('Halaman Berhasil Disimpan!', 'success');
-                } else {
-                    const errData = await res.json();
-                    this.addNotification(errData.error || 'Gagal Menyimpan Halaman', 'error');
+                const res = await fetch(`/api/admin/pages/${slug}`, { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data) {
+                    this.page.id = data.id || 0;
+                    this.page.slug = data.slug || '';
+                    this.page.title = data.title || '';
+                    this.page.product_type = data.product_type || 'physical';
+                    this.page.slug_payment = data.provider || 'whatsapp';
+                    
+                    // Gabungkan data Meta, Analytics, dan Scripts jika ada
+                    if (data.meta) this.page.meta = Object.assign({}, this.page.meta, data.meta);
+                    if (data.analytics) this.page.analytics = Object.assign({}, this.page.analytics, data.analytics);
+                    if (data.scripts) this.page.scripts = Object.assign({}, this.page.scripts, data.scripts);
+                    if (data.product_config) this.page.config = Object.assign({}, this.page.config, data.product_config);
+
+                    if (data.html) {
+                        window.editor.setComponents(data.html);
+                        window.editor.setStyle(data.css || '');
+                    }
                 }
-            } catch (e) {
-                console.error('Save Error:', e);
-                this.addNotification('Terjadi Kesalahan Koneksi', 'error');
+            } catch (e) { console.error('Gagal load:', e); }
+        },
+
+        async fetchPaymentProviders() {
+            try { 
+                const res = await fetch('/api/admin/templates?type=payment', { credentials: 'same-origin' }); 
+                if (res.status === 401) return; 
+                const json = await res.json(); 
+                this.paymentProviders = Array.isArray(json) ? json : (json.results || []); 
+            } catch (e) {}
+        },
+
+        addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
+
+        // --- SAVE DATA (Lengkap dengan pengiriman Meta, Analytics, Scripts) ---
+        async savePage() {
+            this.loading = true;
+            try {
+                let html = window.editor.getHtml();
+                // Menggunakan ID asli dari state page
+                html = html.replace('name="page_id" value="0"', `name="page_id" value="${this.page.id || 0}"`);
+                
+                const payload = {
+                    id: this.page.id,
+                    slug: this.page.slug,
+                    title: this.page.title,
+                    product_type: this.page.product_type,
+                    provider: this.page.slug_payment,
+                    html: html,
+                    css: window.editor.getCss(),
+                    meta: this.page.meta,           // Data SEO baru
+                    analytics: this.page.analytics, // Data Tracking baru
+                    scripts: this.page.scripts,     // Data Script baru
+                    product_config: this.page.config
+                };
+
+                const res = await fetch('/api/admin/pages', { 
+                    method: 'POST', 
+                    credentials: 'same-origin', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload) 
+                });
+
+                if (res.status === 401) { window.location.href = '/login'; return; }
+                this.notify(res.ok ? 'Sukses' : 'Error', res.ok ? 'Berhasil disimpan!' : 'Gagal menyimpan', res.ok ? 'success' : 'error');
+            } catch (e) { 
+                this.notify('Error', 'Koneksi bermasalah', 'error'); 
             }
             this.loading = false;
         },
 
-        // --- UI HELPERS ---
-        setDevice(val) {
-            this.device = val;
-            // Sinkronisasi dengan GrapesJS Device Manager
-            const deviceMap = {
-                'mobile': 'Mobile',
-                'tablet': 'Tablet',
-                'desktop': 'Desktop'
-            };
-            window.editor.setDevice(deviceMap[val] || 'Desktop');
-            
-            // Atur lebar canvas manual untuk preview yang lebih presisi
-            const canvas = document.querySelector('.gjs-cv-canvas');
-            if (canvas) {
-                if (val === 'mobile') canvas.style.width = '450px';
-                else if (val === 'tablet') canvas.style.width = '800px';
-                else canvas.style.width = '100%';
-                canvas.style.margin = '0 auto';
-            }
+        // --- UI HELPERS (Tetap sesuai aslinya) ---
+        notify(title, msg, type = 'success') { 
+            const id = Date.now(); 
+            this.notifications.push({ id, title, msg, type, show: true }); 
+            setTimeout(() => { this.notifications = this.notifications.filter(n => n.id !== id); }, 3000); 
         },
+        
+        setDevice(d) { 
+            this.device = d; 
+            window.editor.setDevice(d === 'mobile' ? 'Mobile' : (d === 'tablet' ? 'Tablet' : 'Desktop')); 
+        },
+        
+        cmd(c) { window.editor.runCommand(c); },
 
-        addNotification(msg, type = 'success') {
-            const id = Date.now();
-            this.notifications.push({ id, msg, type });
-            setTimeout(() => {
-                this.notifications = this.notifications.filter(n => n.id !== id);
-            }, 3000);
-        }
-    };
-}
-    
         initGrapes() {
             // === 1. BRIDGE CSS (CRITICAL: TAMPILAN SAMA PERSIS DENGAN PREVIEW) ===
             const bridgeCSS = `
