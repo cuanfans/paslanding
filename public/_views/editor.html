@@ -215,21 +215,100 @@
     </div>
 
     <div x-show="showSettings" x-cloak class="fixed inset-0 z-[400] bg-slate-900/50 backdrop-blur-sm flex justify-end" @click.self="showSettings = false">
-        <div class="w-full md:w-[480px] h-full bg-white shadow-2xl flex flex-col border-l">
-            <div class="p-5 border-b flex justify-between items-center bg-gray-50">
-                <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ph-faders text-indigo-600 text-xl"></i> Settings</h2>
-                <button @click="showSettings = false" class="text-gray-400 hover:text-red-500"><i class="ph ph-x text-xl"></i></button>
+    <div class="w-full md:w-[480px] h-full bg-white shadow-2xl flex flex-col border-l border-gray-200">
+        
+        <div class="p-5 border-b flex justify-between items-center bg-gray-50">
+            <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ph-faders text-indigo-600 text-xl"></i> Page Settings</h2>
+            <button @click="showSettings = false" class="text-gray-400 hover:text-red-500"><i class="ph ph-x text-xl"></i></button>
+        </div>
+
+        <div class="flex border-b text-[11px] font-black uppercase bg-white">
+            <button @click="settingsTab='commerce'" :class="settingsTab==='commerce'?'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50':'text-gray-400'" class="flex-1 py-4">Commerce</button>
+            <button @click="settingsTab='seo'" :class="settingsTab==='seo'?'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50':'text-gray-400'" class="flex-1 py-4">SEO</button>
+            <button @click="settingsTab='advanced'" :class="settingsTab==='advanced'?'border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50':'text-gray-400'" class="flex-1 py-4">Scripts & Pixel</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <div x-show="settingsTab === 'commerce'" class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nama Halaman</label>
+                    <input x-model="page.title" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none focus:border-indigo-500 transition" placeholder="Judul Halaman">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">URL Slug</label>
+                    <input x-model="page.slug" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none focus:border-indigo-500 transition">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tipe Produk</label>
+                    <select x-model="page.product_type" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm">
+                        <option value="physical">Physical Product</option>
+                        <option value="digital">Digital Product</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Base Price (Rp)</label>
+                    <input type="number" x-model="page.config.price" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none">
+                </div>
             </div>
-            <div class="flex-1 overflow-y-auto p-6 space-y-4">
-                <div><label class="text-[10px] font-bold text-gray-400 uppercase">Nama Halaman</label><input x-model="page.title" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none"></div>
-                <div><label class="text-[10px] font-bold text-gray-400 uppercase">URL Slug</label><input x-model="page.slug" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none"></div>
+
+            <div x-show="settingsTab === 'seo'" class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Meta Description</label>
+                    <textarea x-model="page.meta.description" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm h-24 outline-none resize-none" placeholder="Deskripsi pencarian Google..."></textarea>
+                </div>
+                
+                <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Favicon URL</label>
+                    <div class="flex gap-2 mt-2">
+                        <input x-model="page.meta.favicon" class="flex-1 px-4 py-2 bg-white border rounded-lg text-xs outline-none focus:border-indigo-500 transition" placeholder="https://...">
+                        <div class="w-10 h-10 bg-white border rounded flex items-center justify-center overflow-hidden shrink-0">
+                            <template x-if="page.meta.favicon"><img :src="page.meta.favicon" class="w-6 h-6 object-contain"></template>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Social Share Image (OG URL)</label>
+                    <input x-model="page.meta.og_image" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none focus:border-indigo-500" placeholder="https://...">
+                </div>
             </div>
-            <div class="p-4 border-t bg-gray-50 flex justify-end gap-3">
-                <button @click="showSettings=false" class="text-xs font-bold text-gray-500 uppercase">Cancel</button>
-                <button @click="savePage(); showSettings=false" class="px-8 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl shadow-lg">Save Changes</button>
+
+            <div x-show="settingsTab === 'advanced'" class="space-y-6">
+                <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
+                    <h4 class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Tracking Analytics</h4>
+                    <div>
+                        <label class="text-[9px] font-bold text-indigo-400 uppercase">Facebook Pixel ID</label>
+                        <input x-model="page.analytics.fb_pixel" class="w-full mt-1 px-4 py-2 bg-white border border-indigo-200 rounded-lg text-sm outline-none" placeholder="Contoh: 123456789">
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-bold text-indigo-400 uppercase">TikTok Pixel ID</label>
+                        <input x-model="page.analytics.tiktok_pixel" class="w-full mt-1 px-4 py-2 bg-white border border-indigo-200 rounded-lg text-sm outline-none" placeholder="Contoh: C123456">
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-bold text-indigo-400 uppercase">Google Analytics ID</label>
+                        <input x-model="page.analytics.ga_id" class="w-full mt-1 px-4 py-2 bg-white border border-indigo-200 rounded-lg text-sm outline-none" placeholder="G-XXXXXXXX">
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Custom Header Script</label>
+                        <textarea x-model="page.scripts.header" class="w-full mt-1 px-4 py-3 bg-gray-900 text-indigo-300 font-mono text-[10px] h-28 rounded-xl outline-none" placeholder="<script>...</script>"></textarea>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Custom Footer Script</label>
+                        <textarea x-model="page.scripts.footer" class="w-full mt-1 px-4 py-3 bg-gray-900 text-indigo-300 font-mono text-[10px] h-28 rounded-xl outline-none" placeholder="Sebelum </body>"></textarea>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <div class="p-4 border-t bg-gray-50 flex justify-end gap-3">
+            <button @click="showSettings=false" class="px-5 py-2 text-xs font-bold text-gray-500">CANCEL</button>
+            <button @click="savePage(); showSettings=false" class="px-8 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition-all">SIMPAN PERUBAHAN</button>
+        </div>
     </div>
+</div>
 
     <div class="fixed bottom-20 left-5 z-[9999] flex flex-col gap-2 pointer-events-none">
         <template x-for="n in notifications" :key="n.id">
@@ -263,7 +342,17 @@
         function editorApp() {
             return {
                 device: 'desktop', tab: 'blocks', clipboard: null, mobileMenuOpen: false, showSettings: false, loading: false, notifications: [],
-                page: { id: 0, slug: '', title: '', meta: {}, product_type: 'physical', slug_payment: 'whatsapp', config: { price: 0 } },
+                page: { 
+                id: 0, 
+                slug: '', 
+                title: '', 
+                product_type: 'physical',
+                meta: { description: '', keywords: '', favicon: '', og_image: '' },
+                analytics: { fb_pixel: '', tiktok_pixel: '', ga_id: '' },
+                scripts: { header: '', footer: '' },
+                config: { price: 0 } 
+            },
+            settingsTab: 'commerce', // Inisialisasi tab default
 
                 async init() {
                     this.initGrapes();
