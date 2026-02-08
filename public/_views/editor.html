@@ -240,202 +240,241 @@
     </div>
 
     <script>
-        // --- ICON PICKER LOGIC ---
-        (function(){
-            let activeModel = null; const modal = document.getElementById('iconify-picker-modal'); const input = document.getElementById('iconify-picker-search'); const results = document.getElementById('iconify-picker-results');
-            window.openIconifyPicker = function(model) { activeModel = model; modal.classList.remove('hidden'); input.value = ''; input.focus(); searchIcons('star'); };
-            document.getElementById('iconify-picker-close').onclick = () => modal.classList.add('hidden'); input.oninput = (e) => searchIcons(e.target.value);
-            async function searchIcons(q) { if(!q) return; const res = await fetch(`https://api.iconify.design/search?query=${q}&limit=18`); const data = await res.json(); results.innerHTML = ''; if(data.icons) { data.icons.forEach(icon => { const btn = document.createElement('button'); btn.className = 'p-2 hover:bg-indigo-50 rounded flex flex-col items-center gap-1'; btn.innerHTML = `<iconify-icon icon="${icon}" width="24"></iconify-icon><span class="text-[9px] text-gray-400 truncate w-full text-center">${icon.split(':')[1]}</span>`; btn.onclick = () => { if(activeModel) activeModel.setAttributes({ icon: icon }); modal.classList.add('hidden'); }; results.appendChild(btn); }); } }
-        })();
+    <script>
+// --- ICON PICKER LOGIC ---
+(function(){
+    let activeModel = null; const modal = document.getElementById('iconify-picker-modal'); const input = document.getElementById('iconify-picker-search'); const results = document.getElementById('iconify-picker-results');
+    window.openIconifyPicker = function(model) { activeModel = model; modal.classList.remove('hidden'); input.value = ''; input.focus(); searchIcons('star'); };
+    document.getElementById('iconify-picker-close').onclick = () => modal.classList.add('hidden'); input.oninput = (e) => searchIcons(e.target.value);
+    async function searchIcons(q) { if(!q) return; const res = await fetch(`https://api.iconify.design/search?query=${q}&limit=18`); const data = await res.json(); results.innerHTML = ''; if(data.icons) { data.icons.forEach(icon => { const btn = document.createElement('button'); btn.className = 'p-2 hover:bg-indigo-50 rounded flex flex-col items-center gap-1'; btn.innerHTML = `<iconify-icon icon="${icon}" width="24"></iconify-icon><span class="text-[9px] text-gray-400 truncate w-full text-center">${icon.split(':')[1]}</span>`; btn.onclick = () => { if(activeModel) activeModel.setAttributes({ icon: icon }); modal.classList.add('hidden'); }; results.appendChild(btn); }); } }
+})();
 
-        // --- APP LOGIC (Alpine.js) ---
-        function editorApp() {
-            return {
-                device: 'desktop',
-                tab: 'blocks',
-                clipboard: null,
-                mobileMenuOpen: false,
-                showSettings: false,
-                settingsTab: 'commerce',
-                loading: false,
-                notifications: [],
-                paymentProviders: [],
+// --- APP LOGIC ---
+function editorApp() {
+    return {
+        device: 'desktop',
+        tab: 'blocks',
+        clipboard: null,
+        mobileMenuOpen: false,
+        showSettings: false,
+        settingsTab: 'commerce',
+        loading: false,
+        notifications: [],
+        paymentProviders: [],
 
-                page: { 
-                    id: 0, slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp',
-                    meta: { description: '', keywords: '', og_image: '', favicon: '' },
-                    analytics: { fb_pixel: '', ga_id: '', tiktok_pixel: '' },
-                    scripts: { header: '', footer: '' },
-                    config: { price: 0, variants: [], shipping: { weight: 1000, cod: false }, coupons: [] } 
+        page: { 
+            id: 0, slug: '', title: '', product_type: 'physical', slug_payment: 'whatsapp',
+            meta: { description: '', keywords: '', og_image: '', favicon: '' },
+            analytics: { fb_pixel: '', ga_id: '', tiktok_pixel: '' },
+            scripts: { header: '', footer: '' },
+            config: { price: 0, variants: [], shipping: { weight: 1000, cod: false }, order_bump: { active: false }, coupons: [], settings: {}, active_payments: [] } 
+        },
+
+        async init() {
+            this.initGrapes();
+            const params = new URLSearchParams(window.location.search);
+            const slug = params.get('slug');
+            if (slug) { await this.loadPageData(slug); } 
+            else { this.page.slug = 'halaman-baru-' + Date.now(); this.page.title = 'Halaman Baru'; }
+            await this.fetchPaymentProviders();
+        },
+
+        async loadPageData(slug) {
+            this.loading = true;
+            try {
+                const res = await fetch(`/api/admin/pages/${slug}`, { credentials: 'same-origin' });
+                const data = await res.json();
+                if (data) {
+                    this.page.id = data.id || 0; this.page.slug = data.slug || slug; this.page.title = data.title || '';
+                    this.page.product_type = data.product_type || 'physical'; this.page.slug_payment = data.provider || 'whatsapp';
+                    if (data.meta) this.page.meta = typeof data.meta === 'string' ? JSON.parse(data.meta) : data.meta;
+                    if (data.analytics) this.page.analytics = typeof data.analytics === 'string' ? JSON.parse(data.analytics) : data.analytics;
+                    if (data.scripts) this.page.scripts = typeof data.scripts === 'string' ? JSON.parse(data.scripts) : data.scripts;
+                    let configData = typeof data.product_config_json === 'string' ? JSON.parse(data.product_config_json) : (data.product_config || {});
+                    this.page.config = Object.assign(this.page.config, configData);
+                    if (window.editor) {
+                        if (data.html_content || data.html) window.editor.setComponents(data.html_content || data.html);
+                        if (data.css_content || data.css) window.editor.setStyle(data.css_content || data.css);
+                    }
+                }
+            } catch (e) { console.error("Error Load Data:", e); }
+            this.loading = false;
+        },
+
+        async fetchPaymentProviders() {
+            try { 
+                const res = await fetch('/api/admin/templates?type=payment', { credentials: 'same-origin' }); 
+                const json = await res.json(); this.paymentProviders = Array.isArray(json) ? json : (json.results || []); 
+            } catch (e) {}
+        },
+
+        async savePage() {
+            this.loading = true;
+            try {
+                if (!window.editor) throw new Error("Editor GrapesJS belum siap");
+                const html = window.editor.getHtml(); const css = window.editor.getCss(); const js = window.editor.getJs();
+                const payload = {
+                    id: this.page.id, slug: this.page.slug, title: this.page.title, product_type: this.page.product_type,
+                    provider: this.page.slug_payment, html: `${html}<script>${js}<\/script>`, css: css,
+                    meta: this.page.meta, analytics: this.page.analytics, scripts: this.page.scripts, product_config: this.page.config
+                };
+                const res = await fetch('/api/admin/pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (res.status === 401) { window.location.href = '/login'; return; }
+                this.notify(res.ok ? 'Sukses' : 'Error', res.ok ? 'Berhasil disimpan!' : 'Gagal menyimpan', res.ok ? 'success' : 'error');
+            } catch (e) { this.notify('Error', 'Masalah teknis: ' + e.message, 'error'); }
+            this.loading = false;
+        },
+
+        notify(title, msg, type = 'success') { 
+            const id = Date.now(); this.notifications.push({ id, title, msg, type, show: true }); 
+            setTimeout(() => { this.notifications = this.notifications.filter(n => n.id !== id); }, 3000); 
+        },
+
+        setDevice(d) { this.device = d; if (window.editor) window.editor.setDevice(d); },
+
+        async uploadToCloudinary(event, target) {
+            const file = event.target.files[0]; if (!file) return; this.loading = true;
+            try {
+                const formData = new FormData(); formData.append('file', file);
+                const res = await fetch('/api/admin/upload', { method: 'POST', credentials: 'same-origin', body: formData });
+                const data = await res.json();
+                if (res.ok && data.url) { this.page.meta[target] = data.url; this.notify('Sukses', 'Gambar diupdate!', 'success'); }
+                else { throw new Error(data.error || 'Gagal upload'); }
+            } catch (e) { this.notify('Error', e.message, 'error'); }
+            finally { this.loading = false; event.target.value = ''; }
+        },
+
+        cmd(c) { window.editor.runCommand(c); },
+        
+        initGrapes() {
+            const bridgeCSS = `
+                body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; }
+                .product-gallery { display: flex; flex-direction: column; gap: 12px; width: 100%; overflow: hidden; }
+                .gallery-main { display: flex; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); width: 100%; }
+                .gallery-main img { width: 100%; flex-shrink: 0; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; }
+                .gallery-thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding: 5px 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+                .gallery-thumbs::-webkit-scrollbar { display: none; }
+                .thumb-item { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.6; transition: 0.3s; object-fit: cover; }
+                .thumb-item.active { border-color: #4f46e5; opacity: 1; transform: scale(1.05); }
+                .editable-carousel { position: relative; width: 100%; overflow: hidden; }
+                .editable-carousel .slides { display: flex; transition: transform 0.5s ease-in-out; }
+                .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; }
+                .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; }
+                .pricing-card.highlight { border: 2px solid #2563eb; }
+                .pricing-card .price { font-size:32px; font-weight:900; color:#0f172a; margin:10px 0; }
+                .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; height: 100%; }
+                .scrollbar-hide::-webkit-scrollbar { display: none; }
+            `;
+
+            window.editor = grapesjs.init({
+                container: '#gjs', height: '100%', fromElement: false, storageManager: false,
+                panels: { defaults: [] },
+                canvas: {
+                    scripts: ['https://cdn.tailwindcss.com', 'https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js'],
+                    styles: ['https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap', 'https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css'],
+                    content: `<style>${bridgeCSS}</style><script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { theme: { 500:'#6366f1' } } } } }<\/script>`
                 },
+                plugins: ['gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'],
+                deviceManager: { devices: [{ id: 'desktop', width: '' }, { id: 'tablet', width: '768px' }, { id: 'mobile', width: '375px' }] },
+                blockManager: { appendTo: '#blocks-container' },
+                layerManager: { appendTo: '#layers-container' },
+                selectorManager: { appendTo: '#selectors-container' },
+                traitManager: { appendTo: '#traits-container' },
+                styleManager: { appendTo: '#styles-container', sectors: [{ name: 'Typography', open:true, buildProps:['font-family','font-size','font-weight','color','text-align','line-height'] }, { name: 'Decorations', buildProps:['background-color','border','border-radius','box-shadow'] }, { name: 'Dimensions', buildProps:['width','height','padding','margin'] }] }
+            });
 
-                async init() {
-                    this.initGrapes();
-                    const params = new URLSearchParams(window.location.search);
-                    const slug = params.get('slug');
-                    if (slug) await this.loadPageData(slug);
-                    else { this.page.slug = 'halaman-baru-' + Date.now(); this.page.title = 'Halaman Baru'; }
-                },
+            const domc = window.editor.DomComponents;
+            const bm = window.editor.BlockManager;
 
-                async loadPageData(slug) {
-                    this.loading = true;
-                    try {
-                        const res = await fetch(`/api/admin/pages/${slug}`, { credentials: 'same-origin' });
-                        const data = await res.json();
-                        if (data) {
-                            this.page.id = data.id || 0; this.page.slug = data.slug || slug; this.page.title = data.title || '';
-                            if (data.meta) this.page.meta = typeof data.meta === 'string' ? JSON.parse(data.meta) : data.meta;
-                            if (data.analytics) this.page.analytics = typeof data.analytics === 'string' ? JSON.parse(data.analytics) : data.analytics;
-                            if (data.scripts) this.page.scripts = typeof data.scripts === 'string' ? JSON.parse(data.scripts) : data.scripts;
-                            if (window.editor) {
-                                if (data.html_content) window.editor.setComponents(data.html_content);
-                                if (data.css_content) window.editor.setStyle(data.css_content);
+            // 1. Iconify Type Definition
+            domc.addType('iconify-icon', { model: { defaults: { tagName: 'iconify-icon', droppable: false, attributes: { icon: 'ph:star-fill', width: '32', class: 'text-yellow-400' }, traits: [{ type: 'button', text: '🔍 Change Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) }, { name: 'width', type: 'number', label: 'Size' }, { name: 'class', label: 'Class' }] } } });
+
+            // 2. Carousel Logic
+            domc.addType('product-gallery', {
+                model: { defaults: { script: function() {
+                    const el = this; const main = el.querySelector('.gallery-main'); const thumbs = el.querySelectorAll('.thumb-item');
+                    const goTo = (i) => { if(!main) return; main.style.transform = `translateX(-${i * 100}%)`; thumbs.forEach((t, idx) => idx === i ? t.classList.add('active') : t.classList.remove('active')); };
+                    thumbs.forEach((t, i) => t.onclick = () => goTo(i));
+                }}}
+            });
+
+            // 3. Listeners: Double Click Icon (RESTORED)
+            window.editor.on('component:dblclick', (model) => { if(model.get('tagName') === 'iconify-icon') window.openIconifyPicker(model); });
+
+            // 4. Listeners: Toolbar Cut/Paste (RESTORED)
+            window.editor.on('component:selected', (model) => {
+                const toolbar = model.get('toolbar'); if (toolbar.find(item => item.id === 'cut-comp')) return;
+                toolbar.unshift(
+                    { id: 'move-up', command: () => { const i = model.index(); if (i > 0) model.parent().components().add(model, { at: i - 1 }); }, label: '<i class="ph ph-arrow-up"></i>' },
+                    { id: 'move-down', command: () => { const i = model.index(); model.parent().components().add(model, { at: i + 2 }); }, label: '<i class="ph ph-arrow-down"></i>' },
+                    { id: 'cut-comp', command: () => { this.clipboard = model.toHTML(); model.remove(); this.notify('Cut', 'Komponen dipotong', 'info'); }, label: '<i class="ph ph-scissors"></i>' },
+                    { id: 'paste-inside', command: () => { if (this.clipboard) { model.append(this.clipboard); this.notify('Sukses', 'Berhasil disisipkan', 'success'); } else { this.notify('Kosong', 'Clipboard kosong', 'error'); } }, label: '<i class="ph ph-box-arrow-down"></i>' }
+                );
+                model.set('toolbar', toolbar);
+            });
+
+            // 5. Universal Resizer (RESTORED)
+            window.editor.on('component:add', (model) => {
+                const types = ['image', 'video', 'button', 'text', 'link', 'map'];
+                if (types.includes(model.get('type')) || ['IMG', 'VIDEO', 'BUTTON'].includes(model.get('tagName'))) {
+                    model.set('resizable', { cr: 1, cb: 1, br: 1, keyWidth: 'width', keyHeight: 'height' });
+                }
+            });
+
+            // --- 6. ALL BLOCKS DEFINITION (COMPLETE RESTORATION) ---
+            
+            // BASIC
+            bm.add('text-heading', { label: 'Heading', category: 'Basic', content: '<h2 class="text-3xl font-black text-gray-800 mb-4">Tulis Judul Disini</h2>' });
+            bm.add('text-paragraph', { label: 'Paragraph', category: 'Basic', content: '<p class="text-base text-gray-600 mb-4 leading-relaxed">Tulis deskripsi teks paragraf Anda di sini.</p>' });
+            bm.add('ui-button', { label: 'Button-Pro', category: 'Basic', content: '<a href="#" class="btn btn-primary px-6 py-3 rounded-lg font-bold text-white shadow-lg">Click Me</a>' });
+            bm.add('ui-image', { label: 'Picture', category: 'Basic', content: { type: 'image', style: { color: 'black' }, activeOnRender: 1 } });
+            bm.add('iconify-blk', { label: 'Icon', category: 'Basic', content: { type: 'iconify-icon' } }); // <--- ICON WIDGET
+            bm.add('ui-divider', { label: 'Divider', category: 'Basic', content: '<div class="divider py-4"></div>' });
+
+            // MEDIA
+            bm.add('gallery-carousel-1', { label: 'Thumb Carousel', category: '2. Media', content: '<div class="product-gallery" data-gjs-type="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Slide+1"><img src="https://via.placeholder.com/800x600/10b981/fff?text=Slide+2"><img src="https://via.placeholder.com/800x600/f59e0b/fff?text=Slide+3"></div><div class="gallery-thumbs"><img src="https://via.placeholder.com/150/2563eb/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff" class="thumb-item"><img src="https://via.placeholder.com/150/f59e0b/fff" class="thumb-item"></div></div>' });
+            bm.add('gallery-carousel-2', { label: 'Thumb Gallery', category: '2. Media', content: '<div class="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/4f46e5/fff?text=Img+A"><img src="https://via.placeholder.com/800x600/ef4444/fff?text=Img+B"></div><div class="gallery-thumbs mt-2"><img src="https://via.placeholder.com/150/4f46e5/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/ef4444/fff" class="thumb-item"></div></div>' });
+            bm.add('video-yt', { label: 'Video Youtube', category: '2. Media', content: `<div class="max-w-4xl mx-auto rounded-2xl overflow-hidden shadow-2xl aspect-video"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen></iframe></div>` });
+
+            // CONTENT
+            bm.add('feature-grid', { label: 'Features', category: '3. Content', content: `<section class="py-16 bg-white"><div class="container mx-auto px-4"><div class="grid md:grid-cols-3 gap-8"><div class="p-6 border rounded-xl text-center"><iconify-icon icon="ph:rocket-fill" class="text-3xl text-indigo-600 mb-4"></iconify-icon><h3 class="font-bold">Fast Speed</h3><p class="text-sm text-gray-500">Speed optimized.</p></div></div></div></section>` });
+            bm.add('testimonials', { label: 'Testimonials', category: '3. Content', content: `<section class="py-16 bg-gray-50"><div class="container mx-auto px-4 text-center"><div class="testimonial-card inline-block max-w-sm"><h4 class="font-bold">Andi</h4><p class="text-sm italic">"Sangat memuaskan!"</p></div></div></section>` });
+            bm.add('faq-pro', { label: 'FAQ Pro', category: '3. Content', content: `<section class="max-w-3xl mx-auto py-16 px-4"><h2 class="text-3xl font-black text-center mb-10">FAQ</h2><div class="p-6 border-2 rounded-2xl mb-4"><h3 class="font-bold text-indigo-600">Pertanyaan?</h3><p class="text-sm text-gray-600">Klik dua kali untuk ganti jawaban.</p></div></section>` });
+            bm.add('trust-badges', { label: 'Trust Badges', category: '3. Content', content: `<div class="flex flex-wrap justify-center gap-8 py-8 opacity-60"><iconify-icon icon="logos:visa" width="48"></iconify-icon><iconify-icon icon="logos:mastercard" width="48"></iconify-icon></div>` });
+            bm.add('steps', { label: 'Steps', category: '3. Content', content: `<ul class="steps steps-vertical lg:steps-horizontal w-full py-8"><li class="step step-primary">Pilih</li><li class="step step-primary">Isi</li><li class="step">Bayar</li></ul>` });
+            bm.add('countdown-smart', { label: 'Countdown Pro', category: '3. Content', content: { type: 'countdown-smart', content: `<div class="py-10 bg-indigo-900 rounded-3xl text-white max-w-[800px] mx-auto text-center js-wrap"><span class="js-d text-4xl font-black">00</span> HARI <span class="js-h text-4xl font-black">00</span> JAM <span class="js-m text-4xl font-black">00</span> MENIT <span class="js-s text-4xl font-black">00</span> DETIK</div>` } }); 
+
+            // COMMERCE
+            bm.add('pricing-table', { label: 'Pricing Edit', category: '4. Commerce', content: `<section class="py-20 bg-gray-50"><div class="container mx-auto px-4 max-w-6xl text-center"><div class="pricing-card border-2 border-indigo-600 max-w-sm mx-auto"><h3 class="title">Professional</h3><div class="price">Rp 99.000</div><button class="btn btn-primary w-full mt-4">Pilih</button></div></div></section>` });
+            bm.add('contact-form', { label: 'Contact Form', category: '4. Commerce', content: `<div class="max-w-md mx-auto p-8 bg-white rounded-2xl shadow-xl border"><h3 class="text-xl font-bold mb-4">Hubungi Kami</h3><form class="space-y-4"><div><label class="text-xs font-bold text-gray-500 uppercase">Nama</label><input type="text" class="input input-bordered w-full" placeholder="John Doe"></div><button type="button" class="btn btn-primary w-full">Kirim</button></form></div>` });
+            bm.add('checkout-pro', { label: 'Checkout Pro', category: '4. Commerce', content: `<div class="py-12 bg-gray-50 text-center"><div class="card bg-white shadow-xl max-w-md mx-auto p-6"><h2 class="card-title justify-center">Detail Pembayaran</h2><div class="divider"></div><button type="button" class="btn btn-primary w-full">BAYAR SEKARANG</button></div></div>` });
+
+            // CONTAINERS
+            bm.add('container-1000', { label: 'Cont-1000px', category: '5. Basic', content: `<div class="py-4 bg-gray-100"><div class="mx-auto max-w-[1000px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase">1000px Container</div></div>` });
+            bm.add('container-1200', { label: 'Cont-1200px', category: '5. Basic', content: `<div class="py-4 bg-gray-100"><div class="mx-auto max-w-[1200px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase">1200px Container</div></div>` });
+
+            // 7. Click-to-Add Logic (Mobile Friendly)
+            setTimeout(() => {
+                const container = document.getElementById('blocks-container');
+                if (container) {
+                    container.addEventListener('click', (e) => {
+                        const blockEl = e.target.closest('.gjs-block');
+                        if (blockEl) {
+                            const id = blockEl.getAttribute('title') || blockEl.innerText.trim();
+                            const block = window.editor.BlockManager.get(id);
+                            if (block) {
+                                window.editor.addComponents(block.get('content'));
+                                this.notify('Sukses', 'Elemen ditambahkan', 'success');
+                                if(window.innerWidth < 768) this.mobileMenuOpen = false;
                             }
                         }
-                    } catch (e) { console.error(e); }
-                    this.loading = false;
-                },
-
-                async savePage() {
-                    this.loading = true;
-                    try {
-                        const html = window.editor.getHtml(); const css = window.editor.getCss(); const js = window.editor.getJs();
-                        const payload = {
-                            id: this.page.id, slug: this.page.slug, title: this.page.title, provider: this.page.slug_payment,
-                            html: `${html}<script>${js}<\/script>`, css: css, meta: this.page.meta, analytics: this.page.analytics, 
-                            scripts: this.page.scripts, product_config: this.page.config
-                        };
-                        const res = await fetch('/api/admin/pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                        this.notify(res.ok ? 'Sukses' : 'Error', res.ok ? 'Halaman berhasil dipublish!' : 'Gagal menyimpan', res.ok ? 'success' : 'error');
-                    } catch (e) { this.notify('Error', 'Masalah koneksi server', 'error'); }
-                    this.loading = false;
-                },
-
-                notify(title, msg, type = 'success') { 
-                    const id = Date.now(); this.notifications.push({ id, title, msg, type, show: true }); 
-                    setTimeout(() => { this.notifications = this.notifications.filter(n => n.id !== id); }, 3000); 
-                },
-
-                setDevice(d) { this.device = d; if (window.editor) window.editor.setDevice(d); },
-
-                async uploadToCloudinary(event, target) {
-                    const file = event.target.files[0]; if (!file) return; this.loading = true;
-                    try {
-                        const formData = new FormData(); formData.append('file', file);
-                        const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
-                        const data = await res.json();
-                        if (res.ok && data.url) { this.page.meta[target] = data.url; this.notify('Sukses', 'Gambar diupdate!', 'success'); }
-                    } catch (e) { this.notify('Error', 'Gagal upload', 'error'); }
-                    this.loading = false; event.target.value = '';
-                },
-
-                cmd(c) { window.editor.runCommand(c); },
-
-                initGrapes() {
-                    const bridgeCSS = `
-                        body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; }
-                        .product-gallery { display: flex; flex-direction: column; gap: 12px; width: 100%; overflow: hidden; }
-                        .gallery-main { display: flex; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); width: 100%; }
-                        .gallery-main img { width: 100%; flex-shrink: 0; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; }
-                        .gallery-thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding: 5px 0; }
-                        .thumb-item { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.6; transition: 0.3s; object-fit: cover; }
-                        .thumb-item.active { border-color: #4f46e5; opacity: 1; transform: scale(1.05); }
-                        .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; }
-                        .pricing-card.highlight { border: 2px solid #6366f1; }
-                        .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-                    `;
-
-                    window.editor = grapesjs.init({
-                        container: '#gjs', height: '100%', storageManager: false, panels: { defaults: [] },
-                        canvas: {
-                            scripts: ['https://cdn.tailwindcss.com', 'https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js'],
-                            styles: ['https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap', 'https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css'],
-                            content: `<style>${bridgeCSS}</style>`
-                        },
-                        plugins: ['gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'],
-                        deviceManager: { devices: [{ id: 'desktop', width: '' }, { id: 'tablet', width: '768px' }, { id: 'mobile', width: '375px' }] },
-                        blockManager: { appendTo: '#blocks-container' },
-                        layerManager: { appendTo: '#layers-container' },
-                        selectorManager: { appendTo: '#selectors-container' },
-                        traitManager: { appendTo: '#traits-container' },
-                        styleManager: { appendTo: '#styles-container', sectors: [{ name: 'Typography', open:true, buildProps:['font-family','font-size','font-weight','color','text-align','line-height'] }, { name: 'Decorations', open:false, buildProps:['background-color','border','border-radius','box-shadow'] }, { name: 'Dimensions', open:false, buildProps:['width','height','padding','margin'] }] }
                     });
-
-                    const domc = window.editor.DomComponents; const bm = window.editor.BlockManager;
-
-                    // Component: Iconify
-                    domc.addType('iconify-icon', { model: { defaults: { tagName: 'iconify-icon', attributes: { icon: 'ph:star-fill', width: '32' }, traits: [{ type: 'button', text: 'Change Icon', command: (ed, t) => window.openIconifyPicker(t.target) }] } } });
-                    
-                    // Component: Gallery
-                    domc.addType('product-gallery', {
-                        model: { defaults: { script: function() {
-                            const main = this.querySelector('.gallery-main'); const thumbs = this.querySelectorAll('.thumb-item');
-                            const goTo = (i) => {
-                                if(!main) return; main.style.transform = `translateX(-${i * 100}%)`;
-                                thumbs.forEach((t, idx) => idx === i ? t.classList.add('active') : t.classList.remove('active'));
-                            };
-                            thumbs.forEach((t, i) => t.onclick = () => goTo(i));
-                        }}}
-                    });
-
-                    // Listeners
-                    window.editor.on('component:dblclick', (m) => { if(m.get('tagName') === 'iconify-icon') window.openIconifyPicker(m); });
-                    
-                    window.editor.on('component:selected', (model) => {
-                        const toolbar = model.get('toolbar'); if (toolbar.find(item => item.id === 'cut-comp')) return;
-                        toolbar.unshift(
-                            { id: 'move-up', command: () => { const i = model.index(); if (i > 0) model.parent().components().add(model, { at: i - 1 }); }, label: '<i class="ph ph-arrow-up"></i>' },
-                            { id: 'move-down', command: () => { const i = model.index(); model.parent().components().add(model, { at: i + 2 }); }, label: '<i class="ph ph-arrow-down"></i>' },
-                            { id: 'cut-comp', command: () => { this.clipboard = model.toHTML(); model.remove(); this.notify('Cut', 'Komponen dipotong', 'info'); }, label: '<i class="ph ph-scissors"></i>' },
-                            { id: 'paste-inside', command: () => { if (this.clipboard) { model.append(this.clipboard); this.notify('Sukses', 'Berhasil disisipkan', 'success'); } }, label: '<i class="ph ph-box-arrow-down"></i>' }
-                        );
-                        model.set('toolbar', toolbar);
-                    });
-
-                    window.editor.on('component:add', (m) => {
-                        const types = ['image', 'video', 'button', 'text'];
-                        if (types.includes(m.get('type')) || ['IMG', 'BUTTON'].includes(m.get('tagName'))) m.set('resizable', { cr: 1, cb: 1, br: 1 });
-                    });
-
-                    // --- BLOCKS DEFINITION (COMPLETE) ---
-                    bm.add('text-heading', { label: 'Heading', category: 'Basic', content: '<h2 class="text-3xl font-black text-gray-800 mb-4">Tulis Judul Disini</h2>' });
-                    bm.add('text-paragraph', { label: 'Paragraph', category: 'Basic', content: '<p class="text-base text-gray-600 mb-4 leading-relaxed">Tulis deskripsi teks paragraf Anda di sini.</p>' });
-                    bm.add('ui-button', { label: 'Button-Pro', category: 'Basic', content: '<a href="#" class="btn btn-primary px-6 py-3 rounded-lg font-bold text-white shadow-lg">Click Me</a>' });
-                    bm.add('ui-image', { label: 'Picture', category: 'Basic', content: { type: 'image', activeOnRender: 1 } });
-                    bm.add('iconify-blk', { label: 'Icon', category: 'Basic', content: { type: 'iconify-icon' } });
-                    bm.add('ui-divider', { label: 'Divider', category: 'Basic', content: '<div class="divider py-4"></div>' });
-
-                    bm.add('gallery-carousel', { label: 'Carousel Slider', category: '2. Media', content: '<div class="product-gallery" data-gjs-type="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/4f46e5/fff?text=Slide+1"><img src="https://via.placeholder.com/800x600/10b981/fff?text=Slide+2"><img src="https://via.placeholder.com/800x600/f59e0b/fff?text=Slide+3"></div><div class="gallery-thumbs"><img src="https://via.placeholder.com/150/4f46e5/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff" class="thumb-item"><img src="https://via.placeholder.com/150/f59e0b/fff" class="thumb-item"></div></div>' });
-                    bm.add('video-yt', { label: 'Video Youtube', category: '2. Media', content: '<div class="max-w-4xl mx-auto rounded-2xl overflow-hidden aspect-video shadow-xl"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen></iframe></div>' });
-
-                    bm.add('feature-grid', { label: 'Features', category: '3. Content', content: '<section class="py-16 bg-white"><div class="container mx-auto px-4"><div class="grid md:grid-cols-3 gap-8"><div class="p-6 border rounded-xl text-center"><iconify-icon icon="ph:rocket-fill" class="text-3xl text-indigo-600 mb-4"></iconify-icon><h3 class="font-bold">Fast Speed</h3><p class="text-sm text-gray-500">Optimized Performance.</p></div></div></div></section>' });
-                    bm.add('faq-pro', { label: 'FAQ Pro', category: '3. Content', content: '<section class="max-w-3xl mx-auto py-16 px-4"><h2 class="text-3xl font-black text-center mb-10 uppercase tracking-tighter">F.A.Q</h2><div class="p-6 bg-white border-2 rounded-2xl mb-4 shadow-sm"><h3 class="font-bold text-indigo-600 mb-2">Tulis Pertanyaan?</h3><p class="text-sm text-gray-600">Double klik untuk ganti jawaban Anda.</p></div></section>' });
-                    bm.add('testimonials', { label: 'Testimonials', category: '3. Content', content: '<section class="py-16 bg-gray-50"><div class="container mx-auto px-4 text-center"><div class="testimonial-card inline-block max-w-sm"><h4 class="font-bold">Nama User</h4><p class="text-sm text-gray-500 italic">"Produk ini sangat membantu bisnis saya!"</p></div></div></section>' });
-
-                    bm.add('pricing-table', { label: 'Pricing Edit', category: '4. Commerce', content: '<section class="py-16 bg-gray-50"><div class="container mx-auto px-4"><div class="pricing-card border-2 border-indigo-600 max-w-sm mx-auto"><h3 class="title">Professional</h3><div class="price">Rp 99.000</div><button class="btn btn-primary w-full mt-4">Pilih Paket</button></div></div></section>' });
-                    bm.add('container-1000', { label: 'Cont-1000px', category: '5. Basic', content: '<div class="py-4 bg-gray-100"><div class="mx-auto max-w-[1000px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 text-xs font-bold uppercase tracking-widest">1000px Container</div></div>' });
-
-                    // Click to Add Logic
-                    setTimeout(() => {
-                        const container = document.getElementById('blocks-container');
-                        if (container) {
-                            container.addEventListener('click', (e) => {
-                                const blockEl = e.target.closest('.gjs-block');
-                                if (blockEl) {
-                                    const id = blockEl.getAttribute('title') || blockEl.innerText.trim();
-                                    const block = window.editor.BlockManager.get(id);
-                                    if (block) {
-                                        window.editor.addComponents(block.get('content'));
-                                        this.notify('Sukses', 'Elemen ditambahkan', 'success');
-                                        if(window.innerWidth < 768) this.mobileMenuOpen = false;
-                                    }
-                                }
-                            });
-                        }
-                    }, 1500);
                 }
-            };
-        }
-    </script>
+            }, 1500); 
+
+        }, // <--- TUTUP initGrapes
+    }; 
+}
+</script>
 </body>
 </html>
