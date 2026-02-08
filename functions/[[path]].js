@@ -775,4 +775,40 @@ async function renderPage(c, page) {
     `);
 }
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
+
+// ===============================================
+// HELPER: LOGIKA REKAP ANALYTICS (TARUH DI LUAR ROUTE)
+// ===============================================
+async function runAnalyticsRekap(env) {
+    try {
+        // 1. Ambil rekap data dari Analytics Engine untuk 15 menit terakhir
+        const query = await env.ANALYTICS_ENGINE.query(`
+            SELECT 
+                blob1 as slug, 
+                count() as total_views 
+            FROM paslanding_events 
+            WHERE timestamp >= now() - INTERVAL '15' MINUTE
+            GROUP BY slug
+        `);
+
+        if (query.data && query.data.length > 0) {
+            // 2. Masukkan hasil rekap ke D1 (Pastikan tabel analytics_rekap sudah dibuat)
+            const stmt = env.DB.prepare(`
+                INSERT INTO analytics_rekap (slug, views, period_start) 
+                VALUES (?, ?, datetime('now', '-15 minutes'))
+            `);
+            
+            await env.DB.batch(
+                query.data.map(row => stmt.bind(row.slug, row.total_views))
+            );
+            console.log("Rekap Berhasil Disimpan ke D1");
+        }
+    } catch (e) {
+        throw new Error("Gagal Rekap: " + e.message);
+    }
+}
+
+// ===============================================
+// EXPORT UNTUK PAGES
+// ===============================================
 export const onRequest = handle(app);
