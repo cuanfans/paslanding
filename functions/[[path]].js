@@ -572,6 +572,8 @@ async function renderPage(c, page) {
     // CSS & Tailwind
     const bridgeCSS = `
         body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
+        /* --- FIX SWEETALERT Z-INDEX --- */
+        .swal2-container { z-index: 99999 !important; }
         .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; }
         .product-gallery .main-img { border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 4/3; background: #f3f4f6; }
         .product-gallery .main-img img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
