@@ -204,7 +204,37 @@ header {
     display: block !important;
     bottom: -10px !important;
     right: -10px !important;
-}        
+}
+
+/* MEMBERSIHKAN TOTAL SISA PANEL GRAPESJS */
+.gjs-pn-views-container, 
+.gjs-pn-panels, 
+.gjs-pn-views,
+.gjs-pn-commands {
+    display: none !important;
+    width: 0 !important; /* Paksa lebarnya jadi nol */
+    overflow: hidden !important;
+}
+
+/* MEMAKSA CANVAS MENGISI SELURUH RUANG WORKSPACE */
+.gjs-cv-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    top: 0 !important;
+    left: 0 !important; /* Pastikan dia mulai dari pojok kiri */
+}
+
+@media (max-width: 768px) {
+    /* Pastikan tidak ada margin/padding sisa di area editor */
+    .gjs-editor {
+        width: 100% !important;
+    }
+    
+    /* Menghilangkan padding bawah yang mungkin muncul di canvas GrapesJS */
+    .gjs-editor-cont {
+        padding: 0 !important;
+    }
+}
 </style>
 </head>
 <body x-data="editorApp()">
