@@ -108,55 +108,42 @@
         .gjs-toolbar-item { padding: 6px 8px !important; color: white !important; }
         .gjs-resizer-h { width: 22px !important; height: 22px !important; background: #4f46e5 !important; border: 3px solid #fff !important; border-radius: 50% !important; z-index: 10 !important; }
         /* Paksa Color Picker GrapesJS muncul di lapisan paling depan */
-        /* 1. Mencegah popup picker warna (Spectrum) agar tidak melebar/long */
-    .sp-container {
-        position: absolute !important; 
-        z-index: 100001 !important;
-        width: 220px !important; /* Lebar standar kotak picker */
-        background: #fff !important;
-        border: 1px solid #ddd !important;
-        padding: 10px !important;
-    }
-    
-    /* 2. Mengembalikan kotak warna di sidebar agar tetap kecil (persegi) */
-    /* 1. Kotak mungil warna di sidebar (Tab Styles) */
-    .gjs-field-color-picker {
-        width: 20px !important;
-        height: 20px !important;
-        border: 1px solid rgba(0,0,0,0.2) !important;
-        border-radius: 4px !important;
-        cursor: pointer !important;
-        display: block !important;
-        flex-shrink: 0 !important;
-    }
-    
-    /* 2. Baris input warna agar rapi dan tidak memanjang */
-    .gjs-field-color {
-        display: flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        width: 100% !important;
-        overflow: visible !important; /* BIAR POPUP TIDAK TERPOTONG */
-    }
-    
-    .gjs-field-color-input {
-        flex-grow: 1 !important;
-    }
-    
-    /* 3. Popup Picker Warna (Spectrum) agar muncul DI DEPAN Sidebar */
-    .sp-container {
-        z-index: 100005 !important; /* Harus lebih tinggi dari 9999 */
-        background: #ffffff !important;
-        border: 1px solid #ccc !important;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important;
-        position: absolute !important; /* Jangan pake fixed biar gak nyasar */
-    }
-    
-    /* 4. Pastikan picker tidak kepanjangan */
-    .sp-picker-container {
-        width: 200px !important;
-    }
-    </style>
+        /* 1. Kotak warna di panel Styles (biar tetap kotak mungil, tidak memanjang) */
+.gjs-field-color-picker {
+    width: 25px !important;
+    height: 25px !important;
+    flex-shrink: 0 !important; /* Kunci biar tidak gepeng/panjang */
+    border: 1px solid #ccc !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    display: inline-block !important;
+}
+
+/* 2. Container input warna */
+.gjs-field-color {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    overflow: visible !important; /* WAJIB: biar popup tidak terpotong container sidebar */
+}
+
+/* 3. POPUP PALET WARNA (Spectrum) - Geser ke kiri */
+.sp-container {
+    z-index: 999999 !important; /* Jauh di atas sidebar 9999 */
+    position: fixed !important; /* Biar posisinya konsisten di layar HP */
+    /* Geser ke kiri sebesar 230px (lebar standar palet) agar tidak tertutup sidebar */
+    transform: translateX(-235px) !important; 
+    background: #ffffff !important;
+    border: 1px solid #ddd !important;
+    box-shadow: -5px 5px 20px rgba(0,0,0,0.3) !important;
+    padding: 8px !important;
+}
+
+/* 4. Memastikan input teks kode warna rapi */
+.gjs-field-color-input {
+    flex-grow: 1 !important;
+    height: 28px !important;
+}
 </head>
 <body x-data="editorApp()">
 
