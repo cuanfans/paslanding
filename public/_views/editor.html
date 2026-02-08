@@ -149,28 +149,28 @@
     </div>
 
     <header>
-    <div class="flex items-center gap-3 overflow-hidden w-full max-w-[300px]">
-        <a href="/admin/pages" class="text-gray-400 hover:text-indigo-600 transition p-1.5 rounded hover:bg-gray-50 shrink-0"><i class="ph ph-arrow-left text-xl"></i></a>
-        <div class="h-6 w-px bg-gray-200 shrink-0"></div>
+    <div class="flex items-center gap-3 overflow-hidden w-full max-w-[250px]">
+        <a href="/admin/pages" class="text-gray-400 hover:text-indigo-600 transition p-1.5 rounded shrink-0"><i class="ph ph-arrow-left text-xl"></i></a>
         <div class="flex-1 min-w-0">
-            <input x-model="page.title" class="bg-transparent font-bold text-xs text-gray-800 outline-none w-full placeholder-gray-400 focus:text-indigo-600 transition truncate" placeholder="Nama Halaman">
-            <div class="flex items-center gap-1">
-                <span class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter shrink-0">Slug:</span>
-                <input x-model="page.slug" class="bg-transparent font-mono text-[10px] text-gray-500 outline-none w-full focus:text-indigo-600 transition truncate" placeholder="slug-halaman">
-            </div>
+            <input x-model="page.title" class="bg-transparent font-bold text-xs text-gray-800 outline-none w-full truncate" placeholder="Nama Halaman">
+            <input x-model="page.slug" class="bg-transparent font-mono text-[9px] text-gray-400 outline-none w-full truncate" placeholder="slug-halaman">
         </div>
     </div>
-    
-    <div class="hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center bg-gray-100 rounded-lg p-1 border border-gray-200 shadow-sm">
+
+    <div class="hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center bg-gray-100 rounded-lg p-1 border">
         <button @click="setDevice('desktop')" :class="device=='desktop'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-desktop text-lg"></i></button>
-        <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-tablet text-lg"></i></button>
         <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-mobile text-lg"></i></button>
     </div>
 
     <div class="flex items-center gap-2">
-        <button @click="showSettings=true" class="bg-white hover:bg-gray-50 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition"><i class="ph ph-gear-six text-lg"></i> Config</button>
-        <button @click="savePage" :disabled="loading" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg">
-            <i x-show="loading" class="ph ph-spinner animate-spin"></i><span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
+        <div class="hidden md:flex items-center gap-2">
+            <button @click="showSettings=true" class="bg-white text-gray-600 px-3 py-2 rounded-lg text-xs font-bold border border-gray-200">Config</button>
+            <button @click="savePage" :disabled="loading" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg">
+                <span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
+            </button>
+        </div>
+        <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden p-2 rounded-lg border border-gray-200 text-gray-700" :class="mobileMenuOpen ? 'bg-indigo-50 text-indigo-600' : 'bg-white'">
+            <i class="ph" :class="mobileMenuOpen ? 'ph-x' : 'ph-list'" style="font-size: 24px;"></i>
         </button>
     </div>
 </header>
@@ -351,63 +351,45 @@
 function editorApp() {
     return {
         // --- UI STATES ---
+        device: 'desktop',
+        tab: 'blocks',
         mobileMenuOpen: false,
-        loading: false, 
-        showSettings: false, 
-        device: 'desktop', 
-        tab: 'blocks', 
-        notifications: [], 
-        paymentProviders: [],
+        showSettings: false,
         settingsTab: 'commerce',
+        loading: false,
+        notifications: [],
+        paymentProviders: [],
 
-        // --- DATA STRUCTURE LENGKAP ---
+        // --- DATA STRUCTURE ---
         page: { 
             id: 0,
             slug: '', 
-            title: '', // Nama Halaman
+            title: '', 
             product_type: 'physical', 
-            slug_payment: 'whatsapp', 
-            meta: {
-                description: '',
-                keywords: '',
-                og_image: '',
-                favicon: ''
-            },
-            analytics: {
-                fb_pixel: '',
-                ga_id: '',
-                tiktok_pixel: ''
-            },
-            scripts: {
-                header: '',
-                footer: ''
-            },
-            config: { 
-                price: 0, 
-                variants: [], 
-                shipping: { weight: 1000, cod: false }, 
-                order_bump: { active: false }, 
-                coupons: [], 
-                settings: {}, 
-                active_payments: [] 
-            } 
+            slug_payment: 'whatsapp',
+            meta: { description: '', keywords: '', og_image: '', favicon: '' },
+            analytics: { fb_pixel: '', ga_id: '', tiktok_pixel: '' },
+            scripts: { header: '', footer: '' },
+            config: { price: 0, variants: [], shipping: { weight: 1000, cod: false }, order_bump: { active: false }, coupons: [], settings: {}, active_payments: [] } 
         },
 
         // --- INITIALIZATION ---
         async init() {
             const params = new URLSearchParams(window.location.search);
             const slug = params.get('slug');
+            
             if (slug) {
                 await this.loadPageData(slug);
             } else {
                 this.page.slug = 'halaman-baru-' + Date.now();
                 this.page.title = 'Halaman Baru';
             }
+            
             await this.fetchPaymentProviders();
             this.initGrapes();
         },
 
-        // --- LOAD DATA ---
+        // --- FIX: LOAD DATA TANPA ERROR JSON ---
         async loadPageData(slug) {
             this.loading = true;
             try {
@@ -420,17 +402,27 @@ function editorApp() {
                     this.page.product_type = data.product_type || 'physical';
                     this.page.slug_payment = data.provider || 'whatsapp';
                     
-                    if (data.meta) this.page.meta = Object.assign(this.page.meta, data.meta);
-                    if (data.analytics) this.page.analytics = Object.assign(this.page.analytics, data.analytics);
-                    if (data.scripts) this.page.scripts = Object.assign(this.page.scripts, data.scripts);
+                    // Safe Object Assign untuk Meta & Analytics
+                    if (data.meta) this.page.meta = typeof data.meta === 'string' ? JSON.parse(data.meta) : data.meta;
+                    if (data.analytics) this.page.analytics = typeof data.analytics === 'string' ? JSON.parse(data.analytics) : data.analytics;
+                    if (data.scripts) this.page.scripts = typeof data.scripts === 'string' ? JSON.parse(data.scripts) : data.scripts;
                     
-                    const configData = data.product_config_json ? JSON.parse(data.product_config_json) : (data.product_config || {});
+                    // FIX: JSON Parse Check
+                    let configData = {};
+                    const rawConfig = data.product_config_json || data.product_config;
+                    if (rawConfig) {
+                        configData = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
+                    }
                     this.page.config = Object.assign(this.page.config, configData);
 
+                    // Render ke GrapesJS
                     if (data.html_content || data.html) window.editor.setComponents(data.html_content || data.html);
                     if (data.css_content || data.css) window.editor.setStyle(data.css_content || data.css);
                 }
-            } catch (e) { console.error('Error load:', e); }
+            } catch (e) { 
+                console.error("Error Load Data:", e);
+                this.notify('Error', 'Gagal memuat data halaman', 'error');
+            }
             this.loading = false;
         },
 
@@ -442,20 +434,16 @@ function editorApp() {
             } catch (e) {}
         },
 
-        // --- SAVE DATA ---
         async savePage() {
             this.loading = true;
             try {
-                let html = window.editor.getHtml();
-                html = html.replace('name="page_id" value="0"', `name="page_id" value="${this.page.id || 0}"`);
-                
                 const payload = {
                     id: this.page.id,
                     slug: this.page.slug,
-                    title: this.page.title, // Mengirim Judul Halaman
+                    title: this.page.title,
                     product_type: this.page.product_type,
                     provider: this.page.slug_payment,
-                    html: html,
+                    html: window.editor.getHtml(),
                     css: window.editor.getCss(),
                     meta: this.page.meta,
                     analytics: this.page.analytics,
@@ -481,9 +469,15 @@ function editorApp() {
             this.notifications.push({ id, title, msg, type, show: true }); 
             setTimeout(() => { this.notifications = this.notifications.filter(n => n.id !== id); }, 3000); 
         },
-        setDevice(d) { this.device = d; window.editor.setDevice(d === 'mobile' ? 'Mobile' : (d === 'tablet' ? 'Tablet' : 'Desktop')); },
-        cmd(c) { window.editor.runCommand(c); },
+
+        setDevice(d) { 
+            this.device = d; 
+            window.editor.setDevice(d === 'mobile' ? 'Mobile' : (d === 'tablet' ? 'Tablet' : 'Desktop')); 
+        },
+
         addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
+        cmd(c) { window.editor.runCommand(c); },
+        
         initGrapes() {
             // === 1. BRIDGE CSS (CRITICAL: TAMPILAN SAMA PERSIS DENGAN PREVIEW) ===
             const bridgeCSS = `
