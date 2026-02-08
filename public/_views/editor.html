@@ -334,17 +334,16 @@
 // --- APP LOGIC ---
 function editorApp() {
     return {
-        // Variabel UI Dasar (Wajib Ada)
+        // --- UI STATES (Pastikan nama variabel sesuai dengan x-model/x-show di HTML) ---
         device: 'mobile',
         tab: 'blocks',
         mobileMenuOpen: false,
         showSettings: false,
         settingsTab: 'commerce',
         loading: false,
-        saving: false,
         notifications: [],
 
-        // Struktur Data Page
+        // --- DATA STRUCTURE (Wajib lengkap agar tidak error 'undefined') ---
         page: { 
             id: 0,
             slug: '', 
@@ -377,7 +376,7 @@ function editorApp() {
             } 
         },
 
-        // Fungsi Inisialisasi
+        // --- INITIALIZATION ---
         async init() {
             const urlParams = new URLSearchParams(window.location.search);
             const slug = urlParams.get('slug');
@@ -387,32 +386,34 @@ function editorApp() {
                     const res = await fetch(`/api/admin/pages/${slug}`);
                     const data = await res.json();
                     if (data) {
+                        // Mapping data dari server ke state Alpine
                         this.page.id = data.id || 0;
                         this.page.slug = data.slug || '';
                         this.page.title = data.title || '';
                         this.page.product_type = data.product_type || 'physical';
                         this.page.slug_payment = data.provider || 'whatsapp';
                         
-                        // Merge Meta & Config agar tidak undefined
-                        if (data.meta) this.page.meta = { ...this.page.meta, ...data.meta };
-                        if (data.analytics) this.page.analytics = { ...this.page.analytics, ...data.analytics };
-                        if (data.scripts) this.page.scripts = { ...this.page.scripts, ...data.scripts };
-                        if (data.product_config) this.page.config = { ...this.page.config, ...data.product_config };
+                        // Merge nested objects agar properti default tidak hilang
+                        if (data.meta) this.page.meta = Object.assign({}, this.page.meta, data.meta);
+                        if (data.analytics) this.page.analytics = Object.assign({}, this.page.analytics, data.analytics);
+                        if (data.scripts) this.page.scripts = Object.assign({}, this.page.scripts, data.scripts);
+                        if (data.product_config) this.page.config = Object.assign({}, this.page.config, data.product_config);
 
+                        // Load ke GrapesJS Editor
                         if (data.html) {
                             window.editor.setComponents(data.html);
                             window.editor.setStyle(data.css || '');
                         }
                     }
                 } catch (e) {
-                    console.error('Gagal memuat data:', e);
+                    console.error('Error loading page:', e);
                     this.addNotification('Gagal memuat data halaman', 'error');
                 }
                 this.loading = false;
             }
         },
 
-        // Fungsi Simpan
+        // --- CORE ACTIONS ---
         async savePage() {
             if (this.loading) return;
             this.loading = true;
@@ -442,23 +443,35 @@ function editorApp() {
                 if (res.ok) {
                     this.addNotification('Halaman Berhasil Disimpan!', 'success');
                 } else {
-                    this.addNotification('Gagal Menyimpan Halaman', 'error');
+                    const errData = await res.json();
+                    this.addNotification(errData.error || 'Gagal Menyimpan Halaman', 'error');
                 }
             } catch (e) {
-                console.error(e);
-                this.addNotification('Terjadi Kesalahan Server', 'error');
+                console.error('Save Error:', e);
+                this.addNotification('Terjadi Kesalahan Koneksi', 'error');
             }
             this.loading = false;
         },
 
-        // Fungsi Helper
+        // --- UI HELPERS ---
         setDevice(val) {
             this.device = val;
-            const width = val === 'mobile' ? '450px' : (val === 'tablet' ? '800px' : '100%');
-            window.editor.setDevice(val === 'mobile' ? 'Mobile' : (val === 'tablet' ? 'Tablet' : 'Desktop'));
+            // Sinkronisasi dengan GrapesJS Device Manager
+            const deviceMap = {
+                'mobile': 'Mobile',
+                'tablet': 'Tablet',
+                'desktop': 'Desktop'
+            };
+            window.editor.setDevice(deviceMap[val] || 'Desktop');
+            
+            // Atur lebar canvas manual untuk preview yang lebih presisi
             const canvas = document.querySelector('.gjs-cv-canvas');
-            if (canvas) canvas.style.width = width;
-            if (canvas) canvas.style.margin = '0 auto';
+            if (canvas) {
+                if (val === 'mobile') canvas.style.width = '450px';
+                else if (val === 'tablet') canvas.style.width = '800px';
+                else canvas.style.width = '100%';
+                canvas.style.margin = '0 auto';
+            }
         },
 
         addNotification(msg, type = 'success') {
@@ -470,7 +483,7 @@ function editorApp() {
         }
     };
 }
-
+    
         initGrapes() {
             // === 1. BRIDGE CSS (CRITICAL: TAMPILAN SAMA PERSIS DENGAN PREVIEW) ===
             const bridgeCSS = `
