@@ -663,8 +663,13 @@ async function renderPage(c, page) {
     <script>
         // A. Notifikasi Pesan Terkirim
         if(new URLSearchParams(window.location.search).get('status') === 'sent') {
-            alert('Pesan Anda telah kami terima! Kami akan segera menghubungi Anda.');
-            window.history.replaceState({}, document.title, window.location.pathname);
+        Swal.fire({
+            icon: 'success',
+            title: 'Pesan Terkirim!',
+            text: 'Kami akan segera menghubungi Anda.',
+            confirmButtonColor: '#2563eb'
+        });
+        window.history.replaceState({}, document.title, window.location.pathname);
         }
 
         // B. Inisialisasi Ulang Komponen
