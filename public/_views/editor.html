@@ -652,22 +652,44 @@ function editorApp() {
                 /* CANVAS RESET */
                 body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; }
                 
-                /* THUMBNAIL GALLERY (HORIZONTAL) */
-                .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; }
-                .product-gallery .main-img { border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 4/3; background: #f3f4f6; }
-                .product-gallery .main-img img { width: 100%; height: 100%; object-fit: cover; }
-                .product-gallery .thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding-bottom: 5px; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
-                .product-gallery .thumb { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.7; transition: 0.2s; object-fit: cover; }
-                .product-gallery .thumb.active, .product-gallery .thumb:hover { border-color: #2563eb; opacity: 1; }
-
-                /* CAROUSEL SLIDER (AUTO PLAY) */
-                .editable-carousel { position: relative; width: 100%; overflow: hidden; border-radius: 0; }
-                .editable-carousel .slides { display: flex; flex-direction: row; width: 100%; height: 100%; transition: transform 0.5s ease; }
-                .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; height: 100%; }
-                .editable-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
-                .editable-carousel .carousel-controls { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); display: flex; justify-content: space-between; padding: 0 20px; pointer-events: none; }
-                .editable-carousel .carousel-controls button { pointer-events: auto; background: rgba(0,0,0,0.3); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-                .editable-carousel .carousel-controls button:hover { background: rgba(0,0,0,0.6); }
+                /* --- PRODUCT GALLERY CAROUSEL (SLIDING VERSION) --- */
+                .product-gallery { 
+                    display: flex; flex-direction: column; gap: 12px; width: 100%; overflow: hidden; 
+                }
+                
+                /* Wadah gambar besar yang bergeser */
+                .gallery-main { 
+                    display: flex; 
+                    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+                    width: 100%; 
+                }
+                
+                .gallery-main img { 
+                    width: 100%; flex-shrink: 0; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; 
+                }
+                
+                /* Barisan Thumbnails */
+                .gallery-thumbs { 
+                    display: flex; flex-direction: row; gap: 10px; overflow-x: auto; 
+                    padding: 5px 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; 
+                }
+                
+                .gallery-thumbs::-webkit-scrollbar { display: none; } /* Biar bersih tanpa scrollbar */
+                
+                .thumb-item { 
+                    min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; 
+                    border-radius: 8px; cursor: pointer; border: 2px solid transparent; 
+                    opacity: 0.6; transition: 0.3s; object-fit: cover; 
+                }
+                
+                .thumb-item.active { 
+                    border-color: #4f46e5; opacity: 1; transform: scale(1.05); 
+                }
+                
+                /* --- EDITABLE CAROUSEL (HERO SLIDER) --- */
+                .editable-carousel { position: relative; width: 100%; overflow: hidden; }
+                .editable-carousel .slides { display: flex; transition: transform 0.5s ease-in-out; }
+                .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; }
 
                 /* PRICING & TESTIMONIAL */
                 .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; }
@@ -827,16 +849,53 @@ function editorApp() {
             } } } });
 
             // 3. Thumbnail Gallery Logic
-            domc.addType('product-gallery', { model: { defaults: { script: function() {
-                const el = this; const main = el.querySelector('.main-img img'); const thumbs = el.querySelectorAll('.thumb');
-                thumbs.forEach(t => {
-                    t.onclick = function() {
-                        main.src = this.src;
-                        thumbs.forEach(x => x.classList.remove('active'));
-                        this.classList.add('active');
+            domc.addType('product-gallery', {
+                model: {
+                    defaults: {
+                        script: function() {
+                            const el = this;
+                            const mainWrapper = el.querySelector('.gallery-main');
+                            const images = mainWrapper.querySelectorAll('img');
+                            const thumbs = el.querySelectorAll('.thumb-item');
+                            let currentIndex = 0;
+            
+                            const goToSlide = (index) => {
+                                currentIndex = index;
+                                // Geser wrapper utama berdasarkan index
+                                mainWrapper.style.transform = `translateX(-${index * 100}%)`;
+                                
+                                // Update class active di thumbnail
+                                thumbs.forEach((t, i) => {
+                                    if(i === index) {
+                                        t.classList.add('active');
+                                        // Auto-scroll thumbnail agar selalu terlihat kalau banyak
+                                        t.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                                    } else {
+                                        t.classList.remove('active');
+                                    }
+                                });
+                            };
+            
+                            // Pasang event klik di tiap thumbnail
+                            thumbs.forEach((thumb, i) => {
+                                thumb.onclick = () => goToSlide(i);
+                            });
+            
+                            // Tambahkan fitur Swipe untuk Mobile
+                            let touchStart = 0;
+                            mainWrapper.addEventListener('touchstart', e => touchStart = e.touches[0].clientX);
+                            mainWrapper.addEventListener('touchend', e => {
+                                const touchEnd = e.changedTouches[0].clientX;
+                                if (touchStart - touchEnd > 50 && currentIndex < images.length - 1) goToSlide(currentIndex + 1);
+                                if (touchStart - touchEnd < -50 && currentIndex > 0) goToSlide(currentIndex - 1);
+                            });
+            
+                            // Inisialisasi awal
+                            if(thumbs.length > 0) goToSlide(0);
+                        }
                     }
-                });
-            } } } });
+                }
+            });
 
             // Countdown Timer
             editor.DomComponents.addType('countdown-smart', {
@@ -942,12 +1001,11 @@ function editorApp() {
             bm.add('hero-slider', { label: 'Hero Slider', category: '1. Header & Hero', content: `<div class="editable-carousel relative h-[600px] bg-gray-900 text-white" data-gjs-type="editable-carousel"><div class="slides"><div class="slide"><img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80" class="opacity-60"><div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4"><h1 class="text-6xl font-black mb-4 tracking-tight">Scale Your Business</h1><p class="text-xl max-w-2xl opacity-90">Platform terbaik untuk pertumbuhan eksponensial.</p><button class="btn btn-primary btn-lg mt-8 rounded-full">Mulai Sekarang</button></div></div><div class="slide"><img src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1600&q=80" class="opacity-60"><div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4"><h1 class="text-6xl font-black mb-4 tracking-tight">Future is Here</h1><button class="btn btn-outline text-white btn-lg mt-8 rounded-full">Pelajari Lebih Lanjut</button></div></div></div><button class="prev absolute left-4 top-1/2 -translate-y-1/2 btn btn-circle btn-ghost text-white">❮</button><button class="next absolute right-4 top-1/2 -translate-y-1/2 btn btn-circle btn-ghost text-white">❯</button></div>` });
             bm.add('hero-simple', { label: 'Hero Simple', category: '1. Header & Hero', content: `<section class="py-20 text-center bg-white"><div class="container mx-auto px-4"><h1 class="text-5xl font-black text-gray-900 mb-6">Headline Produk Anda</h1><p class="text-xl text-gray-500 max-w-2xl mx-auto mb-8">Deskripsi singkat yang menarik minat pengunjung untuk membeli produk ini sekarang juga.</p><div class="flex justify-center gap-4"><button class="btn btn-primary px-8">Beli Sekarang</button><button class="btn btn-ghost px-8">Demo</button></div></div></section>` });
 
-            // MEDIA (Thumb Carousel Horizontal)
-            bm.add('product-gallery', { 
-                label: 'Thumb Carousel', category: '2. Media', 
-                content: `<div class="max-w-2xl mx-auto p-4 bg-white rounded-xl shadow-sm border border-gray-100" data-gjs-type="product-gallery"><div class="main-img mb-4"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Main+Image"></div><div class="thumbs"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Img+1" class="thumb active"><img src="https://via.placeholder.com/800x600/10b981/fff?text=Img+2" class="thumb"><img src="https://via.placeholder.com/800x600/f59e0b/fff?text=Img+3" class="thumb"><img src="https://via.placeholder.com/800x600/ef4444/fff?text=Img+4" class="thumb"><img src="https://via.placeholder.com/800x600/8b5cf6/fff?text=Img+5" class="thumb"></div></div>` 
-            });
-            bm.add('product-gallery', { label: 'Thumb Gallery', category: '2. Media', content: `<div class="max-w-2xl mx-auto p-4 bg-white rounded-xl shadow-sm border border-gray-100" data-gjs-type="product-gallery"><div class="main-img mb-4 rounded-xl overflow-hidden aspect-[4/3] bg-gray-100"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Main+Image" class="w-full h-full object-cover"></div><div class="thumbs flex gap-3 overflow-x-auto pb-2 scrollbar-hide"><img src="https://via.placeholder.com/150/2563eb/fff?text=1" class="thumb active w-20 h-20 rounded-lg cursor-pointer object-cover shrink-0 border-2 border-transparent hover:opacity-100"><img src="https://via.placeholder.com/150/10b981/fff?text=2" class="thumb w-20 h-20 rounded-lg cursor-pointer object-cover shrink-0 border-2 border-transparent hover:opacity-100"><img src="https://via.placeholder.com/150/f59e0b/fff?text=3" class="thumb w-20 h-20 rounded-lg cursor-pointer object-cover shrink-0 border-2 border-transparent hover:opacity-100"><img src="https://via.placeholder.com/150/ef4444/fff?text=4" class="thumb w-20 h-20 rounded-lg cursor-pointer object-cover shrink-0 border-2 border-transparent hover:opacity-100"></div></div>` });
+           // VARIASI 1: Carousel dengan Border Biru
+            bm.add('gallery-carousel-1', { label: 'Thumb Carousel', category: '2. Media', content: '<div class="product-gallery max-w-2xl mx-auto p-4 bg-white rounded-xl shadow-sm border border-gray-100" data-gjs-type="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Slide+1"><img src="https://via.placeholder.com/800x600/10b981/fff?text=Slide+2"><img src="https://via.placeholder.com/800x600/f59e0b/fff?text=Slide+3"></div><div class="gallery-thumbs"><img src="https://via.placeholder.com/150/2563eb/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff" class="thumb-item"><img src="https://via.placeholder.com/150/f59e0b/fff" class="thumb-item"></div></div>' });
+            
+            // VARIASI 2: Carousel dengan Style Modern / Rounded
+            bm.add('gallery-carousel-2', { label: 'Thumb Gallery', category: '2. Media', content: '<div class="product-gallery max-w-2xl mx-auto p-2 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200" data-gjs-type="product-gallery"><div class="gallery-main rounded-xl overflow-hidden"><img src="https://via.placeholder.com/800x600/4f46e5/fff?text=Image+A"><img src="https://via.placeholder.com/800x600/ef4444/fff?text=Image+B"><img src="https://via.placeholder.com/800x600/8b5cf6/fff?text=Image+C"></div><div class="gallery-thumbs mt-2"><img src="https://via.placeholder.com/150/4f46e5/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/ef4444/fff" class="thumb-item"><img src="https://via.placeholder.com/150/8b5cf6/fff" class="thumb-item"></div></div>' });
             bm.add('video-yt', { label: 'Video Youtube', category: '2. Media', content: `<div class="max-w-4xl mx-auto rounded-2xl overflow-hidden shadow-2xl aspect-video"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen></iframe></div>` });
 
             // CONTENT (Testi, FAQ, Features)
