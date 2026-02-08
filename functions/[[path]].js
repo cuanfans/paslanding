@@ -466,93 +466,231 @@ app.delete('/api/admin/templates', async (c) => {
 // 6. PUBLIC API (Checkout & Contact)
 // ===============================================
 
-// --- PUBLIC CONTACT FORM ---
-app.post('/api/public/contact', async (c) => {
+// ===============================================
+// 7. PUBLIC PAGE RENDERING & HOMEPAGE
+// ===============================================
+
+// HOMEPAGE
+app.get('/', async (c) => {
     try {
-        await initDB(c.env.DB);
-        let body;
-        const contentType = c.req.header('Content-Type');
+        const setting = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
         
-        if (contentType && contentType.includes('application/json')) {
-            body = await c.req.json();
-        } else {
-            body = await c.req.parseBody();
+        if (!setting || !setting.value) {
+            return c.html(`
+                <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+                    <h1>Welcome</h1>
+                    <p>Homepage belum diatur.</p>
+                    <a href="/login" style="color: blue;">Login Admin</a>
+                </div>
+            `);
         }
 
-        const { page_id, subject, name, email, phone, message } = body;
+        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(setting.value).first();
+        if (!page) return c.text(`Error: Halaman '${setting.value}' tidak ditemukan.`, 404);
 
-        if (!name || !message) return c.json({ error: "Nama dan Pesan wajib diisi!" }, 400);
-
-        await c.env.DB.prepare(`INSERT INTO messages (page_id, subject, name, email, phone, message) VALUES (?, ?, ?, ?, ?, ?)`)
-            .bind(page_id || 0, subject || 'General', name, email || '', phone || '', message)
-            .run();
-
-        // Redirect jika form HTML biasa, JSON response jika AJAX
-        if (!contentType || !contentType.includes('application/json')) {
-            return c.redirect(c.req.header('Referer') + '?status=sent');
-        }
-
-        return c.json({ success: true, message: "Pesan terkirim!" });
-    } catch (e) { return c.json({ error: e.message }, 500); }
+        trackVisit(c, page, 'direct-homepage');
+        return renderPage(c, page);
+    } catch (e) { return c.text(`Server Error: ${e.message}`, 500); }
 });
 
-// --- PUBLIC CHECKOUT ---
-app.post('/api/public/checkout', async (c) => {
+// SLUG PAGE
+app.get('/:slug', async (c) => {
     try {
-        const body = await c.req.json();
-        const { slug_payment, customer, quantity } = body;
-        
-        if (!slug_payment || !customer?.phone) return c.json({ error: "Data tidak lengkap!" }, 400);
+        const slug = c.req.param('slug');
+        if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
+        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
+        if(!page) return c.text('404 Not Found', 404);
 
-        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(body.page_id).first();
-        const config = JSON.parse(page.product_config_json || '{}');
+        trackVisit(c, page, c.req.header('Referer'));
+        return renderPage(c, page);
+    } catch(e) { return c.env.ASSETS.fetch(c.req.raw); }
+});
 
-        // --- HITUNG HARGA DI BACKEND ---
-        let unitPrice = 0;
-        let itemName = page.title;
+// FUNGSI RENDER UTAMA
+async function renderPage(c, page) {
+    const config = JSON.parse(page.product_config_json || '{}');
+    const activePayments = config.active_payments || [];
+    
+    // CSS, Tailwind, & JS Script string
+    const bridgeCSS = `
+        body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
+        .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; }
+        .product-gallery .main-img { border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 4/3; background: #f3f4f6; }
+        .product-gallery .main-img img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
+        .product-gallery .thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding-bottom: 5px; scroll-behavior: smooth; }
+        .product-gallery .thumb { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.7; transition: 0.2s; object-fit: cover; }
+        .product-gallery .thumb.active, .product-gallery .thumb:hover { border-color: #2563eb; opacity: 1; }
+        .editable-carousel { position: relative; width: 100%; overflow: hidden; }
+        .editable-carousel .slides { display: flex; flex-direction: row; width: 100%; height: 100%; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; height: 100%; }
+        .editable-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
+        .editable-carousel .carousel-controls { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); display: flex; justify-content: space-between; padding: 0 20px; pointer-events: none; z-index: 10; }
+        .editable-carousel .carousel-controls button { pointer-events: auto; background: rgba(0,0,0,0.2); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; backdrop-filter: blur(2px); }
+        .editable-carousel .carousel-controls button:hover { background: rgba(0,0,0,0.5); transform: scale(1.1); }
+        .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; position: relative; overflow: hidden; }
+        .pricing-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1); }
+        .pricing-card.highlight { border: 2px solid #2563eb; z-index: 2; box-shadow: 0 20px 40px -5px rgba(37, 99, 235, 0.15); }
+        .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; height: 100%; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 30s linear infinite; }
+        .btn { text-transform: none !important; }
+    `;
 
-        // Cek Varian
-        if (config.variants && config.variants[body.variant_index]) {
-            unitPrice = Number(config.variants[body.variant_index].price);
-            itemName += ` (${config.variants[body.variant_index].name})`;
-        } else {
-            unitPrice = Number(config.price || 0);
-        }
-
-        // Cek Qty (Default 1)
-        const qty = parseInt(quantity || 1);
-        let finalAmount = unitPrice * qty;
-
-        // Cek Bump
-        let bumpName = '';
-        if (body.take_bump && config.order_bump?.active) {
-            const bumpPrice = Number(config.order_bump.price);
-            finalAmount += bumpPrice; 
-            bumpName = config.order_bump.title;
-        }
-
-        // Cek Kupon
-        if (body.coupon_code && config.coupons) {
-            const cp = config.coupons.find(x => x.code.toUpperCase() === body.coupon_code.toUpperCase());
-            if (cp) {
-                const disc = cp.type === 'percent' ? (finalAmount * cp.value / 100) : cp.value;
-                finalAmount = Math.max(0, finalAmount - disc);
+    const tailwindConfig = `
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        theme: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca', 800:'#3730a3' }
+                    }
+                }
             }
         }
-        
-        // Update Payload
-        const apiPayload = {
-            ...body,
-            amount: finalAmount, 
-            item_name: itemName + (qty > 1 ? ` (x${qty})` : ''),
-            bump_name: bumpName
-        };
+    `;
 
-        const result = await executeGenericAPI(c, 'payment', slug_payment, apiPayload);
-        return c.json({ payment_url: result.payment_url || result._raw?.data?.payment_url });
+    const liveScripts = `
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            if(params.get('status') === 'sent') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Pesan Terkirim!',
+                    text: 'Kami akan segera menghubungi Anda.',
+                    confirmButtonColor: '#2563eb',
+                    customClass: { popup: 'rounded-2xl' }
+                });
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
 
-    } catch (e) { return c.json({ error: "Proses Gagal: " + e.message }, 500); }
-});
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.product-gallery').forEach(el => {
+                const main = el.querySelector('.main-img img');
+                const thumbs = el.querySelectorAll('.thumb');
+                if(!main || thumbs.length === 0) return;
+                thumbs.forEach(t => {
+                    t.onclick = function() {
+                        main.src = this.src;
+                        thumbs.forEach(x => x.classList.remove('active'));
+                        this.classList.add('active');
+                    }
+                });
+            });
+            
+            document.querySelectorAll('.editable-carousel').forEach(el => {
+                const slides = el.querySelector('.slides');
+                const items = el.querySelectorAll('.slide');
+                if(!slides || !items.length) return;
+                let idx = 0;
+                function show(n) { 
+                    idx = (n + items.length) % items.length; 
+                    slides.style.transform = 'translateX(-'+(idx*100)+'%)'; 
+                }
+                const next = el.querySelector('.next'); if(next) next.onclick = () => show(idx+1);
+                const prev = el.querySelector('.prev'); if(prev) prev.onclick = () => show(idx-1);
+                let timer = setInterval(() => show(idx+1), 5000);
+                el.onmouseenter = () => clearInterval(timer);
+                el.onmouseleave = () => timer = setInterval(() => show(idx+1), 5000);
+            });
+
+            const container = document.body;
+            if (container.innerHTML.includes('[ CHECKOUT ]')) {
+                const config = ${JSON.stringify(config)};
+                const activePayments = ${JSON.stringify(activePayments)};
+                
+                const paymentHTML = activePayments.length > 0 ? activePayments.map(slug => 
+                    '<label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200 mb-2">' +
+                    '<input type="radio" name="pay_method" value="' + slug + '" class="mr-3 w-4 h-4 text-blue-600">' +
+                    '<span class="text-sm font-bold text-gray-700 uppercase">' + slug.split('-').join(' ') + '</span>' +
+                    '</label>'
+                ).join('') : '<p class="text-red-500 text-xs">Belum ada metode pembayaran.</p>';
+
+                const checkoutHTML = \`
+                    <div class="max-w-md mx-auto my-8 p-6 bg-white rounded-2xl shadow-xl border border-gray-100 font-sans">
+                        <h2 class="text-xl font-black text-gray-800 mb-6 text-center">Formulir Pemesanan</h2>
+                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6">
+                            <span class="font-bold text-blue-900">${page.title}</span>
+                            <span class="font-black text-blue-700">Rp \${new Intl.NumberFormat('id-ID').format(config.price || 0)}</span>
+                        </div>
+                        <div class="space-y-4 mb-6">
+                            <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full p-3 border rounded-lg">
+                            <input type="tel" id="c_phone" placeholder="No. WhatsApp" class="w-full p-3 border rounded-lg">
+                        </div>
+                        <div class="mb-6">
+                            <label class="text-xs font-bold text-gray-400 uppercase block mb-2">Pembayaran</label>
+                            <div class="grid gap-2">\${paymentHTML}</div>
+                        </div>
+                        <button id="btn-submit-order" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-700 transition">
+                            BAYAR SEKARANG
+                        </button>
+                    </div>
+                \`;
+                container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', checkoutHTML);
+
+                document.getElementById('btn-submit-order')?.addEventListener('click', async () => {
+                    const payMethod = document.querySelector('input[name="pay_method"]:checked')?.value;
+                    const name = document.getElementById('c_name').value;
+                    const phone = document.getElementById('c_phone').value;
+
+                    if(!name || !phone) return Swal.fire('Data Kurang', 'Mohon lengkapi nama dan WhatsApp', 'warning');
+                    if(!payMethod) return Swal.fire('Pilih Pembayaran', 'Metode pembayaran belum dipilih', 'warning');
+
+                    const btn = document.getElementById('btn-submit-order');
+                    btn.disabled = true;
+                    btn.innerText = 'Memproses...';
+
+                    try {
+                        const res = await fetch('/api/public/checkout', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                page_id: ${page.id},
+                                slug_payment: payMethod,
+                                quantity: 1,
+                                customer: { name, phone }
+                            })
+                        });
+                        const d = await res.json();
+                        if(d.payment_url) window.location.href = d.payment_url;
+                        else Swal.fire('Gagal', d.error || 'Terjadi kesalahan sistem', 'error');
+                    } catch(e) { Swal.fire('Error', 'Koneksi bermasalah', 'error'); }
+                    btn.disabled = false;
+                    btn.innerText = 'BAYAR SEKARANG';
+                });
+            }
+        });
+    </script>
+    `;
+
+    return c.html(`
+    <!DOCTYPE html>
+    <html lang='id'>
+    <head>
+        <meta charset='UTF-8'>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${page.title}</title>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>${tailwindConfig}</script>
+        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+        <style>
+            ${bridgeCSS}
+            ${page.css_content}
+        </style>
+    </head>
+    <body>
+        ${page.html_content}
+        <script>window.PAGE_ID=${page.id};</script>
+        ${liveScripts}
+    </body>
+    </html>
+    `);
 
 // ===============================================
 // 8. HOMEPAGE HANDLER (ROOT URL)
