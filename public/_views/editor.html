@@ -149,38 +149,31 @@
     </div>
 
     <header>
-        <div class="flex items-center gap-3 overflow-hidden w-full">
-            <a href="/admin/pages" class="text-gray-400 hover:text-indigo-600 transition p-1.5 rounded hover:bg-gray-50 shrink-0"><i class="ph ph-arrow-left text-xl"></i></a>
-            <div class="h-6 w-px bg-gray-200 shrink-0"></div>
-            <div class="flex-1 min-w-0">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Slug</span>
-                <input x-model="page.slug" class="bg-transparent font-mono font-bold text-sm text-gray-700 outline-none w-full placeholder-gray-300 focus:text-indigo-600 transition truncate" placeholder="nama-halaman">
+    <div class="flex items-center gap-3 overflow-hidden w-full max-w-[300px]">
+        <a href="/admin/pages" class="text-gray-400 hover:text-indigo-600 transition p-1.5 rounded hover:bg-gray-50 shrink-0"><i class="ph ph-arrow-left text-xl"></i></a>
+        <div class="h-6 w-px bg-gray-200 shrink-0"></div>
+        <div class="flex-1 min-w-0">
+            <input x-model="page.title" class="bg-transparent font-bold text-xs text-gray-800 outline-none w-full placeholder-gray-400 focus:text-indigo-600 transition truncate" placeholder="Nama Halaman">
+            <div class="flex items-center gap-1">
+                <span class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter shrink-0">Slug:</span>
+                <input x-model="page.slug" class="bg-transparent font-mono text-[10px] text-gray-500 outline-none w-full focus:text-indigo-600 transition truncate" placeholder="slug-halaman">
             </div>
         </div>
-        
-        <div class="hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center bg-gray-100 rounded-lg p-1 border border-gray-200 shadow-sm">
-            <button @click="setDevice('desktop')" :class="device=='desktop'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-desktop text-lg"></i></button>
-            <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-tablet text-lg"></i></button>
-            <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-mobile text-lg"></i></button>
-            <div class="w-px h-5 bg-gray-300 mx-2"></div>
-            <button @click="cmd('core:undo')" class="text-gray-400 hover:text-gray-700 p-1.5" title="Undo"><i class="ph ph-arrow-u-up-left text-lg"></i></button>
-            <button @click="cmd('core:redo')" class="text-gray-400 hover:text-gray-700 p-1.5" title="Redo"><i class="ph ph-arrow-u-up-right text-lg"></i></button>
-        </div>
+    </div>
+    
+    <div class="hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center bg-gray-100 rounded-lg p-1 border border-gray-200 shadow-sm">
+        <button @click="setDevice('desktop')" :class="device=='desktop'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-desktop text-lg"></i></button>
+        <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-tablet text-lg"></i></button>
+        <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-mobile text-lg"></i></button>
+    </div>
 
-        <div class="flex items-center gap-2">
-            <div class="hidden md:flex items-center gap-2">
-                <button @click="showSettings=true" class="bg-white hover:bg-gray-50 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition"><i class="ph ph-gear-six text-lg"></i> Config</button>
-                <button @click="savePage" :disabled="loading" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-500/30">
-                    <i x-show="loading" class="ph ph-spinner animate-spin"></i><span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
-                </button>
-            </div>
-            <button @click="mobileMenuOpen = !mobileMenuOpen" 
-                    class="md:hidden p-2 rounded-lg border border-gray-200 shadow-sm text-gray-700 active:bg-gray-100 transition"
-                    :class="mobileMenuOpen ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-white'">
-                <i class="ph" :class="mobileMenuOpen ? 'ph-x' : 'ph-list'" style="font-size: 24px;"></i>
-            </button>
-        </div>
-    </header>
+    <div class="flex items-center gap-2">
+        <button @click="showSettings=true" class="bg-white hover:bg-gray-50 text-gray-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200 transition"><i class="ph ph-gear-six text-lg"></i> Config</button>
+        <button @click="savePage" :disabled="loading" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg">
+            <i x-show="loading" class="ph ph-spinner animate-spin"></i><span x-text="loading ? 'SAVING...' : 'PUBLISH'"></span>
+        </button>
+    </div>
+</header>
 
     <div class="mobile-tools">
         <button @click="setDevice('desktop')" :class="device=='desktop'?'text-indigo-600 bg-white border-indigo-200 shadow-sm':'text-gray-400 border-transparent'" class="p-1.5 rounded border transition"><i class="ph ph-desktop text-lg"></i></button>
@@ -258,18 +251,22 @@
         <div class="flex-1 overflow-y-auto p-6 space-y-6">
             <div x-show="settingsTab === 'commerce'" class="space-y-4">
                 <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">Slug</label>
-                    <input x-model="page.slug" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none focus:border-indigo-500">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nama Halaman</label>
+                    <input x-model="page.title" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none focus:border-indigo-500" placeholder="Contoh: Landing Page Produk A">
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">Product Type</label>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">URL Slug</label>
+                    <input x-model="page.slug" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none focus:border-indigo-500" placeholder="nama-halaman-url">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Product Type</label>
                     <select x-model="page.product_type" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm">
                         <option value="physical">Physical Product</option>
                         <option value="digital">Digital Product</option>
                     </select>
                 </div>
                 <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">Base Price</label>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Base Price (Rp)</label>
                     <input type="number" x-model="page.config.price" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none">
                 </div>
             </div>
@@ -363,11 +360,11 @@ function editorApp() {
         paymentProviders: [],
         settingsTab: 'commerce',
 
-        // --- DATA STRUCTURE LENGKAP (TIDAK ADA YANG DIPOTONG) ---
+        // --- DATA STRUCTURE LENGKAP ---
         page: { 
             id: 0,
             slug: '', 
-            title: '', 
+            title: '', // Nama Halaman
             product_type: 'physical', 
             slug_payment: 'whatsapp', 
             meta: {
@@ -403,7 +400,8 @@ function editorApp() {
             if (slug) {
                 await this.loadPageData(slug);
             } else {
-                this.page.slug = 'new-page-' + Date.now();
+                this.page.slug = 'halaman-baru-' + Date.now();
+                this.page.title = 'Halaman Baru';
             }
             await this.fetchPaymentProviders();
             this.initGrapes();
@@ -432,7 +430,7 @@ function editorApp() {
                     if (data.html_content || data.html) window.editor.setComponents(data.html_content || data.html);
                     if (data.css_content || data.css) window.editor.setStyle(data.css_content || data.css);
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error('Error load:', e); }
             this.loading = false;
         },
 
@@ -454,7 +452,7 @@ function editorApp() {
                 const payload = {
                     id: this.page.id,
                     slug: this.page.slug,
-                    title: this.page.title,
+                    title: this.page.title, // Mengirim Judul Halaman
                     product_type: this.page.product_type,
                     provider: this.page.slug_payment,
                     html: html,
