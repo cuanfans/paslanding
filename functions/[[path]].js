@@ -572,8 +572,10 @@ async function renderPage(c, page) {
     // CSS & Tailwind
     const bridgeCSS = `
         body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
+        
         /* --- FIX SWEETALERT Z-INDEX --- */
         .swal2-container { z-index: 99999 !important; }
+
         .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; }
         .product-gallery .main-img { border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 4/3; background: #f3f4f6; }
         .product-gallery .main-img img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
@@ -615,7 +617,7 @@ async function renderPage(c, page) {
     const liveScripts = `
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // A. Notifikasi Pesan Terkirim
+            // A. Notifikasi Pesan Terkirim (SweetAlert)
             const params = new URLSearchParams(window.location.search);
             if(params.get('status') === 'sent') {
                 Swal.fire({
@@ -627,8 +629,8 @@ async function renderPage(c, page) {
                 });
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
-            
-            // B. Gallery Logic
+
+            // B. Gallery Thumbnail Logic
             document.querySelectorAll('.product-gallery').forEach(el => {
                 const main = el.querySelector('.main-img img');
                 const thumbs = el.querySelectorAll('.thumb');
@@ -642,7 +644,7 @@ async function renderPage(c, page) {
                 });
             });
             
-            // C. Carousel Logic
+            // C. Carousel Auto Play Logic
             document.querySelectorAll('.editable-carousel').forEach(el => {
                 const slides = el.querySelector('.slides');
                 const items = el.querySelectorAll('.slide');
@@ -758,7 +760,7 @@ async function renderPage(c, page) {
 }
 
 // ===============================================
-// HELPER ANALYTICS
+// HELPER ANALYTICS (TARUH DI LUAR ROUTE)
 // ===============================================
 async function runAnalyticsRekap(env) {
     try {
