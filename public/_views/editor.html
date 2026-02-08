@@ -770,7 +770,7 @@ function editorApp() {
             bm.add('container-1200', { label: 'Cont-1200px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1200px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase tracking-widest">Batas Kiri | 1200px | Batas Kanan</div></div>` });
             bm.add('iconify-blk', { label: 'Icon', category: '5. Basic', content: { type: 'iconify-icon' } });
 
-            // --- INI LOGIKA BARU UNTUK KLIK DI HP ---
+            // --- LOGIKA CLICK-TO-ADD YANG LEBIH SMART ---
             setTimeout(() => {
                 const container = document.getElementById('blocks-container');
                 if (container) {
@@ -780,25 +780,29 @@ function editorApp() {
                             const id = blockEl.getAttribute('title') || blockEl.innerText.trim();
                             const block = window.editor.BlockManager.get(id) || 
                                           window.editor.BlockManager.getAll().find(b => b.get('label') === id);
+                            
                             if (block) {
-                                // Ambil target (Komponen terpilih atau wrapper utama)
-                                const selected = window.editor.getSelected();
-                                const target = selected || window.editor.getWrapper();
-                                
-                                target.append(block.get('content'));
-                                
-                                // Notifikasi (this.notify aman karena pakai arrow function)
-                                this.notify('Sukses', 'Elemen ditambahkan', 'success');
-                                
-                                // Tutup panel otomatis kalau layar HP
-                                if(window.innerWidth < 768) {
-                                    this.mobileMenuOpen = false;
+                                try {
+                                    // Pakai addComponents (S-nya jamak) karena ini fungsi bawaan GJS
+                                    // Dia otomatis cari tempat terbaik atau masuk ke wrapper kalau tidak ada yang dipilih
+                                    const content = block.get('content');
+                                    
+                                    // Menambahkan komponen lewat API resmi (lebih stabil dari .append)
+                                    window.editor.addComponents(content);
+                                    
+                                    this.notify('Sukses', 'Elemen ditambahkan', 'success');
+                                    
+                                    if(window.innerWidth < 768) this.mobileMenuOpen = false;
+                                } catch (err) {
+                                    // Kalau aturan draggable melanggar, kita tangkap di sini biar tidak merah di konsol
+                                    console.warn("GJS Aturan: Pastikan kamu memilih container yang benar dulu.");
+                                    this.notify('Aturan', 'Pilih container (Row) yang sesuai dulu', 'error');
                                 }
                             }
                         }
                     });
                 }
-            }, 1000); 
+            }, 1500); 
 
         }, // <--- Tutup initGrapes
         
