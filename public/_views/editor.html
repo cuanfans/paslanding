@@ -238,8 +238,7 @@
             <div id="iconify-picker-results" class="p-4 grid grid-cols-6 gap-3 max-h-[300px] overflow-y-auto"></div>
         </div>
     </div>
-
-    <script>
+    
     <script>
 // --- ICON PICKER LOGIC ---
 (function(){
@@ -285,8 +284,11 @@ function editorApp() {
                 const res = await fetch(`/api/admin/pages/${slug}`, { credentials: 'same-origin' });
                 const data = await res.json();
                 if (data) {
-                    this.page.id = data.id || 0; this.page.slug = data.slug || slug; this.page.title = data.title || '';
-                    this.page.product_type = data.product_type || 'physical'; this.page.slug_payment = data.provider || 'whatsapp';
+                    this.page.id = data.id || 0;
+                    this.page.slug = data.slug || slug;
+                    this.page.title = data.title || '';
+                    this.page.product_type = data.product_type || 'physical';
+                    this.page.slug_payment = data.provider || 'whatsapp';
                     if (data.meta) this.page.meta = typeof data.meta === 'string' ? JSON.parse(data.meta) : data.meta;
                     if (data.analytics) this.page.analytics = typeof data.analytics === 'string' ? JSON.parse(data.analytics) : data.analytics;
                     if (data.scripts) this.page.scripts = typeof data.scripts === 'string' ? JSON.parse(data.scripts) : data.scripts;
@@ -297,7 +299,7 @@ function editorApp() {
                         if (data.css_content || data.css) window.editor.setStyle(data.css_content || data.css);
                     }
                 }
-            } catch (e) { console.error("Error Load Data:", e); }
+            } catch (e) { console.error(e); }
             this.loading = false;
         },
 
@@ -311,7 +313,6 @@ function editorApp() {
         async savePage() {
             this.loading = true;
             try {
-                if (!window.editor) throw new Error("Editor GrapesJS belum siap");
                 const html = window.editor.getHtml(); const css = window.editor.getCss(); const js = window.editor.getJs();
                 const payload = {
                     id: this.page.id, slug: this.page.slug, title: this.page.title, product_type: this.page.product_type,
@@ -319,9 +320,8 @@ function editorApp() {
                     meta: this.page.meta, analytics: this.page.analytics, scripts: this.page.scripts, product_config: this.page.config
                 };
                 const res = await fetch('/api/admin/pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (res.status === 401) { window.location.href = '/login'; return; }
-                this.notify(res.ok ? 'Sukses' : 'Error', res.ok ? 'Berhasil disimpan!' : 'Gagal menyimpan', res.ok ? 'success' : 'error');
-            } catch (e) { this.notify('Error', 'Masalah teknis: ' + e.message, 'error'); }
+                this.notify(res.ok ? 'Sukses' : 'Error', res.ok ? 'Berhasil disimpan!' : 'Gagal simpan', res.ok ? 'success' : 'error');
+            } catch (e) { this.notify('Error', 'Masalah koneksi', 'error'); }
             this.loading = false;
         },
 
@@ -336,32 +336,29 @@ function editorApp() {
             const file = event.target.files[0]; if (!file) return; this.loading = true;
             try {
                 const formData = new FormData(); formData.append('file', file);
-                const res = await fetch('/api/admin/upload', { method: 'POST', credentials: 'same-origin', body: formData });
+                const res = await fetch('/api/admin/upload', { method: 'POST', body: formData });
                 const data = await res.json();
                 if (res.ok && data.url) { this.page.meta[target] = data.url; this.notify('Sukses', 'Gambar diupdate!', 'success'); }
-                else { throw new Error(data.error || 'Gagal upload'); }
-            } catch (e) { this.notify('Error', e.message, 'error'); }
-            finally { this.loading = false; event.target.value = ''; }
+            } catch (e) { this.notify('Error', 'Gagal upload', 'error'); }
+            this.loading = false; event.target.value = '';
         },
 
         cmd(c) { window.editor.runCommand(c); },
-        
+
         initGrapes() {
             const bridgeCSS = `
                 body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; }
                 .product-gallery { display: flex; flex-direction: column; gap: 12px; width: 100%; overflow: hidden; }
                 .gallery-main { display: flex; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); width: 100%; }
                 .gallery-main img { width: 100%; flex-shrink: 0; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; }
-                .gallery-thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding: 5px 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
-                .gallery-thumbs::-webkit-scrollbar { display: none; }
+                .gallery-thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding: 5px 0; }
                 .thumb-item { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.6; transition: 0.3s; object-fit: cover; }
                 .thumb-item.active { border-color: #4f46e5; opacity: 1; transform: scale(1.05); }
                 .editable-carousel { position: relative; width: 100%; overflow: hidden; }
-                .editable-carousel .slides { display: flex; transition: transform 0.5s ease-in-out; }
+                .editable-carousel .slides { display: flex; transition: transform 0.5s ease; }
                 .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; }
                 .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; }
                 .pricing-card.highlight { border: 2px solid #2563eb; }
-                .pricing-card .price { font-size:32px; font-weight:900; color:#0f172a; margin:10px 0; }
                 .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; height: 100%; }
                 .scrollbar-hide::-webkit-scrollbar { display: none; }
             `;
@@ -372,7 +369,7 @@ function editorApp() {
                 canvas: {
                     scripts: ['https://cdn.tailwindcss.com', 'https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js'],
                     styles: ['https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap', 'https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css'],
-                    content: `<style>${bridgeCSS}</style><script>tailwind.config = { darkMode: 'class', theme: { extend: { colors: { theme: { 500:'#6366f1' } } } } }<\/script>`
+                    content: `<style>${bridgeCSS}</style>`
                 },
                 plugins: ['gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'],
                 deviceManager: { devices: [{ id: 'desktop', width: '' }, { id: 'tablet', width: '768px' }, { id: 'mobile', width: '375px' }] },
@@ -380,80 +377,76 @@ function editorApp() {
                 layerManager: { appendTo: '#layers-container' },
                 selectorManager: { appendTo: '#selectors-container' },
                 traitManager: { appendTo: '#traits-container' },
-                styleManager: { appendTo: '#styles-container', sectors: [{ name: 'Typography', open:true, buildProps:['font-family','font-size','font-weight','color','text-align','line-height'] }, { name: 'Decorations', buildProps:['background-color','border','border-radius','box-shadow'] }, { name: 'Dimensions', buildProps:['width','height','padding','margin'] }] }
+                styleManager: { appendTo: '#styles-container', sectors: [{ name: 'Typography', open:true, buildProps:['font-family','font-size','font-weight','color','text-align','line-height'] }, { name: 'Decorations', open:false, buildProps:['background-color','border','border-radius','box-shadow'] }, { name: 'Dimensions', open:false, buildProps:['width','height','padding','margin'] }] }
             });
 
             const domc = window.editor.DomComponents;
             const bm = window.editor.BlockManager;
 
-            // 1. Iconify Type Definition
-            domc.addType('iconify-icon', { model: { defaults: { tagName: 'iconify-icon', droppable: false, attributes: { icon: 'ph:star-fill', width: '32', class: 'text-yellow-400' }, traits: [{ type: 'button', text: '🔍 Change Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) }, { name: 'width', type: 'number', label: 'Size' }, { name: 'class', label: 'Class' }] } } });
-
-            // 2. Carousel Logic
+            // --- COMPONENT TYPES ---
+            domc.addType('iconify-icon', { model: { defaults: { tagName: 'iconify-icon', attributes: { icon: 'ph:star-fill', width: '32' }, traits: [{ type: 'button', text: 'Change Icon', command: (ed, t) => window.openIconifyPicker(t.target) }] } } });
+            
             domc.addType('product-gallery', {
                 model: { defaults: { script: function() {
-                    const el = this; const main = el.querySelector('.gallery-main'); const thumbs = el.querySelectorAll('.thumb-item');
+                    const main = this.querySelector('.gallery-main'); const thumbs = this.querySelectorAll('.thumb-item');
                     const goTo = (i) => { if(!main) return; main.style.transform = `translateX(-${i * 100}%)`; thumbs.forEach((t, idx) => idx === i ? t.classList.add('active') : t.classList.remove('active')); };
                     thumbs.forEach((t, i) => t.onclick = () => goTo(i));
                 }}}
             });
 
-            // 3. Listeners: Double Click Icon (RESTORED)
-            window.editor.on('component:dblclick', (model) => { if(model.get('tagName') === 'iconify-icon') window.openIconifyPicker(model); });
-
-            // 4. Listeners: Toolbar Cut/Paste (RESTORED)
+            // --- LISTENERS ---
+            window.editor.on('component:dblclick', (m) => { if(m.get('tagName') === 'iconify-icon') window.openIconifyPicker(m); });
+            
             window.editor.on('component:selected', (model) => {
                 const toolbar = model.get('toolbar'); if (toolbar.find(item => item.id === 'cut-comp')) return;
                 toolbar.unshift(
                     { id: 'move-up', command: () => { const i = model.index(); if (i > 0) model.parent().components().add(model, { at: i - 1 }); }, label: '<i class="ph ph-arrow-up"></i>' },
                     { id: 'move-down', command: () => { const i = model.index(); model.parent().components().add(model, { at: i + 2 }); }, label: '<i class="ph ph-arrow-down"></i>' },
                     { id: 'cut-comp', command: () => { this.clipboard = model.toHTML(); model.remove(); this.notify('Cut', 'Komponen dipotong', 'info'); }, label: '<i class="ph ph-scissors"></i>' },
-                    { id: 'paste-inside', command: () => { if (this.clipboard) { model.append(this.clipboard); this.notify('Sukses', 'Berhasil disisipkan', 'success'); } else { this.notify('Kosong', 'Clipboard kosong', 'error'); } }, label: '<i class="ph ph-box-arrow-down"></i>' }
+                    { id: 'paste-inside', command: () => { if (this.clipboard) { model.append(this.clipboard); this.notify('Sukses', 'Berhasil disisipkan', 'success'); } } }
                 );
                 model.set('toolbar', toolbar);
             });
 
-            // 5. Universal Resizer (RESTORED)
-            window.editor.on('component:add', (model) => {
-                const types = ['image', 'video', 'button', 'text', 'link', 'map'];
-                if (types.includes(model.get('type')) || ['IMG', 'VIDEO', 'BUTTON'].includes(model.get('tagName'))) {
-                    model.set('resizable', { cr: 1, cb: 1, br: 1, keyWidth: 'width', keyHeight: 'height' });
-                }
-            });
-
-            // --- 6. ALL BLOCKS DEFINITION (COMPLETE RESTORATION) ---
-            
-            // BASIC
+            // --- BLOCK MANAGER (SEMUA BM ANDA DIKEMBALIKAN DISINI) ---
             bm.add('text-heading', { label: 'Heading', category: 'Basic', content: '<h2 class="text-3xl font-black text-gray-800 mb-4">Tulis Judul Disini</h2>' });
-            bm.add('text-paragraph', { label: 'Paragraph', category: 'Basic', content: '<p class="text-base text-gray-600 mb-4 leading-relaxed">Tulis deskripsi teks paragraf Anda di sini.</p>' });
+            bm.add('text-paragraph', { label: 'Paragraph', category: 'Basic', content: '<p class="text-base text-gray-600 mb-4">Tulis deskripsi teks paragraf Anda di sini.</p>' });
             bm.add('ui-button', { label: 'Button-Pro', category: 'Basic', content: '<a href="#" class="btn btn-primary px-6 py-3 rounded-lg font-bold text-white shadow-lg">Click Me</a>' });
-            bm.add('ui-image', { label: 'Picture', category: 'Basic', content: { type: 'image', style: { color: 'black' }, activeOnRender: 1 } });
-            bm.add('iconify-blk', { label: 'Icon', category: 'Basic', content: { type: 'iconify-icon' } }); // <--- ICON WIDGET
+            bm.add('ui-image', { label: 'Picture', category: 'Basic', content: { type: 'image', activeOnRender: 1 } });
             bm.add('ui-divider', { label: 'Divider', category: 'Basic', content: '<div class="divider py-4"></div>' });
+            bm.add('iconify-blk', { label: 'Icon', category: 'Basic', content: { type: 'iconify-icon' } });
 
-            // MEDIA
-            bm.add('gallery-carousel-1', { label: 'Thumb Carousel', category: '2. Media', content: '<div class="product-gallery" data-gjs-type="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Slide+1"><img src="https://via.placeholder.com/800x600/10b981/fff?text=Slide+2"><img src="https://via.placeholder.com/800x600/f59e0b/fff?text=Slide+3"></div><div class="gallery-thumbs"><img src="https://via.placeholder.com/150/2563eb/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff" class="thumb-item"><img src="https://via.placeholder.com/150/f59e0b/fff" class="thumb-item"></div></div>' });
-            bm.add('gallery-carousel-2', { label: 'Thumb Gallery', category: '2. Media', content: '<div class="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/4f46e5/fff?text=Img+A"><img src="https://via.placeholder.com/800x600/ef4444/fff?text=Img+B"></div><div class="gallery-thumbs mt-2"><img src="https://via.placeholder.com/150/4f46e5/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/ef4444/fff" class="thumb-item"></div></div>' });
+            bm.add('header-sticky', { label: 'Header Sticky', category: '1. Header & Hero', content: `<header style="position:sticky;top:0;z-index:50;background:white;border-bottom:1px solid #eee"><div class="container mx-auto px-4 h-16 flex items-center justify-between"><div class="font-bold text-xl">BRAND</div><button class="btn btn-primary btn-sm">Get Started</button></div></header>` });
+            bm.add('header-simple', { label: 'Header Simple', category: '1. Header & Hero', content: `<header class="bg-white border-b py-4"><div class="container mx-auto px-4 flex justify-between items-center"><div class="font-bold text-xl">LOGO</div><nav class="flex gap-4 text-sm font-semibold text-gray-600"><a href="#">Home</a><a href="#">About</a></nav></div></header>` });
+            bm.add('header-center', { label: 'Header Center', category: '1. Header & Hero', content: `<header class="bg-white py-4 border-b"><div class="container mx-auto px-4 flex flex-col items-center gap-4"><div class="font-black text-2xl tracking-widest text-indigo-600">CENTERED</div><nav class="flex gap-6 text-sm font-medium"><a href="#">Shop</a><a href="#">Blog</a><a href="#">Contact</a></nav></div></header>` });
+            bm.add('header-transparent', { label: 'Header Trans', category: '1. Header & Hero', content: `<header class="absolute top-0 left-0 w-full z-10 py-4"><div class="container mx-auto px-4 flex justify-between items-center"><div class="font-bold text-white text-xl">GLASS</div><nav class="flex gap-6 text-white text-sm font-medium"><a href="#">Home</a><a href="#">Link</a></nav></div></header>` });
+
+            bm.add('hero-slider', { label: 'Hero Slider', category: '1. Header & Hero', content: `<div class="editable-carousel relative h-[600px] bg-gray-900 text-white" data-gjs-type="editable-carousel"><div class="slides"><div class="slide"><img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80" class="opacity-60"><div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4"><h1 class="text-6xl font-black mb-4 tracking-tight">Scale Your Business</h1><p class="text-xl max-w-2xl opacity-90">Platform terbaik untuk pertumbuhan eksponensial.</p><button class="btn btn-primary btn-lg mt-8 rounded-full">Mulai Sekarang</button></div></div></div></div>` });
+            bm.add('hero-simple', { label: 'Hero Simple', category: '1. Header & Hero', content: `<section class="py-20 text-center bg-white"><div class="container mx-auto px-4"><h1 class="text-5xl font-black text-gray-900 mb-6">Headline Produk</h1><div class="flex justify-center gap-4"><button class="btn btn-primary px-8">Beli</button><button class="btn btn-ghost px-8">Demo</button></div></div></section>` });
+
+            bm.add('gallery-carousel-1', { label: 'Thumb Carousel', category: '2. Media', content: '<div class="product-gallery" data-gjs-type="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Slide+1"><img src="https://via.placeholder.com/800x600/10b981/fff?text=Slide+2"></div><div class="gallery-thumbs"><img src="https://via.placeholder.com/150/2563eb/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff" class="thumb-item"></div></div>' });
+            bm.add('gallery-carousel-2', { label: 'Thumb Gallery', category: '2. Media', content: '<div class="product-gallery max-w-2xl mx-auto p-4 bg-white rounded-xl shadow-sm border border-gray-100" data-gjs-type="product-gallery"><div class="gallery-main rounded-xl overflow-hidden aspect-[4/3] bg-gray-100"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Main+Image" class="w-full h-full object-cover"></div><div class="gallery-thumbs flex gap-3 overflow-x-auto pb-2 scrollbar-hide"><img src="https://via.placeholder.com/150/2563eb/fff?text=1" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff?text=2" class="thumb-item"></div></div>' });
             bm.add('video-yt', { label: 'Video Youtube', category: '2. Media', content: `<div class="max-w-4xl mx-auto rounded-2xl overflow-hidden shadow-2xl aspect-video"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen></iframe></div>` });
 
-            // CONTENT
-            bm.add('feature-grid', { label: 'Features', category: '3. Content', content: `<section class="py-16 bg-white"><div class="container mx-auto px-4"><div class="grid md:grid-cols-3 gap-8"><div class="p-6 border rounded-xl text-center"><iconify-icon icon="ph:rocket-fill" class="text-3xl text-indigo-600 mb-4"></iconify-icon><h3 class="font-bold">Fast Speed</h3><p class="text-sm text-gray-500">Speed optimized.</p></div></div></div></section>` });
-            bm.add('testimonials', { label: 'Testimonials', category: '3. Content', content: `<section class="py-16 bg-gray-50"><div class="container mx-auto px-4 text-center"><div class="testimonial-card inline-block max-w-sm"><h4 class="font-bold">Andi</h4><p class="text-sm italic">"Sangat memuaskan!"</p></div></div></section>` });
-            bm.add('faq-pro', { label: 'FAQ Pro', category: '3. Content', content: `<section class="max-w-3xl mx-auto py-16 px-4"><h2 class="text-3xl font-black text-center mb-10">FAQ</h2><div class="p-6 border-2 rounded-2xl mb-4"><h3 class="font-bold text-indigo-600">Pertanyaan?</h3><p class="text-sm text-gray-600">Klik dua kali untuk ganti jawaban.</p></div></section>` });
-            bm.add('trust-badges', { label: 'Trust Badges', category: '3. Content', content: `<div class="flex flex-wrap justify-center gap-8 py-8 opacity-60"><iconify-icon icon="logos:visa" width="48"></iconify-icon><iconify-icon icon="logos:mastercard" width="48"></iconify-icon></div>` });
+            bm.add('feature-grid', { label: 'Features', category: '3. Content', content: `<section class="py-16 bg-white"><div class="container mx-auto px-4"><div class="grid md:grid-cols-3 gap-8"><div class="p-6 border rounded-xl text-center"><iconify-icon icon="ph:rocket-fill" class="text-blue-600 text-3xl"></iconify-icon><h3 class="font-bold">Fast</h3></div></div></div></section>` });
+            bm.add('testimonials', { label: 'Testimonials', category: '3. Content', content: `<section class="py-16 bg-gray-50"><div class="container mx-auto px-4 text-center"><div class="testimonial-card"><h4 class="font-bold">User</h4><p class="text-sm">"Sangat puas!"</p></div></div></section>` });
+            bm.add('faq-pro', { label: 'FAQ Pro', category: '3. Content', content: `<section class="py-16 px-4 max-w-3xl mx-auto"><h2 class="text-3xl font-black text-center mb-12">FAQ</h2><div class="grid gap-6"><div class="p-6 bg-white border-2 rounded-2xl"><h3 class="font-bold text-blue-600">Pertanyaan?</h3><p class="text-sm">Isi jawaban anda.</p></div></div></section>` });
+            bm.add('trust-badges', { label: 'Trust Badges', category: '3. Content', content: `<div class="flex flex-wrap justify-center gap-8 py-8 opacity-60 grayscale"><iconify-icon icon="logos:visa" width="48"></iconify-icon><iconify-icon icon="logos:mastercard" width="48"></iconify-icon></div>` });
             bm.add('steps', { label: 'Steps', category: '3. Content', content: `<ul class="steps steps-vertical lg:steps-horizontal w-full py-8"><li class="step step-primary">Pilih</li><li class="step step-primary">Isi</li><li class="step">Bayar</li></ul>` });
-            bm.add('countdown-smart', { label: 'Countdown Pro', category: '3. Content', content: { type: 'countdown-smart', content: `<div class="py-10 bg-indigo-900 rounded-3xl text-white max-w-[800px] mx-auto text-center js-wrap"><span class="js-d text-4xl font-black">00</span> HARI <span class="js-h text-4xl font-black">00</span> JAM <span class="js-m text-4xl font-black">00</span> MENIT <span class="js-s text-4xl font-black">00</span> DETIK</div>` } }); 
+            bm.add('countdown-smart', { label: 'Countdown Pro', category: '3. Content', content: { type: 'countdown-smart', content: `<div class="py-10 bg-indigo-900 rounded-3xl text-white max-w-[800px] mx-auto text-center js-wrap"><span class="js-d text-4xl font-black">00</span> HARI <span class="js-h text-4xl font-black">00</span> JAM</div>` } });
+            bm.add('countdown-dynamic', { label: 'Evergreen Timer', category: '3. Content', content: { type: 'countdown-dynamic', content: `<div class="py-6 bg-red-600 rounded-2xl text-white max-w-[500px] mx-auto text-center"><span class="js-h text-4xl font-black">00</span> JAM <span class="js-m text-4xl font-black">00</span> MENIT</div>` } });
 
-            // COMMERCE
             bm.add('pricing-table', { label: 'Pricing Edit', category: '4. Commerce', content: `<section class="py-20 bg-gray-50"><div class="container mx-auto px-4 max-w-6xl text-center"><div class="pricing-card border-2 border-indigo-600 max-w-sm mx-auto"><h3 class="title">Professional</h3><div class="price">Rp 99.000</div><button class="btn btn-primary w-full mt-4">Pilih</button></div></div></section>` });
             bm.add('contact-form', { label: 'Contact Form', category: '4. Commerce', content: `<div class="max-w-md mx-auto p-8 bg-white rounded-2xl shadow-xl border"><h3 class="text-xl font-bold mb-4">Hubungi Kami</h3><form class="space-y-4"><div><label class="text-xs font-bold text-gray-500 uppercase">Nama</label><input type="text" class="input input-bordered w-full" placeholder="John Doe"></div><button type="button" class="btn btn-primary w-full">Kirim</button></form></div>` });
-            bm.add('checkout-pro', { label: 'Checkout Pro', category: '4. Commerce', content: `<div class="py-12 bg-gray-50 text-center"><div class="card bg-white shadow-xl max-w-md mx-auto p-6"><h2 class="card-title justify-center">Detail Pembayaran</h2><div class="divider"></div><button type="button" class="btn btn-primary w-full">BAYAR SEKARANG</button></div></div>` });
+            bm.add('checkout-pro', { label: 'Checkout Pro', category: '4. Commerce', content: `<div class="py-12 bg-gray-50 text-center"><div class="card bg-white shadow-xl max-w-md mx-auto p-6"><h2 class="card-title justify-center">Pembayaran</h2><div class="divider"></div><button type="button" class="btn btn-primary w-full">BAYAR</button></div></div>` });
 
-            // CONTAINERS
-            bm.add('container-1000', { label: 'Cont-1000px', category: '5. Basic', content: `<div class="py-4 bg-gray-100"><div class="mx-auto max-w-[1000px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase">1000px Container</div></div>` });
-            bm.add('container-1200', { label: 'Cont-1200px', category: '5. Basic', content: `<div class="py-4 bg-gray-100"><div class="mx-auto max-w-[1200px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase">1200px Container</div></div>` });
+            bm.add('container', { label: 'Container', category: '5. Basic', content: `<div class="container mx-auto p-4 border-2 border-dashed border-gray-300 min-h-[100px] flex items-center justify-center text-gray-400">Drop Content Here</div>` });
+            bm.add('container-800', { label: 'Cont-800px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[800px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500">800px</div></div>` });
+            bm.add('container-1000', { label: 'Cont-1000px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1000px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500">1000px</div></div>` });
+            bm.add('container-1140', { label: 'Cont-1140px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1140px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500">1140px</div></div>` });
+            bm.add('container-1200', { label: 'Cont-1200px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1200px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500">1200px</div></div>` });
 
-            // 7. Click-to-Add Logic (Mobile Friendly)
+            // --- CLICK-TO-ADD ---
             setTimeout(() => {
                 const container = document.getElementById('blocks-container');
                 if (container) {
@@ -464,15 +457,13 @@ function editorApp() {
                             const block = window.editor.BlockManager.get(id);
                             if (block) {
                                 window.editor.addComponents(block.get('content'));
-                                this.notify('Sukses', 'Elemen ditambahkan', 'success');
                                 if(window.innerWidth < 768) this.mobileMenuOpen = false;
                             }
                         }
                     });
                 }
             }, 1500); 
-
-        }, // <--- TUTUP initGrapes
+        }
     }; 
 }
 </script>
