@@ -245,7 +245,7 @@ app.use('*', async (c, next) => {
 
     if (isPage) {
         try {
-            c.env.ANALYTICS.writeDataPoint({
+            c.env.ANALYTICS_ENGINE.writeDataPoint({
                 blobs: [
                     path,
                     c.req.header('referer') || 'direct'
