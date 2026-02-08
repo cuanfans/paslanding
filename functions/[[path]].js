@@ -463,8 +463,92 @@ app.delete('/api/admin/templates', async (c) => {
 });
 
 // ===============================================
-// 6. PUBLIC API (Checkout & Contact)
+// 6. PUBLIC API
 // ===============================================
+
+// --- PUBLIC CONTACT FORM ---
+app.post('/api/public/contact', async (c) => {
+    try {
+        await initDB(c.env.DB);
+        let body;
+        const contentType = c.req.header('Content-Type');
+        
+        if (contentType && contentType.includes('application/json')) {
+            body = await c.req.json();
+        } else {
+            body = await c.req.parseBody();
+        }
+
+        const { page_id, subject, name, email, phone, message } = body;
+
+        if (!name || !message) return c.json({ error: "Nama dan Pesan wajib diisi!" }, 400);
+
+        await c.env.DB.prepare(`INSERT INTO messages (page_id, subject, name, email, phone, message) VALUES (?, ?, ?, ?, ?, ?)`)
+            .bind(page_id || 0, subject || 'General', name, email || '', phone || '', message)
+            .run();
+
+        if (!contentType || !contentType.includes('application/json')) {
+            return c.redirect(c.req.header('Referer') + '?status=sent');
+        }
+
+        return c.json({ success: true, message: "Pesan terkirim!" });
+    } catch (e) { return c.json({ error: e.message }, 500); }
+});
+
+// --- PUBLIC CHECKOUT ---
+app.post('/api/public/checkout', async (c) => {
+    try {
+        const body = await c.req.json();
+        const { slug_payment, customer, quantity } = body;
+        
+        if (!slug_payment || !customer?.phone) return c.json({ error: "Data tidak lengkap!" }, 400);
+
+        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(body.page_id).first();
+        const config = JSON.parse(page.product_config_json || '{}');
+
+        // HITUNG HARGA
+        let unitPrice = 0;
+        let itemName = page.title;
+
+        if (config.variants && config.variants[body.variant_index]) {
+            unitPrice = Number(config.variants[body.variant_index].price);
+            itemName += ` (${config.variants[body.variant_index].name})`;
+        } else {
+            unitPrice = Number(config.price || 0);
+        }
+
+        const qty = parseInt(quantity || 1);
+        let finalAmount = unitPrice * qty;
+
+        // Cek Bump
+        let bumpName = '';
+        if (body.take_bump && config.order_bump?.active) {
+            const bumpPrice = Number(config.order_bump.price);
+            finalAmount += bumpPrice; 
+            bumpName = config.order_bump.title;
+        }
+
+        // Cek Kupon
+        if (body.coupon_code && config.coupons) {
+            const cp = config.coupons.find(x => x.code.toUpperCase() === body.coupon_code.toUpperCase());
+            if (cp) {
+                const disc = cp.type === 'percent' ? (finalAmount * cp.value / 100) : cp.value;
+                finalAmount = Math.max(0, finalAmount - disc);
+            }
+        }
+        
+        const apiPayload = {
+            ...body,
+            amount: finalAmount, 
+            item_name: itemName + (qty > 1 ? ` (x${qty})` : ''),
+            bump_name: bumpName
+        };
+
+        const result = await executeGenericAPI(c, 'payment', slug_payment, apiPayload);
+        return c.json({ payment_url: result.payment_url || result._raw?.data?.payment_url });
+
+    } catch (e) { return c.json({ error: "Proses Gagal: " + e.message }, 500); }
+});
 
 // ===============================================
 // 7. PUBLIC PAGE RENDERING & HOMEPAGE
