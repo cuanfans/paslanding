@@ -718,28 +718,15 @@ function editorApp() {
             
                 toolbar.unshift(
                     {
-                        id: 'move-up',
-                        command: () => {
-                            const index = model.index();
-                            if (index > 0) model.parent().components().add(model, { at: index - 1 });
-                        },
-                        label: '<i class="ph ph-arrow-up"></i>'
-                    },
-                    {
-                        id: 'move-down',
-                        command: () => {
-                            const index = model.index();
-                            model.parent().components().add(model, { at: index + 2 });
-                        },
-                        label: '<i class="ph ph-arrow-down"></i>'
-                    },
-                    {
                         id: 'cut-comp',
                         command: () => {
-                            // Kloning model agar bisa dipaste berkali-kali jika butuh
-                            this.clipboard = model.clone(); 
+                            // Simpan dalam bentuk JSON (Sangat ringan, cuma teks)
+                            this.clipboard = JSON.parse(JSON.stringify(model.toHTML())); 
+                            // Atau cara yang lebih GJS:
+                            this.clipboard = model.toHTML(); 
+                            
                             model.remove();
-                            this.notify('Cut', 'Komponen dipotong', 'info');
+                            this.notify('Cut', 'Komponen dipotong ke memori', 'info');
                         },
                         label: '<i class="ph ph-scissors"></i>'
                     },
@@ -747,11 +734,11 @@ function editorApp() {
                         id: 'paste-inside',
                         command: () => {
                             if (this.clipboard) {
-                                // Masukkan kloningan clipboard ke dalam komponen yang dipilih
-                                model.append(this.clipboard.clone());
-                                this.notify('Sukses', 'Berhasil disisipkan ke dalam', 'success');
+                                // Masukkan kembali sebagai komponen baru dari HTML string
+                                model.append(this.clipboard);
+                                this.notify('Sukses', 'Berhasil disisipkan', 'success');
                             } else {
-                                this.notify('Kosong', 'Tidak ada yang bisa ditempel', 'error');
+                                this.notify('Kosong', 'Clipboard kosong', 'error');
                             }
                         },
                         label: '<i class="ph ph-box-arrow-down"></i>'
