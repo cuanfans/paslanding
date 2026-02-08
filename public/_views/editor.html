@@ -647,70 +647,52 @@ function editorApp() {
         cmd(c) { window.editor.runCommand(c); },
         
         initGrapes() {
-            // === 1. BRIDGE CSS (CRITICAL: TAMPILAN SAMA PERSIS DENGAN PREVIEW) ===
+            // === 1. BRIDGE CSS (SINKRONISASI TOTAL) ===
             const bridgeCSS = `
-                /* CANVAS RESET */
-                body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; }
+                body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
                 
-                /* --- PRODUCT GALLERY CAROUSEL (SLIDING VERSION) --- */
-                .product-gallery { 
-                    display: flex; flex-direction: column; gap: 12px; width: 100%; overflow: hidden; 
-                }
-                
-                /* Wadah gambar besar yang bergeser */
-                .gallery-main { 
-                    display: flex; 
-                    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
-                    width: 100%; 
-                }
-                
-                .gallery-main img { 
-                    width: 100%; flex-shrink: 0; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; 
-                }
-                
-                /* Barisan Thumbnails */
-                .gallery-thumbs { 
-                    display: flex; flex-direction: row; gap: 10px; overflow-x: auto; 
-                    padding: 5px 0; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; 
-                }
-                
-                .gallery-thumbs::-webkit-scrollbar { display: none; } /* Biar bersih tanpa scrollbar */
-                
-                .thumb-item { 
-                    min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; 
-                    border-radius: 8px; cursor: pointer; border: 2px solid transparent; 
-                    opacity: 0.6; transition: 0.3s; object-fit: cover; 
-                }
-                
-                .thumb-item.active { 
-                    border-color: #4f46e5; opacity: 1; transform: scale(1.05); 
-                }
-                
-                /* --- EDITABLE CAROUSEL (HERO SLIDER) --- */
+                /* PRODUCT GALLERY SLIDER */
+                .product-gallery { display: flex; flex-direction: column; gap: 12px; width: 100%; overflow: hidden; }
+                .gallery-main { display: flex; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); width: 100%; }
+                .gallery-main img { width: 100%; flex-shrink: 0; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; }
+                .gallery-thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding: 5px 0; scrollbar-width: none; }
+                .gallery-thumbs::-webkit-scrollbar { display: none; }
+                .thumb-item { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.6; transition: 0.3s; object-fit: cover; }
+                .thumb-item.active { border-color: #4f46e5; opacity: 1; transform: scale(1.05); }
+
+                /* HERO CAROUSEL */
                 .editable-carousel { position: relative; width: 100%; overflow: hidden; }
                 .editable-carousel .slides { display: flex; transition: transform 0.5s ease-in-out; }
                 .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; }
+                .editable-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
 
-                /* PRICING & TESTIMONIAL */
+                /* PRICING CARD */
                 .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; }
                 .pricing-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
-                .pricing-card.highlight { border: 2px solid #2563eb; position: relative; }
+                .pricing-card.highlight { border: 2px solid #6366f1; position: relative; }
                 .pricing-card .title { font-weight:800; font-size:14px; text-transform:uppercase; letter-spacing:0.6px; color:#475569; }
                 .pricing-card .price { font-size:32px; font-weight:900; color:#0f172a; margin:10px 0; }
-                .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; height: 100%; }
-                
+
+                /* TESTIMONIAL */
+                .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; height: 100%; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+
                 /* UTILS */
                 .scrollbar-hide::-webkit-scrollbar { display: none; }
                 @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
                 .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 25s linear infinite; }
             `;
 
+            // === 2. INITIALIZE GRAPESJS (CLEAN UI) ===
             window.editor = grapesjs.init({
-                container: '#gjs', height: '100%', fromElement: false, storageManager: false,
+                container: '#gjs',
+                height: '100%',
+                fromElement: false,
+                storageManager: false,
+                panels: { defaults: [] }, // <--- INI BIAR PANEL HITAM GRAPESJS MATI TOTAL
                 canvas: {
                     scripts: ['https://cdn.tailwindcss.com', 'https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js'],
                     styles: ['https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap', 'https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css'],
-                    content: `<style>${bridgeCSS}</style><script>tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { theme: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca', 800:'#3730a3' } } } } }<\/script>`
+                    content: `<style>${bridgeCSS}</style><script>tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { theme: { 500:'#6366f1' } } } } }<\/script>`
                 },
                 plugins: ['gjs-blocks-basic', 'grapesjs-plugin-forms', 'grapesjs-navbar', 'grapesjs-tabs', 'grapesjs-custom-code', 'grapesjs-tooltip', 'grapesjs-blocks-flexbox', 'grapesjs-plugin-export', 'grapesjs-typed', 'grapesjs-style-bg'],
                 deviceManager: { devices: [{ id: 'desktop', width: '' }, { id: 'tablet', width: '768px' }, { id: 'mobile', width: '375px' }] },
@@ -721,314 +703,86 @@ function editorApp() {
                 styleManager: { appendTo: '#styles-container', sectors: [{ name: 'Typography', open:true, buildProps:['font-family','font-size','font-weight','color','text-align','line-height'] }, { name: 'Decorations', open:false, buildProps:['background-color','border','border-radius','box-shadow'] }, { name: 'Dimensions', open:false, buildProps:['width','height','padding','margin'] }] }
             });
 
-            // LOAD DATA
-            if (this.page.slug) {
-                fetch('/api/admin/pages/' + this.page.slug, { credentials: 'same-origin' }).then(r=>r.json()).then(d=>{
-                    if(d.id) {
-                        this.page.title = d.title; this.page.id = d.id; 
-                        this.page.product_type = d.product_type || 'physical'; 
-                        this.page.slug_payment = d.provider || 'whatsapp';
-                        try { const c = JSON.parse(d.product_config_json || '{}'); this.page.config = Object.assign(this.page.config, c); } catch (e) {}
-                        if (d.html_content) window.editor.setComponents(d.html_content);
-                        if (d.css_content) window.editor.setStyle(d.css_content);
-                    }
-                }).catch(()=>{});
-            }
-
             const domc = window.editor.DomComponents;
             const bm = window.editor.BlockManager;
-            // =========================================
-            // 0. BASIC & TYPOGRAPHY (YANG HILANG KEMBALI ADA)
-            // =========================================
+
+            // === 3. COMPONENT TYPES ===
             
-            // 1. HEADING / TITLE
-            bm.add('text-heading', {
-                label: 'Heading',
-                category: 'Basic',
-                content: '<h2 class="text-3xl font-black text-gray-800 mb-4">Tulis Judul Disini</h2>',
-                attributes: { class: 'fa fa-heading' } // Icon huruf H
-            });
-
-            // 2. PARAGRAPH / TEXT
-            bm.add('text-paragraph', {
-                label: 'Paragraph',
-                category: 'Basic',
-                content: '<p class="text-base text-gray-600 mb-4 leading-relaxed">Tulis deskripsi atau teks paragraf Anda di sini. Anda bisa mengedit teks ini dengan mengklik dua kali.</p>',
-                attributes: { class: 'fa fa-paragraph' }
-            });
-
-            // 3. BUTTON (Tombol)
-            bm.add('ui-button', {
-                label: 'Button-Pro',
-                category: 'Basic',
-                content: '<a href="#" class="btn btn-primary px-6 py-3 rounded-lg font-bold text-white shadow-lg transition hover:-translate-y-1">Click Me</a>',
-                attributes: { class: 'fa fa-square' }
-            });
-
-            // 4. IMAGE (Gambar)
-            bm.add('ui-image', {
-                label: 'Picture',
-                category: 'Basic',
-                content: { type: 'image', style: { color: 'black' }, activeOnRender: 1 },
-                attributes: { class: 'fa fa-image' }
-            });
-
-            // 5. DIVIDER (Garis Pembatas)
-            bm.add('ui-divider', {
-                label: 'Divider',
-                category: 'Basic',
-                content: '<div class="divider py-4"></div>',
-                attributes: { class: 'fa fa-minus' }
-            });
-
-            // --- COMPONENT LOGIC ---
-            
-            // 1. Iconify
+            // Iconify Component
             domc.addType('iconify-icon', { model: { defaults: { tagName: 'iconify-icon', droppable: false, attributes: { icon: 'ph:star-fill', width: '32', class: 'text-yellow-400' }, traits: [{ type: 'button', text: '🔍 Change Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) }, { name: 'width', type: 'number', label: 'Size' }, { name: 'class', label: 'Class' }] } } });
-            // 1. FITUR DOUBLE CLICK ICON (Tetap Pertahankan)
-            window.editor.on('component:selected', (model) => {
-                const toolbar = model.get('toolbar');
-                if (toolbar.find(item => item.id === 'cut-comp')) return;
-            
-                toolbar.unshift(
-                    {
-                        id: 'cut-comp',
-                        command: () => {
-                            // Simpan dalam bentuk JSON (Sangat ringan, cuma teks)
-                            this.clipboard = JSON.parse(JSON.stringify(model.toHTML())); 
-                            // Atau cara yang lebih GJS:
-                            this.clipboard = model.toHTML(); 
-                            
-                            model.remove();
-                            this.notify('Cut', 'Komponen dipotong ke memori', 'info');
-                        },
-                        label: '<i class="ph ph-scissors"></i>'
-                    },
-                    {
-                        id: 'paste-inside',
-                        command: () => {
-                            if (this.clipboard) {
-                                // Masukkan kembali sebagai komponen baru dari HTML string
-                                model.append(this.clipboard);
-                                this.notify('Sukses', 'Berhasil disisipkan', 'success');
-                            } else {
-                                this.notify('Kosong', 'Clipboard kosong', 'error');
-                            }
-                        },
-                        label: '<i class="ph ph-box-arrow-down"></i>'
-                    }
-                );
-                model.set('toolbar', toolbar);
-            });
 
-            window.editor.on('component:add', (model) => {
-            // Daftar tipe yang diizinkan untuk di-resize manual dengan drag
-            const resizableTypes = ['image', 'video', 'button', 'text', 'textnode', 'link', 'map'];
-            
-            // Jika komponen termasuk dalam daftar atau memiliki tag visual tertentu
-            if (resizableTypes.includes(model.get('type')) || ['IMG', 'VIDEO', 'BUTTON'].includes(model.get('tagName'))) {
-                model.set('resizable', {
-                    cr: 1, // Penarik Kanan (Center Right)
-                    cb: 1, // Penarik Bawah (Center Bottom)
-                    br: 1, // Penarik Pojok (Bottom Right)
-                    keyWidth: 'width',
-                    keyHeight: 'height',
-                });
-            }
-        });
-            
-            // 2. Carousel Logic
-            domc.addType('editable-carousel', { model: { defaults: { script: function() { 
-                const el = this; const slides = el.querySelector('.slides'); const items = el.querySelectorAll('.slide'); let idx = 0; 
-                function show(n) { idx = (n + items.length) % items.length; slides.style.transform = 'translateX(-'+(idx*100)+'%)'; } 
-                const next = el.querySelector('.next'); if(next) next.onclick = () => show(idx+1); 
-                const prev = el.querySelector('.prev'); if(prev) prev.onclick = () => show(idx-1); 
-                let interval = setInterval(() => show(idx+1), 5000); 
-                el.onmouseenter = () => clearInterval(interval);
-                el.onmouseleave = () => interval = setInterval(() => show(idx+1), 5000);
-            } } } });
-
-            // 3. Thumbnail Gallery Logic
+            // Gallery Slider Logic
             domc.addType('product-gallery', {
                 model: {
                     defaults: {
                         script: function() {
-                            const el = this;
-                            const mainWrapper = el.querySelector('.gallery-main');
-                            const images = mainWrapper.querySelectorAll('img');
-                            const thumbs = el.querySelectorAll('.thumb-item');
-                            let currentIndex = 0;
-            
-                            const goToSlide = (index) => {
-                                currentIndex = index;
-                                // Geser wrapper utama berdasarkan index
-                                mainWrapper.style.transform = `translateX(-${index * 100}%)`;
-                                
-                                // Update class active di thumbnail
-                                thumbs.forEach((t, i) => {
-                                    if(i === index) {
-                                        t.classList.add('active');
-                                        // Auto-scroll thumbnail agar selalu terlihat kalau banyak
-                                        t.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                                    } else {
-                                        t.classList.remove('active');
-                                    }
-                                });
+                            const el = this; const main = el.querySelector('.gallery-main'); const thumbs = el.querySelectorAll('.thumb-item');
+                            if(!main || !thumbs.length) return;
+                            const goTo = (i) => {
+                                main.style.transform = `translateX(-${i * 100}%)`;
+                                thumbs.forEach((t, idx) => idx === i ? t.classList.add('active') : t.classList.remove('active'));
                             };
-            
-                            // Pasang event klik di tiap thumbnail
-                            thumbs.forEach((thumb, i) => {
-                                thumb.onclick = () => goToSlide(i);
-                            });
-            
-                            // Tambahkan fitur Swipe untuk Mobile
-                            let touchStart = 0;
-                            mainWrapper.addEventListener('touchstart', e => touchStart = e.touches[0].clientX);
-                            mainWrapper.addEventListener('touchend', e => {
-                                const touchEnd = e.changedTouches[0].clientX;
-                                if (touchStart - touchEnd > 50 && currentIndex < images.length - 1) goToSlide(currentIndex + 1);
-                                if (touchStart - touchEnd < -50 && currentIndex > 0) goToSlide(currentIndex - 1);
-                            });
-            
-                            // Inisialisasi awal
-                            if(thumbs.length > 0) goToSlide(0);
+                            thumbs.forEach((t, i) => t.onclick = () => goTo(i));
+                            goTo(0);
                         }
                     }
                 }
             });
 
-            // Countdown Timer
-            editor.DomComponents.addType('countdown-smart', {
-                model: {
-                    defaults: {
-                        traits: [
-                            { type: 'datetime-local', name: 'data-expire', label: 'Waktu Berakhir' },
-                            { type: 'text', name: 'data-end-text', label: 'Teks Berakhir' }
-                        ],
-                        attributes: { 
-                            'data-expire': '2026-12-31T23:59', 
-                            'data-end-text': 'PROMO SUDAH BERAKHIR' 
-                        },
-                        script: function() {
-                            const el = this;
-                            const f = (n) => String(Math.floor(n)).padStart(2, '0');
-                            const update = () => {
-                                const targetAttr = el.getAttribute('data-expire');
-                                const endText = el.getAttribute('data-end-text') || 'BERAKHIR';
-                                const dist = new Date(targetAttr).getTime() - new Date().getTime();
-                                
-                                if (dist < 0) { 
-                                    el.querySelector('.js-wrap').innerHTML = `<div class="w-full text-center py-4 font-black text-xl uppercase tracking-widest animate-pulse">${endText}</div>`; 
-                                    return; 
-                                }
-                                
-                                el.querySelector('.js-d').innerText = f(dist / 864e5);
-                                el.querySelector('.js-h').innerText = f((dist % 864e5) / 36e5);
-                                el.querySelector('.js-m').innerText = f((dist % 36e5) / 6e4);
-                                el.querySelector('.js-s').innerText = f((dist % 6e4) / 1e3);
-                            };
-                            setInterval(update, 1000); update();
-                        }
-                    }
+            // === 4. EVENT LISTENERS (SINKRON) ===
+
+            // Double Click Iconify
+            window.editor.on('component:dblclick', (model) => { 
+                if(model.get('tagName') === 'iconify-icon') window.openIconifyPicker(model); 
+            });
+
+            // Custom Toolbar (Move, Cut, Paste Inside)
+            window.editor.on('component:selected', (model) => {
+                const toolbar = model.get('toolbar');
+                if (toolbar.find(item => item.id === 'cut-comp')) return;
+                toolbar.unshift(
+                    { id: 'move-up', command: () => { const i = model.index(); if (i > 0) model.parent().components().add(model, { at: i - 1 }); }, label: '<i class="ph ph-arrow-up"></i>' },
+                    { id: 'move-down', command: () => { const i = model.index(); model.parent().components().add(model, { at: i + 2 }); }, label: '<i class="ph ph-arrow-down"></i>' },
+                    { id: 'cut-comp', command: () => { this.clipboard = model.toHTML(); model.remove(); this.notify('Cut', 'Komponen dipotong', 'info'); }, label: '<i class="ph ph-scissors"></i>' },
+                    { id: 'paste-inside', command: () => { if (this.clipboard) { model.append(this.clipboard); this.notify('Sukses', 'Disisipkan', 'success'); } else { this.notify('Kosong', 'Clipboard kosong', 'error'); } }, label: '<i class="ph ph-box-arrow-down"></i>' }
+                );
+                model.set('toolbar', toolbar);
+            });
+
+            // Universal Resizer
+            window.editor.on('component:add', (model) => {
+                const resizableTypes = ['image', 'video', 'button', 'text', 'textnode', 'link', 'map'];
+                if (resizableTypes.includes(model.get('type')) || ['IMG', 'VIDEO', 'BUTTON'].includes(model.get('tagName'))) {
+                    model.set('resizable', { cr: 1, cb: 1, br: 1, keyWidth: 'width', keyHeight: 'height' });
                 }
             });
 
-            // Dynamic Countdown
-                editor.DomComponents.addType('countdown-dynamic', {
-                model: {
-                    defaults: {
-                        traits: [
-                            { type: 'text', name: 'data-key', label: 'ID Unik (Storage Key)' },
-                            { type: 'number', name: 'data-reset', label: 'Siklus Reset (Jam)', min: 1 }
-                        ],
-                        attributes: { 'data-key': 'promo_kiosk_01', 'data-reset': '2' },
-                        script: function() {
-                            const el = this;
-                            const key = el.getAttribute('data-key') || 'countdown_timer';
-                            const resetHours = parseFloat(el.getAttribute('data-reset')) || 2;
-                            
-                            const f = (n) => String(Math.floor(n)).padStart(2, '0');
-                            
-                            const getTarget = () => {
-                                let stored = localStorage.getItem(key);
-                                let now = Date.now();
-                                
-                                if (!stored || parseInt(stored) < now) {
-                                    // Jika baru atau expired, buat baru. 
-                                    // Pertama kali acak 1-2 jam, selanjutnya (reset) sesuai input (2 jam)
-                                    let duration = !stored 
-                                        ? (Math.random() * (2 - 1) + 1) * 3600000 
-                                        : resetHours * 3600000;
-                                    let newTarget = now + duration;
-                                    localStorage.setItem(key, newTarget);
-                                    return newTarget;
-                                }
-                                return parseInt(stored);
-                            };
-            
-                            let targetTime = getTarget();
-            
-                            const update = () => {
-                                let now = Date.now();
-                                let dist = targetTime - now;
-            
-                                if (dist < 0) {
-                                    targetTime = getTarget(); // Reset siklus
-                                    dist = targetTime - now;
-                                }
-            
-                                el.querySelector('.js-h').innerText = f((dist % 864e5) / 36e5);
-                                el.querySelector('.js-m').innerText = f((dist % 36e5) / 6e4);
-                                el.querySelector('.js-s').innerText = f((dist % 6e4) / 1e3);
-                            };
-            
-                            setInterval(update, 1000); update();
-                        }
-                    }
-                }
-            });
-            
-            // --- 3. BLOCK DEFINITIONS (RESTORED ALL) ---
+            // === 5. BLOCK DEFINITIONS ===
 
-            // HEADER
-            const hStyle = "position:sticky; top:0; z-index:50; background:rgba(255,255,255,0.95); backdrop-filter:blur(10px); border-bottom:1px solid #f1f5f9;";
-            bm.add('header-sticky', { label: 'Header Sticky', category: '1. Header & Hero', content: `<header style="${hStyle}"><div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between"><div class="font-bold text-2xl text-indigo-600 tracking-tighter">BRAND.</div><nav class="hidden md:flex gap-8"><a href="#" class="text-sm font-medium hover:text-indigo-600 transition">Features</a><a href="#" class="text-sm font-medium hover:text-indigo-600 transition">Pricing</a><a href="#" class="text-sm font-medium hover:text-indigo-600 transition">Contact</a></nav><button class="btn btn-primary btn-sm rounded-full px-6">Get Started</button></div></header>` });
-            bm.add('header-simple', { label: 'Header Simple', category: '1. Header & Hero', content: `<header class="bg-white border-b py-4"><div class="container mx-auto px-4 flex justify-between items-center"><div class="font-bold text-xl">LOGO</div><nav class="flex gap-4 text-sm font-semibold text-gray-600"><a href="#">Home</a><a href="#">About</a></nav></div></header>` });
-            bm.add('header-center', { label: 'Header Center', category: '1. Header & Hero', content: `<header class="bg-white py-4 border-b"><div class="container mx-auto px-4 flex flex-col items-center gap-4"><div class="font-black text-2xl tracking-widest text-indigo-600">CENTERED</div><nav class="flex gap-6 text-sm font-medium"><a href="#">Shop</a><a href="#">Blog</a><a href="#">Contact</a></nav></div></header>` });
-            bm.add('header-transparent', { label: 'Header Trans', category: '1. Header & Hero', content: `<header class="absolute top-0 left-0 w-full z-10 py-4"><div class="container mx-auto px-4 flex justify-between items-center"><div class="font-bold text-white text-xl">GLASS</div><nav class="flex gap-6 text-white text-sm font-medium"><a href="#">Home</a><a href="#">Link</a></nav></div></header>` });
+            // Basic
+            bm.add('text-heading', { label: 'Heading', category: 'Basic', content: '<h2 class="text-3xl font-black text-gray-800 mb-4">Tulis Judul Disini</h2>' });
+            bm.add('text-paragraph', { label: 'Paragraph', category: 'Basic', content: '<p class="text-base text-gray-600 mb-4 leading-relaxed">Tulis deskripsi teks paragraf Anda di sini.</p>' });
+            bm.add('ui-button', { label: 'Button-Pro', category: 'Basic', content: '<a href="#" class="btn btn-primary px-6 py-3 rounded-lg font-bold text-white shadow-lg">Click Me</a>' });
+            bm.add('ui-image', { label: 'Picture', category: 'Basic', content: { type: 'image', style: { color: 'black' }, activeOnRender: 1 } });
+            bm.add('iconify-blk', { label: 'Icon', category: 'Basic', content: { type: 'iconify-icon' } }); // <--- WIDGET ICON KEMBALI ADA
+            bm.add('ui-divider', { label: 'Divider', category: 'Basic', content: '<div class="divider py-4"></div>' });
 
-            // HERO & SLIDER
-            bm.add('hero-slider', { label: 'Hero Slider', category: '1. Header & Hero', content: `<div class="editable-carousel relative h-[600px] bg-gray-900 text-white" data-gjs-type="editable-carousel"><div class="slides"><div class="slide"><img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80" class="opacity-60"><div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4"><h1 class="text-6xl font-black mb-4 tracking-tight">Scale Your Business</h1><p class="text-xl max-w-2xl opacity-90">Platform terbaik untuk pertumbuhan eksponensial.</p><button class="btn btn-primary btn-lg mt-8 rounded-full">Mulai Sekarang</button></div></div><div class="slide"><img src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1600&q=80" class="opacity-60"><div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4"><h1 class="text-6xl font-black mb-4 tracking-tight">Future is Here</h1><button class="btn btn-outline text-white btn-lg mt-8 rounded-full">Pelajari Lebih Lanjut</button></div></div></div><button class="prev absolute left-4 top-1/2 -translate-y-1/2 btn btn-circle btn-ghost text-white">❮</button><button class="next absolute right-4 top-1/2 -translate-y-1/2 btn btn-circle btn-ghost text-white">❯</button></div>` });
-            bm.add('hero-simple', { label: 'Hero Simple', category: '1. Header & Hero', content: `<section class="py-20 text-center bg-white"><div class="container mx-auto px-4"><h1 class="text-5xl font-black text-gray-900 mb-6">Headline Produk Anda</h1><p class="text-xl text-gray-500 max-w-2xl mx-auto mb-8">Deskripsi singkat yang menarik minat pengunjung untuk membeli produk ini sekarang juga.</p><div class="flex justify-center gap-4"><button class="btn btn-primary px-8">Beli Sekarang</button><button class="btn btn-ghost px-8">Demo</button></div></div></section>` });
+            // Media & Carousel
+            bm.add('gallery-carousel', { label: 'Carousel Slider', category: '2. Media', content: '<div class="product-gallery" data-gjs-type="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/4f46e5/fff?text=1"><img src="https://via.placeholder.com/800x600/10b981/fff?text=2"><img src="https://via.placeholder.com/800x600/f59e0b/fff?text=3"></div><div class="gallery-thumbs"><img src="https://via.placeholder.com/150/4f46e5/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff" class="thumb-item"><img src="https://via.placeholder.com/150/f59e0b/fff" class="thumb-item"></div></div>' });
+            bm.add('video-yt', { label: 'Video Youtube', category: '2. Media', content: '<div class="max-w-4xl mx-auto rounded-2xl overflow-hidden aspect-video"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen></iframe></div>' });
 
-           // VARIASI 1: Carousel dengan Border Biru
-            bm.add('gallery-carousel-1', { label: 'Thumb Carousel', category: '2. Media', content: '<div class="product-gallery max-w-2xl mx-auto p-4 bg-white rounded-xl shadow-sm border border-gray-100" data-gjs-type="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Slide+1"><img src="https://via.placeholder.com/800x600/10b981/fff?text=Slide+2"><img src="https://via.placeholder.com/800x600/f59e0b/fff?text=Slide+3"></div><div class="gallery-thumbs"><img src="https://via.placeholder.com/150/2563eb/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff" class="thumb-item"><img src="https://via.placeholder.com/150/f59e0b/fff" class="thumb-item"></div></div>' });
-            
-            // VARIASI 2: Carousel dengan Style Modern / Rounded
-            bm.add('gallery-carousel-2', { label: 'Thumb Gallery', category: '2. Media', content: '<div class="product-gallery max-w-2xl mx-auto p-2 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200" data-gjs-type="product-gallery"><div class="gallery-main rounded-xl overflow-hidden"><img src="https://via.placeholder.com/800x600/4f46e5/fff?text=Image+A"><img src="https://via.placeholder.com/800x600/ef4444/fff?text=Image+B"><img src="https://via.placeholder.com/800x600/8b5cf6/fff?text=Image+C"></div><div class="gallery-thumbs mt-2"><img src="https://via.placeholder.com/150/4f46e5/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/ef4444/fff" class="thumb-item"><img src="https://via.placeholder.com/150/8b5cf6/fff" class="thumb-item"></div></div>' });
-            bm.add('video-yt', { label: 'Video Youtube', category: '2. Media', content: `<div class="max-w-4xl mx-auto rounded-2xl overflow-hidden shadow-2xl aspect-video"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen></iframe></div>` });
+            // Content
+            bm.add('feature-grid', { label: 'Features', category: '3. Content', content: '<section class="py-16 bg-white"><div class="container mx-auto px-4"><div class="grid md:grid-cols-3 gap-8"><div class="p-6 border rounded-xl text-center"><iconify-icon icon="ph:rocket-fill" class="text-3xl text-indigo-600 mb-4"></iconify-icon><h3 class="font-bold">Fast</h3><p class="text-sm text-gray-500">Speed optimized.</p></div></div></div></section>' });
+            bm.add('faq-pro', { label: 'FAQ Pro', category: '3. Content', content: '<section class="max-w-3xl mx-auto py-16 px-4"><h2 class="text-3xl font-black text-center mb-10">FAQ</h2><div class="p-6 border-2 rounded-2xl mb-4"><h3 class="font-bold text-indigo-600">Pertanyaan?</h3><p class="text-sm text-gray-600">Klik dua kali untuk edit jawaban.</p></div></section>' });
+            bm.add('testimonials', { label: 'Testimonials', category: '3. Content', content: '<section class="py-16 bg-gray-50"><div class="container mx-auto px-4"><div class="testimonial-card"><h4 class="font-bold">Andi</h4><p class="text-sm">"Sangat puas!"</p></div></div></section>' });
 
-            // CONTENT (Testi, FAQ, Features)
-            bm.add('feature-grid', { label: 'Features', category: '3. Content', content: `<section class="py-16 bg-white"><div class="container mx-auto px-4"><div class="grid md:grid-cols-3 gap-8"><div class="p-6 border rounded-xl hover:shadow-lg transition text-center"><div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-2xl mb-4 mx-auto"><iconify-icon icon="ph:rocket-fill"></iconify-icon></div><h3 class="font-bold text-lg mb-2">Fast</h3><p class="text-gray-500">Optimized speed.</p></div><div class="p-6 border rounded-xl hover:shadow-lg transition text-center"><div class="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center text-2xl mb-4 mx-auto"><iconify-icon icon="ph:shield-check-fill"></iconify-icon></div><h3 class="font-bold text-lg mb-2">Secure</h3><p class="text-gray-500">Data protection.</p></div><div class="p-6 border rounded-xl hover:shadow-lg transition text-center"><div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center text-2xl mb-4 mx-auto"><iconify-icon icon="ph:headset-fill"></iconify-icon></div><h3 class="font-bold text-lg mb-2">Support</h3><p class="text-gray-500">24/7 Help.</p></div></div></div></section>` });
-            bm.add('testimonials', { label: 'Testimonials', category: '3. Content', content: `<section class="py-16 bg-gray-50"><div class="container mx-auto px-4"><h2 class="text-3xl font-bold text-center mb-10">Apa Kata Mereka?</h2><div class="grid md:grid-cols-3 gap-6"><div class="testimonial-card"><div class="flex items-center gap-3 mb-4"><div class="avatar placeholder"><div class="bg-neutral-focus text-neutral-content rounded-full w-10"><span class="text-xs">A</span></div></div><div><h4 class="font-bold text-sm">Andi</h4><div class="rating rating-xs"><input type="radio" class="mask mask-star-2 bg-orange-400" checked /></div></div></div><p class="text-gray-600 text-sm">"Produk sangat berkualitas!"</p></div><div class="testimonial-card"><div class="flex items-center gap-3 mb-4"><div class="avatar placeholder"><div class="bg-neutral-focus text-neutral-content rounded-full w-10"><span class="text-xs">B</span></div></div><div><h4 class="font-bold text-sm">Budi</h4><div class="rating rating-xs"><input type="radio" class="mask mask-star-2 bg-orange-400" checked /></div></div></div><p class="text-gray-600 text-sm">"Pelayanan cepat dan ramah."</p></div><div class="testimonial-card"><div class="flex items-center gap-3 mb-4"><div class="avatar placeholder"><div class="bg-neutral-focus text-neutral-content rounded-full w-10"><span class="text-xs">C</span></div></div><div><h4 class="font-bold text-sm">Citra</h4><div class="rating rating-xs"><input type="radio" class="mask mask-star-2 bg-orange-400" checked /></div></div></div><p class="text-gray-600 text-sm">"Recommended banget!"</p></div></div></div></section>` });
-            bm.add('faq-pro', { label: 'FAQ Pro', category: '3. Content', content: `<section class="max-w-3xl mx-auto py-16 px-4"><h2 class="text-3xl font-black text-center mb-12 text-gray-900 uppercase tracking-tighter">Pertanyaan Populer</h2><div class="grid gap-6"><div class="p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-blue-500 transition-all shadow-sm"><h3 class="text-lg font-bold text-blue-600 mb-3">Tuliskan Pertanyaan Anda di Sini?</h3><p class="text-gray-600 leading-relaxed text-sm">Klik dua kali untuk mulai menuliskan jawaban lengkap Anda. Desain ini dijamin 100% bisa langsung diketik tanpa gangguan radio button atau input yang menghalangi kursor.</p></div><div class="p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-blue-500 transition-all shadow-sm"><h3 class="text-lg font-bold text-blue-600 mb-3">Bagaimana cara mengubah isi teks ini?</h3><p class="text-gray-600 leading-relaxed text-sm">Cukup klik dua kali tepat pada teksnya. GrapesJS akan langsung memunculkan kursor pengetikan karena elemen ini menggunakan tag standar yang sangat disukai editor.</p></div><div class="p-6 bg-white border-2 border-gray-100 rounded-2xl hover:border-blue-500 transition-all shadow-sm"><h3 class="text-lg font-bold text-blue-600 mb-3">Apakah desain ini responsif?</h3><p class="text-gray-600 leading-relaxed text-sm">Tentu saja. Di layar monitor 19 inci Anda akan terlihat lega, dan di layar HP otomatis akan menyesuaikan lebarnya tanpa merusak konten.</p></div></div></section>` });           bm.add('trust-badges', { label: 'Trust Badges', category: '3. Content', content: `<div class="flex flex-wrap justify-center gap-8 py-8 opacity-60 grayscale hover:grayscale-0 transition duration-500"><iconify-icon icon="logos:visa" width="48"></iconify-icon><iconify-icon icon="logos:mastercard" width="48"></iconify-icon><iconify-icon icon="logos:bca" width="48"></iconify-icon><iconify-icon icon="logos:stripe" width="48"></iconify-icon></div>` });
-            bm.add('steps', { label: 'Steps', category: '3. Content', content: `<ul class="steps steps-vertical lg:steps-horizontal w-full py-8"><li class="step step-primary">Pilih Produk</li><li class="step step-primary">Isi Data</li><li class="step">Bayar</li><li class="step">Selesai</li></ul>` });
-            bm.add('countdown-smart', { label: 'Countdown Pro', category: '3. Content', content: { type: 'countdown-smart', content: `<div class="py-10 bg-indigo-900 rounded-3xl text-white max-w-[800px] mx-auto shadow-xl border-4 border-indigo-800"><div class="flex justify-center items-center gap-4 px-6 js-wrap"><div class="text-center"><div class="bg-white/10 rounded-xl p-4 min-w-[80px]"><span class="js-d text-4xl font-black">00</span></div><div class="text-[10px] mt-2 font-bold opacity-50">HARI</div></div><div class="text-center"><div class="bg-white/10 rounded-xl p-4 min-w-[80px]"><span class="js-h text-4xl font-black">00</span></div><div class="text-[10px] mt-2 font-bold opacity-50">JAM</div></div><div class="text-center"><div class="bg-white/10 rounded-xl p-4 min-w-[80px]"><span class="js-m text-4xl font-black">00</span></div><div class="text-[10px] mt-2 font-bold opacity-50">MENIT</div></div><div class="text-center"><div class="bg-white/10 rounded-xl p-4 min-w-[80px] text-yellow-400 border border-yellow-400/30"><span class="js-s text-4xl font-black">00</span></div><div class="text-[10px] mt-2 font-bold opacity-50">DETIK</div></div></div></div>` } }); 
-            bm.add('countdown-dynamic', { label: 'Evergreen Timer', category: '3. Content', content: { type: 'countdown-dynamic', content: `<div class="py-6 bg-gradient-to-r from-red-600 to-orange-500 rounded-2xl text-white max-w-[500px] mx-auto shadow-lg border-2 border-white/20"><div class="text-center mb-2 text-[10px] font-bold tracking-[0.2em] opacity-80 uppercase">Promo Berakhir Dalam</div><div class="flex justify-center gap-4"><div class="text-center"><span class="js-h text-4xl font-black block">00</span><span class="text-[9px] opacity-70 font-bold">JAM</span></div><span class="text-3xl font-light opacity-50">:</span><div class="text-center"><span class="js-m text-4xl font-black block">00</span><span class="text-[9px] opacity-70 font-bold">MENIT</span></div><span class="text-3xl font-light opacity-50">:</span><div class="text-center"><span class="js-s text-4xl font-black block text-yellow-200">00</span><span class="text-[9px] opacity-70 font-bold">DETIK</span></div></div></div>` } });
-            // COMMERCE (Pricing, Form API, Checkout)
-            bm.add('pricing-table', { label: 'Pricing Edit', category: '4. Commerce', content: `<section class="py-20 bg-gray-50"><div class="container mx-auto px-4 max-w-6xl"><div class="text-center mb-12"><h2 class="text-3xl font-black text-gray-900 mb-2">Pilih Paket</h2><p class="text-gray-500">Sesuaikan dengan kebutuhan bisnis Anda.</p></div><div class="grid md:grid-cols-3 gap-8"><div class="flex flex-col bg-white p-8 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition h-full"><h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Starter</h3><div class="text-4xl font-black text-gray-900 mb-6">Rp 0<span class="text-base font-normal text-gray-400">/bln</span></div><ul class="space-y-4 mb-8 flex-1 text-sm text-gray-600"><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>Fitur Dasar Terbatas</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>1 Admin User</span></li><li class="flex items-start gap-3 text-gray-400"><iconify-icon icon="ph:x-circle" class="text-gray-300 text-xl shrink-0"></iconify-icon><span>Tanpa Laporan Bulanan</span></li></ul><a href="#" class="block w-full py-3 rounded-xl border-2 border-gray-100 font-bold text-gray-600 text-center hover:border-gray-300 hover:bg-gray-50 transition mt-auto">Mulai Gratis</a></div><div class="flex flex-col bg-white p-8 rounded-2xl border-2 border-indigo-600 shadow-xl relative transform md:-translate-y-4 h-full"><div class="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">Terlaris</div><h3 class="text-sm font-bold text-indigo-600 uppercase tracking-widest mb-4">Professional</h3><div class="text-4xl font-black text-gray-900 mb-6">Rp 99k<span class="text-base font-normal text-gray-400">/bln</span></div><ul class="space-y-4 mb-8 flex-1 text-sm text-gray-700 font-medium"><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-indigo-600 text-xl shrink-0"></iconify-icon><span>Semua Fitur Starter</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-indigo-600 text-xl shrink-0"></iconify-icon><span>5 Admin User</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-indigo-600 text-xl shrink-0"></iconify-icon><span>Laporan Penjualan Lengkap</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-indigo-600 text-xl shrink-0"></iconify-icon><span>Prioritas Support 24/7</span></li></ul><a href="#" class="block w-full py-3 rounded-xl bg-indigo-600 font-bold text-white text-center hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition mt-auto">Pilih Pro</a></div><div class="flex flex-col bg-white p-8 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition h-full"><h3 class="text-sm font-bold text-rose-500 uppercase tracking-widest mb-4">Enterprise</h3><div class="text-4xl font-black text-gray-900 mb-6">Custom</div><ul class="space-y-4 mb-8 flex-1 text-sm text-gray-600"><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>Unlimited User</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>Dedicated Server</span></li><li class="flex items-start gap-3"><iconify-icon icon="ph:check-circle-fill" class="text-green-500 text-xl shrink-0"></iconify-icon><span>Akses API Full</span></li></ul><a href="#" class="block w-full py-3 rounded-xl border-2 border-gray-100 font-bold text-gray-600 text-center hover:border-gray-300 hover:bg-gray-50 transition mt-auto">Hubungi Kami</a></div></div></div></section>` });
-            bm.add('contact-form', { label: 'Contact Form', category: '4. Commerce', content: `<div class="max-w-md mx-auto p-8 bg-white rounded-2xl shadow-xl border border-gray-100"><h3 class="text-2xl font-bold text-gray-800 mb-2">Hubungi Kami</h3><p class="text-gray-500 mb-6 text-sm">Isi form di bawah, kami akan membalas secepatnya.</p><form method="POST" action="/api/public/contact" class="space-y-4"><input type="hidden" name="page_id" value="0"><div><label class="label font-bold text-xs uppercase text-gray-500">Nama Lengkap</label><input type="text" name="name" class="input input-bordered w-full focus:input-primary bg-gray-50" placeholder="John Doe" required /></div><div><label class="label font-bold text-xs uppercase text-gray-500">Email</label><input type="email" name="email" class="input input-bordered w-full focus:input-primary bg-gray-50" placeholder="email@anda.com" required /></div><div><label class="label font-bold text-xs uppercase text-gray-500">Pesan</label><textarea name="message" class="textarea textarea-bordered w-full h-32 focus:textarea-primary bg-gray-50" placeholder="Tulis pesan Anda..." required></textarea></div><button type="submit" class="btn btn-primary w-full shadow-lg shadow-indigo-200">Kirim Pesan <iconify-icon icon="ph:paper-plane-right-fill"></iconify-icon></button></form></div>` });
-            bm.add('checkout-pro', { label: 'Checkout Pro', category: '4. Commerce', content: `<div class="py-12 bg-gray-50"><div class="max-w-6xl mx-auto px-4 grid lg:grid-cols-2 gap-12"><div class="space-y-6"><div class="card bg-white shadow-sm border border-gray-200 p-6"><div class="flex gap-4"><div class="w-24 h-24 bg-gray-200 rounded-lg shrink-0"><img src="https://via.placeholder.com/150" class="w-full h-full object-cover rounded-lg"></div><div><h3 class="font-bold text-lg">Premium Membership</h3><p class="text-gray-500 text-sm">Akses seumur hidup.</p><div class="mt-2 font-black text-xl text-indigo-600">Rp 499.000</div></div></div><div class="divider"></div><div class="flex justify-between text-sm font-bold"><span>Total</span><span>Rp 499.000</span></div></div><div class="alert alert-info text-sm shadow-sm"><iconify-icon icon="ph:shield-check-fill" class="text-lg"></iconify-icon> <span>Pembayaran aman terenkripsi 256-bit.</span></div></div><div class="card bg-white shadow-xl border border-gray-200"><div class="card-body"><h2 class="card-title mb-4">Detail Pembayaran</h2><form class="space-y-4"><div class="form-control"><label class="label"><span class="label-text">Nama Lengkap</span></label><input type="text" class="input input-bordered" /></div><div class="form-control"><label class="label"><span class="label-text">Email</span></label><input type="email" class="input input-bordered" /></div><div class="divider text-xs text-gray-400">METODE PEMBAYARAN</div><div class="grid grid-cols-3 gap-2"><button type="button" class="btn btn-outline btn-sm">BCA</button><button type="button" class="btn btn-outline btn-sm">QRIS</button><button type="button" class="btn btn-outline btn-sm">E-Wallet</button></div><button type="button" class="btn btn-primary w-full mt-4 btn-lg">BAYAR SEKARANG</button></form></div></div></div></div>` });
+            // Commerce
+            bm.add('pricing-table', { label: 'Pricing Edit', category: '4. Commerce', content: '<section class="py-16 bg-gray-50"><div class="container mx-auto px-4"><div class="pricing-card border-2 border-indigo-600"><h3 class="title">Pro Plan</h3><div class="price">Rp 99k</div><button class="btn btn-primary w-full">Pilih Paket</button></div></div></section>' });
 
-            // BASIC
-            bm.add('container', { label: 'Container', category: '5. Basic', content: `<div class="container mx-auto p-4 border-2 border-dashed border-gray-300 min-h-[100px] flex items-center justify-center text-gray-400">Drop Content Here</div>` });
-            bm.add('container-800', { label: 'Cont-800px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[800px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase tracking-widest">Batas Kiri | 800px | Batas Kanan</div></div>` });
-            bm.add('container-1000', { label: 'Cont-1000px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1000px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase tracking-widest">Batas Kiri | 1000px | Batas Kanan</div></div>` });
-            bm.add('container-1140', { label: 'Cont-1140px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1140px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase tracking-widest">Batas Kiri | 1140px | Batas Kanan</div></div>` });
-            bm.add('container-1200', { label: 'Cont-1200px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1200px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase tracking-widest">Batas Kiri | 1200px | Batas Kanan</div></div>` });
-            bm.add('iconify-blk', { label: 'Icon', category: '5. Basic', content: { type: 'iconify-icon' } });
+            // Containers
+            bm.add('container-1000', { label: 'Cont-1000px', category: '5. Basic', content: '<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1000px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 text-xs font-bold uppercase">1000px Container</div></div>' });
 
-            // --- LOGIKA CLICK-TO-ADD YANG LEBIH SMART ---
+            // === 6. CLICK-TO-ADD LOGIC ===
             setTimeout(() => {
                 const container = document.getElementById('blocks-container');
                 if (container) {
@@ -1036,36 +790,18 @@ function editorApp() {
                         const blockEl = e.target.closest('.gjs-block');
                         if (blockEl) {
                             const id = blockEl.getAttribute('title') || blockEl.innerText.trim();
-                            const block = window.editor.BlockManager.get(id) || 
-                                          window.editor.BlockManager.getAll().find(b => b.get('label') === id);
-                            
+                            const block = window.editor.BlockManager.get(id);
                             if (block) {
-                                try {
-                                    // Pakai addComponents (S-nya jamak) karena ini fungsi bawaan GJS
-                                    // Dia otomatis cari tempat terbaik atau masuk ke wrapper kalau tidak ada yang dipilih
-                                    const content = block.get('content');
-                                    
-                                    // Menambahkan komponen lewat API resmi (lebih stabil dari .append)
-                                    window.editor.addComponents(content);
-                                    
-                                    this.notify('Sukses', 'Elemen ditambahkan', 'success');
-                                    
-                                    if(window.innerWidth < 768) this.mobileMenuOpen = false;
-                                } catch (err) {
-                                    // Kalau aturan draggable melanggar, kita tangkap di sini biar tidak merah di konsol
-                                    console.warn("GJS Aturan: Pastikan kamu memilih container yang benar dulu.");
-                                    this.notify('Aturan', 'Pilih container (Row) yang sesuai dulu', 'error');
-                                }
+                                window.editor.addComponents(block.get('content'));
+                                this.notify('Sukses', 'Elemen ditambahkan', 'success');
+                                if(window.innerWidth < 768) this.mobileMenuOpen = false;
                             }
                         }
                     });
                 }
-            }, 1500); 
+            }, 1500);
 
-        }, // <--- Tutup initGrapes
-        
-    }; // <--- Tutup return {
-} // <--- Tutup function editorApp()
+        } // <--- Tutup initGrapes
 </script>
 </body>
 </html>
