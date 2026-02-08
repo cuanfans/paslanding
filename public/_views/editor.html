@@ -755,9 +755,41 @@ function editorApp() {
             bm.add('container-1140', { label: 'Cont-1140px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1140px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase tracking-widest">Batas Kiri | 1140px | Batas Kanan</div></div>` });
             bm.add('container-1200', { label: 'Cont-1200px', category: '5. Basic', content: `<div class="py-2 bg-gray-100"><div class="mx-auto max-w-[1200px] w-full min-h-[150px] bg-white border-x-2 border-dashed border-blue-400 flex items-center justify-center text-blue-500 font-bold text-xs uppercase tracking-widest">Batas Kiri | 1200px | Batas Kanan</div></div>` });
             bm.add('iconify-blk', { label: 'Icon', category: '5. Basic', content: { type: 'iconify-icon' } });
-        }
-    };
-}
+
+            // --- INI LOGIKA BARU UNTUK KLIK DI HP ---
+            setTimeout(() => {
+                const container = document.getElementById('blocks-container');
+                if (container) {
+                    container.addEventListener('click', (e) => {
+                        const blockEl = e.target.closest('.gjs-block');
+                        if (blockEl) {
+                            const id = blockEl.getAttribute('title') || blockEl.innerText.trim();
+                            const block = window.editor.BlockManager.get(id) || 
+                                          window.editor.BlockManager.getAll().find(b => b.get('label') === id);
+                            if (block) {
+                                // Ambil target (Komponen terpilih atau wrapper utama)
+                                const selected = window.editor.getSelected();
+                                const target = selected || window.editor.getWrapper();
+                                
+                                target.append(block.get('content'));
+                                
+                                // Notifikasi (this.notify aman karena pakai arrow function)
+                                this.notify('Sukses', 'Elemen ditambahkan', 'success');
+                                
+                                // Tutup panel otomatis kalau layar HP
+                                if(window.innerWidth < 768) {
+                                    this.mobileMenuOpen = false;
+                                }
+                            }
+                        }
+                    });
+                }
+            }, 1000); 
+
+        }, // <--- Tutup initGrapes
+        
+    }; // <--- Tutup return {
+} // <--- Tutup function editorApp()
 </script>
 </body>
 </html>
