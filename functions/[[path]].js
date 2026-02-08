@@ -293,6 +293,25 @@ app.post('/api/setup-first-user', async (c) => {
     } catch (e) { return c.json({ success: false, error: e.message }); }
 });
 
+// Pintu Rahasia buat Cron Eksternal
+app.get('/api/internal/rekap-analytics', async (c) => {
+    const cronSecret = c.req.header('x-cron-secret');
+    const MASTER_SECRET = "BantarCaringin1"; // Ganti dengan secret terserah Abang
+
+    // 1. Validasi: Cek apakah yang nge-ping punya kunci yang bener
+    if (cronSecret !== MASTER_SECRET) {
+        return c.json({ success: false, message: "Kunci Salah, Setan!" }, 401);
+    }
+
+    try {
+        // 2. Panggil fungsi rekap (Gunakan c.env karena di Pages env ada di context)
+        await runAnalyticsRekap(c.env);
+        return c.json({ success: true, message: "Rekap Berhasil, Bang!" });
+    } catch (e) {
+        return c.json({ success: false, error: e.message }, 500);
+    }
+});
+
 app.get('/api/logout', (c) => { deleteCookie(c, 'auth_token'); return c.redirect('/login'); });
 
 // ===============================================
