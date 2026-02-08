@@ -454,7 +454,21 @@ function editorApp() {
 
         async savePage() {
             this.loading = true;
+            console.log("Sedang menyiapkan data untuk disimpan..."); // Log awal
+
             try {
+                // Pastikan editor sudah ada
+                if (!window.editor) {
+                    throw new Error("Editor GrapesJS belum siap");
+                }
+
+                const html = window.editor.getHtml();
+                const css = window.editor.getCss();
+                const js = window.editor.getJs(); // Mengambil otak counter, dll
+
+                // Gabungkan dengan cara yang aman
+                const finalHtml = `${html}<script>${js}<\/script>`;
+
                 const payload = {
                     id: this.page.id,
                     slug: this.page.slug,
@@ -462,23 +476,38 @@ function editorApp() {
                     product_type: this.page.product_type,
                     provider: this.page.slug_payment,
                     html: finalHtml,
-                    css: window.editor.getCss(),
+                    css: css,
                     meta: this.page.meta,
                     analytics: this.page.analytics,
                     scripts: this.page.scripts,
                     product_config: this.page.config
                 };
 
+                console.log("Payload siap dikirim. Ukuran estimasi:", JSON.stringify(payload).length, "bytes");
+
                 const res = await fetch('/api/admin/pages', { 
                     method: 'POST', 
-                    credentials: 'same-origin', 
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify(payload) 
                 });
 
-                if (res.status === 401) { window.location.href = '/login'; return; }
-                this.notify(res.ok ? 'Sukses' : 'Error', res.ok ? 'Berhasil disimpan!' : 'Gagal menyimpan', res.ok ? 'success' : 'error');
-            } catch (e) { this.notify('Error', 'Koneksi bermasalah', 'error'); }
+                if (res.status === 401) { 
+                    window.location.href = '/login'; 
+                    return; 
+                }
+
+                if (res.ok) {
+                    this.notify('Sukses', 'Berhasil disimpan!', 'success');
+                } else {
+                    const errorText = await res.text();
+                    console.error("Server menolak data:", errorText);
+                    this.notify('Error', 'Gagal menyimpan ke server', 'error');
+                }
+
+            } catch (e) { 
+                console.error("Detail Error Simpan:", e); // LIHAT INI DI KONSOL BROWSER
+                this.notify('Error', 'Masalah teknis: ' + e.message, 'error'); 
+            }
             this.loading = false;
         },
 
