@@ -159,18 +159,25 @@ header {
     gap: 2px !important;
 }
 
-.gjs-toolbar-item {
-    padding: 8px 12px !important; /* Area klik lebih luas */
-    font-size: 16px !important;
-    color: white !important;
-}
-
 @media (max-width: 768px) {
-    /* Pastikan toolbar tidak lari ke luar layar */
     .gjs-toolbar {
-        top: -45px !important; 
-        left: 0 !important;
-        flex-wrap: nowrap !important;
+        display: flex !important;
+        flex-wrap: wrap !important; /* Biar kalau kepanjangan dia turun ke bawah */
+        max-width: 180px !important;
+        justify-content: center !important;
+        background: #4f46e5 !important;
+        border-radius: 12px !important;
+        padding: 6px !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    .gjs-toolbar-item {
+        width: 35px !important;
+        height: 35px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 18px !important;
     }
 }
 </style>
