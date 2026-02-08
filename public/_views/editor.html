@@ -119,25 +119,42 @@
     }
     
     /* 2. Mengembalikan kotak warna di sidebar agar tetap kecil (persegi) */
+    /* 1. Kotak mungil warna di sidebar (Tab Styles) */
     .gjs-field-color-picker {
-        width: 20px !important; /* Ukuran kotak kecil di sidebar */
+        width: 20px !important;
         height: 20px !important;
+        border: 1px solid rgba(0,0,0,0.2) !important;
         border-radius: 4px !important;
         cursor: pointer !important;
+        display: block !important;
+        flex-shrink: 0 !important;
     }
     
-    /* 3. Memastikan teks kode warna di sebelahnya tidak berantakan */
-    .gjs-field-color-input {
-        width: calc(100% - 30px) !important;
-        height: 25px !important;
-    }
-    
-    /* 4. Pastikan baris style tidak terpotong */
+    /* 2. Baris input warna agar rapi dan tidak memanjang */
     .gjs-field-color {
-        overflow: visible !important;
         display: flex !important;
         align-items: center !important;
-        gap: 5px !important;
+        gap: 8px !important;
+        width: 100% !important;
+        overflow: visible !important; /* BIAR POPUP TIDAK TERPOTONG */
+    }
+    
+    .gjs-field-color-input {
+        flex-grow: 1 !important;
+    }
+    
+    /* 3. Popup Picker Warna (Spectrum) agar muncul DI DEPAN Sidebar */
+    .sp-container {
+        z-index: 100005 !important; /* Harus lebih tinggi dari 9999 */
+        background: #ffffff !important;
+        border: 1px solid #ccc !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important;
+        position: absolute !important; /* Jangan pake fixed biar gak nyasar */
+    }
+    
+    /* 4. Pastikan picker tidak kepanjangan */
+    .sp-picker-container {
+        width: 200px !important;
     }
     </style>
 </head>
