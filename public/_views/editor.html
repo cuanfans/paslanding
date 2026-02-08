@@ -705,49 +705,61 @@ window.editor.on('component:dblclick', (model) => {
     if(model.get('tagName') === 'iconify-icon') window.openIconifyPicker(model); 
 });
 
-// 2. FITUR TOOLTIP GESER & COPY-PASTE (Tambahkan di bawahnya)
-window.editor.on('component:selected', (model) => {
-    const toolbar = model.get('toolbar');
+    // 2. FITUR TOOLTIP GESER & COPY-PASTE (Tambahkan di bawahnya)
+    window.editor.on('component:selected', (model) => {
+        const toolbar = model.get('toolbar');
+        
+        // Cegah duplikasi tombol
+        if (toolbar.find(item => item.id === 'cut-comp')) return;
     
-    // Cek supaya tombol tidak duplikat saat diklik berkali-kali
-    if (toolbar.find(item => item.id === 'move-up')) return;
-
-    toolbar.unshift(
-        {
-            id: 'move-up',
-            command: () => {
-                const index = model.index();
-                if (index > 0) model.parent().components().add(model, { at: index - 1 });
+        toolbar.unshift(
+            {
+                id: 'move-up',
+                command: () => {
+                    const index = model.index();
+                    if (index > 0) model.parent().components().add(model, { at: index - 1 });
+                },
+                label: '<i class="ph ph-arrow-up"></i>',
+                attributes: { title: 'Geser Atas' }
             },
-            label: '<i class="ph ph-arrow-up"></i>',
-            attributes: { title: 'Geser Ke Atas' }
-        },
-        {
-            id: 'move-down',
-            command: () => {
-                const index = model.index();
-                // Geser ke indeks selanjutnya (+2 karena GJS logic)
-                model.parent().components().add(model, { at: index + 2 });
+            {
+                id: 'move-down',
+                command: () => {
+                    const index = model.index();
+                    model.parent().components().add(model, { at: index + 2 });
+                },
+                label: '<i class="ph ph-arrow-down"></i>',
+                attributes: { title: 'Geser Bawah' }
             },
-            label: '<i class="ph ph-arrow-down"></i>',
-            attributes: { title: 'Geser Ke Bawah' }
-        },
-        {
-            id: 'copy-comp',
-            command: 'core:copy',
-            label: '<i class="ph ph-copy"></i>',
-            attributes: { title: 'Salin' }
-        },
-        {
-            id: 'paste-comp',
-            command: 'core:paste',
-            label: '<i class="ph ph-clipboard-text"></i>',
-            attributes: { title: 'Tempel' }
-        }
-    );
-    
-    model.set('toolbar', toolbar);
-});
+            {
+                id: 'cut-comp',
+                command: (ed) => {
+                    ed.runCommand('core:copy'); // Salin ke buffer GJS
+                    model.remove(); // Hapus dari posisi lama
+                    this.notify('Cut', 'Komponen dipotong, pilih target tempel', 'info');
+                },
+                label: '<i class="ph ph-scissors"></i>',
+                attributes: { title: 'Potong (Cut)' }
+            },
+            {
+                id: 'paste-inside',
+                command: (ed) => {
+                    // Ambil data dari buffer internal GrapesJS
+                    const buffer = ed.getCopy(); 
+                    if (buffer) {
+                        model.append(buffer); // Masukkan sebagai ANAK (Child) komponen ini
+                        this.notify('Sukses', 'Berhasil ditempel ke dalam', 'success');
+                    } else {
+                        this.notify('Gagal', 'Tidak ada komponen yang disalin', 'error');
+                    }
+                },
+                label: '<i class="ph ph-box-arrow-down"></i>',
+                attributes: { title: 'Tempel ke Dalam (Paste Inside)' }
+            }
+        );
+        
+        model.set('toolbar', toolbar);
+    });
 
             // 2. Carousel Logic
             domc.addType('editable-carousel', { model: { defaults: { script: function() { 
