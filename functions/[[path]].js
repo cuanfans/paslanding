@@ -223,7 +223,8 @@ const requireAuth = async (c, next) => {
     const whitelisted = (
         path === '/' || path === '/login' || path === '/admin/login' ||
         path === '/api/login' || path === '/api/setup-first-user' ||
-        path.startsWith('/api/public/') || path.startsWith('/api/webhook/') || 
+        path.startsWith('/api/public/') || path.startsWith('/api/webhook/') ||
+        path.startsWith('/api/internal/') ||
         path.endsWith('.js') || path.endsWith('.css') ||
         path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.ico')
     );
