@@ -609,19 +609,16 @@ async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
     const activePayments = config.active_payments || [];
     
-    // 1. INJEKSI CSS KRITIS (BRIDGE CSS - SAMA PERSIS DENGAN EDITOR)
+    // 1. INJEKSI CSS KRITIS
     const bridgeCSS = `
         body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
-        
-        /* Thumbnail Gallery */
+        /* ... CSS lainnya tetap sama ... */
         .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; }
         .product-gallery .main-img { border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 4/3; background: #f3f4f6; }
         .product-gallery .main-img img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
         .product-gallery .thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding-bottom: 5px; scroll-behavior: smooth; }
         .product-gallery .thumb { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.7; transition: 0.2s; object-fit: cover; }
         .product-gallery .thumb.active, .product-gallery .thumb:hover { border-color: #2563eb; opacity: 1; }
-
-        /* Carousel Slider */
         .editable-carousel { position: relative; width: 100%; overflow: hidden; }
         .editable-carousel .slides { display: flex; flex-direction: row; width: 100%; height: 100%; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
         .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; height: 100%; }
@@ -629,14 +626,10 @@ async function renderPage(c, page) {
         .editable-carousel .carousel-controls { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); display: flex; justify-content: space-between; padding: 0 20px; pointer-events: none; z-index: 10; }
         .editable-carousel .carousel-controls button { pointer-events: auto; background: rgba(0,0,0,0.2); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; backdrop-filter: blur(2px); }
         .editable-carousel .carousel-controls button:hover { background: rgba(0,0,0,0.5); transform: scale(1.1); }
-
-        /* Pricing & Cards */
         .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; position: relative; overflow: hidden; }
         .pricing-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1); }
         .pricing-card.highlight { border: 2px solid #2563eb; z-index: 2; box-shadow: 0 20px 40px -5px rgba(37, 99, 235, 0.15); }
         .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; height: 100%; }
-
-        /* Utils */
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
         .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 30s linear infinite; }
@@ -658,23 +651,26 @@ async function renderPage(c, page) {
         }
     `;
 
-    // 3. SCRIPT LOGIC (ESCAPED </script> -> <\/script>)
+    // 3. SCRIPT LOGIC (ESCAPED)
     const liveScripts = `
     <script>
-        // A. Notifikasi Pesan Terkirim
-        if(new URLSearchParams(window.location.search).get('status') === 'sent') {
-        Swal.fire({
-            icon: 'success',
-            title: 'Pesan Terkirim!',
-            text: 'Kami akan segera menghubungi Anda.',
-            confirmButtonColor: '#2563eb'
+        // A. Notifikasi Pesan Terkirim (SweetAlert)
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            if(params.get('status') === 'sent') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Pesan Terkirim!',
+                    text: 'Kami akan segera menghubungi Anda.',
+                    confirmButtonColor: '#2563eb',
+                    customClass: { popup: 'rounded-2xl' }
+                });
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
         });
-        window.history.replaceState({}, document.title, window.location.pathname);
-        }
 
         // B. Inisialisasi Ulang Komponen
         document.addEventListener('DOMContentLoaded', () => {
-            
             // 1. Gallery Thumbnail Logic
             document.querySelectorAll('.product-gallery').forEach(el => {
                 const main = el.querySelector('.main-img img');
@@ -748,8 +744,12 @@ async function renderPage(c, page) {
                     const name = document.getElementById('c_name').value;
                     const phone = document.getElementById('c_phone').value;
 
-                    if(!name || !phone) return alert('Mohon lengkapi data!');
-                    if(!payMethod) return alert('Pilih pembayaran!');
+                    if(!name || !phone) return Swal.fire('Data Kurang', 'Mohon lengkapi nama dan WhatsApp', 'warning');
+                    if(!payMethod) return Swal.fire('Pilih Pembayaran', 'Metode pembayaran belum dipilih', 'warning');
+
+                    const btn = document.getElementById('btn-submit-order');
+                    btn.disabled = true;
+                    btn.innerText = 'Memproses...';
 
                     try {
                         const res = await fetch('/api/public/checkout', {
@@ -764,14 +764,47 @@ async function renderPage(c, page) {
                         });
                         const d = await res.json();
                         if(d.payment_url) window.location.href = d.payment_url;
-                        else alert(d.error || 'Gagal memproses.');
-                    } catch(e) { alert('Error koneksi.'); }
+                        else Swal.fire('Gagal', d.error || 'Terjadi kesalahan sistem', 'error');
+                    } catch(e) { Swal.fire('Error', 'Koneksi bermasalah', 'error'); }
+                    
+                    btn.disabled = false;
+                    btn.innerText = 'BAYAR SEKARANG';
                 });
             }
         });
-    <\/script>
+    </script>
     `;
 
+    // 4. RETURN HTML LENGKAP
+    return c.html(`
+    <!DOCTYPE html>
+    <html lang='id'>
+    <head>
+        <meta charset='UTF-8'>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${page.title}</title>
+        
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>${tailwindConfig}</script>
+        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+
+        <style>
+            ${bridgeCSS}
+            ${page.css_content}
+        </style>
+    </head>
+    <body>
+        ${page.html_content}
+        <script>window.PAGE_ID=${page.id};</script>
+        ${liveScripts}
+    </body>
+    </html>
+    `);
+}
     // 4. RETURN HTML LENGKAP
     return c.html(`
     <!DOCTYPE html>
