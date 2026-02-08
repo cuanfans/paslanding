@@ -359,7 +359,10 @@
                             thumbs.forEach((t, i) => t.onclick = () => goTo(i));
                         }}}
                     });
+                    domc.addType('countdown-smart', { model: { defaults: { traits: [{ type: 'datetime-local', name: 'data-expire', label: 'Waktu Berakhir' }], attributes: { 'data-expire': '2026-12-31T23:59' }, script: function() { const el = this; const update = () => { const dist = new Date(el.getAttribute('data-expire')).getTime() - new Date().getTime(); if (dist < 0) return; el.querySelector('.js-d').innerText = Math.floor(dist / 864e5); el.querySelector('.js-h').innerText = Math.floor((dist % 864e5) / 36e5); el.querySelector('.js-m').innerText = Math.floor((dist % 36e5) / 6e4); el.querySelector('.js-s').innerText = Math.floor((dist % 6e4) / 1e3); }; setInterval(update, 1000); update(); } } } });
+                    domc.addType('countdown-dynamic', { model: { defaults: { attributes: { 'data-reset': '2' }, script: function() { const el = this; let target = Date.now() + (parseFloat(el.getAttribute('data-reset')) * 3600000); const update = () => { let dist = target - Date.now(); if (dist < 0) { target = Date.now() + (parseFloat(el.getAttribute('data-reset')) * 3600000); dist = target - Date.now(); } el.querySelector('.js-h').innerText = Math.floor(dist / 36e5); el.querySelector('.js-m').innerText = Math.floor((dist % 36e5) / 6e4); el.querySelector('.js-s').innerText = Math.floor((dist % 6e4) / 1e3); }; setInterval(update, 1000); update(); } } } });
 
+            // --- LISTENERS ---
                     // --- LISTENERS: ICONIFY DOUBLE CLICK (FIXED) ---
                     window.editor.on('component:dblclick', (m) => { if(m.get('tagName') === 'iconify-icon') window.openIconifyPicker(m); });
                     
@@ -396,8 +399,8 @@
                     bm.add('testimonials', { label: 'Testi', category: '3. Content', content: `<section class="py-8 bg-gray-50 p-4 border rounded-lg">"Layanan Mantap!"</section>` });
                     bm.add('faq-pro', { label: 'FAQ', category: '3. Content', content: `<section class="py-8 px-4"><div class="p-4 border rounded-xl mb-2"><h3>Pertanyaan?</h3><p>Isi jawaban.</p></div></section>` });
                     bm.add('trust-badges', { label: 'Badges', category: '3. Content', content: `<div class="flex justify-center gap-4 py-8 opacity-50"><iconify-icon icon="logos:visa" width="48"></iconify-icon><iconify-icon icon="logos:mastercard" width="48"></iconify-icon></div>` });
-                    bm.add('countdown-smart', { label: 'Timer', category: '3. Content', content: { type: 'countdown-smart', content: `<div class="py-6 bg-slate-900 text-white text-center">00:00:00</div>` } });
-
+                    bm.add('countdown-smart', { label: 'Countdown Pro', category: '3. Content', content: { type: 'countdown-smart', content: `<div class="py-6 bg-indigo-900 text-white text-center rounded-xl js-wrap"><span class="js-d">00</span> Hari <span class="js-h">00</span> Jam <span class="js-m">00</span> Menit <span class="js-s">00</span> Detik</div>` } });
+                    bm.add('countdown-dynamic', { label: 'Evergreen Timer', category: '3. Content', content: { type: 'countdown-dynamic', content: `<div class="py-4 bg-red-600 text-white text-center rounded-lg"><span class="js-h">00</span>:<span class="js-m">00</span>:<span class="js-s">00</span></div>` } });
                     bm.add('pricing-table', { label: 'Harga', category: '4. Commerce', content: `<div class="p-6 border-2 border-indigo-600 rounded-2xl text-center"><h3>PRO</h3><div class="text-2xl font-black">Rp 99k</div><button class="btn btn-primary w-full mt-4">Pilih</button></div>` });
                     bm.add('contact-form', { label: 'Kontak', category: '4. Commerce', content: `<form class="p-6 border rounded-xl space-y-4"><input type="text" class="input input-bordered w-full" placeholder="Nama"><button type="button" class="btn btn-primary w-full">Kirim</button></form>` });
 
