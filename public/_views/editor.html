@@ -270,20 +270,41 @@
                 </div>
             </div>
 
-            <div x-show="settingsTab === 'seo'" class="space-y-4">
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">Meta Title</label>
-                    <input x-model="page.title" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none" placeholder="Page Title">
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">Meta Description</label>
-                    <textarea x-model="page.meta.description" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm h-24 outline-none"></textarea>
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">OG Image (Social Share)</label>
-                    <input x-model="page.meta.og_image" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none" placeholder="https://...">
-                </div>
+            <div x-show="settingsTab === 'seo'" class="space-y-5">
+    <div>
+        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Judul Halaman (Meta Title)</label>
+        <input x-model="page.title" class="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition" placeholder="Contoh: Toko Kopi Arabika Terbaik">
+    </div>
+
+    <div>
+        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Deskripsi Meta</label>
+        <textarea x-model="page.meta.description" class="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm h-24 outline-none focus:border-indigo-500 transition resize-none" placeholder="Deskripsi singkat yang muncul di hasil pencarian Google..."></textarea>
+    </div>
+
+    <div class="p-4 bg-gray-50 rounded-2xl border border-gray-200">
+        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+            <i class="ph ph-browser text-indigo-500 text-lg"></i> Favicon URL
+        </label>
+        <div class="flex gap-3 mt-2">
+            <input x-model="page.meta.favicon" class="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition" placeholder="https://domain.com/favicon.ico">
+            <div class="w-10 h-10 bg-white border border-gray-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                <template x-if="page.meta.favicon">
+                    <img :src="page.meta.favicon" class="w-6 h-6 object-contain">
+                </template>
+                <i x-show="!page.meta.favicon" class="ph ph-image text-gray-300 text-xl"></i>
             </div>
+        </div>
+        <p class="text-[9px] text-gray-400 mt-2 italic">*Gunakan file .ico atau .png transparan (32x32px)</p>
+    </div>
+
+    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <i class="ph ph-share-network text-indigo-500 text-lg"></i> Social Share Image (OG)
+        </label>
+        <input x-model="page.meta.og_image" class="w-full mt-2 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-indigo-500 transition" placeholder="https://domain.com/social-preview.jpg">
+        <p class="text-[9px] text-slate-400 mt-2 italic">Gambar ini muncul saat link di-share ke WhatsApp/Facebook.</p>
+    </div>
+</div>
 
             <div x-show="settingsTab === 'advanced'" class="space-y-4">
                 <div>
@@ -322,7 +343,7 @@
 // --- APP LOGIC ---
 function editorApp() {
     return {
-        // --- UI STATES (Jangan diubah namanya agar Alpine tidak error) ---
+        // --- UI STATES ---
         mobileMenuOpen: false,
         loading: false, 
         showSettings: false, 
@@ -330,15 +351,15 @@ function editorApp() {
         tab: 'blocks', 
         notifications: [], 
         paymentProviders: [],
-        settingsTab: 'commerce', // State tambahan untuk tab di dalam modal settings
+        settingsTab: 'commerce',
 
-        // --- DATA STRUCTURE (Lengkap dengan Meta, Analytics, dan Scripts) ---
+        // --- DATA STRUCTURE LENGKAP (TIDAK ADA YANG DIPOTONG) ---
         page: { 
+            id: 0,
             slug: '', 
             title: '', 
             product_type: 'physical', 
             slug_payment: 'whatsapp', 
-            id: 0,
             meta: {
                 description: '',
                 keywords: '',
@@ -357,8 +378,13 @@ function editorApp() {
             config: { 
                 price: 0, 
                 variants: [], 
-                shipping: { weight: 1000, cod: false }, 
-                order_bump: { active: false }, 
+                shipping: { 
+                    weight: 1000, 
+                    cod: false 
+                }, 
+                order_bump: { 
+                    active: false 
+                }, 
                 coupons: [], 
                 settings: {}, 
                 active_payments: [] 
@@ -373,57 +399,73 @@ function editorApp() {
             if (slug) {
                 await this.loadPageData(slug);
             } else {
-                this.page.slug = 'new-page';
+                this.page.slug = 'new-page-' + Date.now();
             }
             
             await this.fetchPaymentProviders();
             this.initGrapes();
         },
 
-        // --- LOAD DATA ---
+        // --- LOAD DATA DARI SERVER ---
         async loadPageData(slug) {
+            this.loading = true;
             try {
                 const res = await fetch(`/api/admin/pages/${slug}`, { credentials: 'same-origin' });
                 const data = await res.json();
                 if (data) {
                     this.page.id = data.id || 0;
-                    this.page.slug = data.slug || '';
+                    this.page.slug = data.slug || slug;
                     this.page.title = data.title || '';
                     this.page.product_type = data.product_type || 'physical';
                     this.page.slug_payment = data.provider || 'whatsapp';
                     
-                    // Gabungkan data Meta, Analytics, dan Scripts jika ada
-                    if (data.meta) this.page.meta = Object.assign({}, this.page.meta, data.meta);
-                    if (data.analytics) this.page.analytics = Object.assign({}, this.page.analytics, data.analytics);
-                    if (data.scripts) this.page.scripts = Object.assign({}, this.page.scripts, data.scripts);
-                    if (data.product_config) this.page.config = Object.assign({}, this.page.config, data.product_config);
-
-                    if (data.html) {
-                        window.editor.setComponents(data.html);
-                        window.editor.setStyle(data.css || '');
+                    // Assign data SEO & Scripts jika ada di database
+                    if (data.meta) {
+                        this.page.meta.description = data.meta.description || '';
+                        this.page.meta.keywords = data.meta.keywords || '';
+                        this.page.meta.og_image = data.meta.og_image || '';
+                        this.page.meta.favicon = data.meta.favicon || '';
                     }
+                    if (data.analytics) {
+                        this.page.analytics.fb_pixel = data.analytics.fb_pixel || '';
+                        this.page.analytics.ga_id = data.analytics.ga_id || '';
+                        this.page.analytics.tiktok_pixel = data.analytics.tiktok_pixel || '';
+                    }
+                    if (data.scripts) {
+                        this.page.scripts.header = data.scripts.header || '';
+                        this.page.scripts.footer = data.scripts.footer || '';
+                    }
+                    if (data.product_config) {
+                        this.page.config = Object.assign(this.page.config, data.product_config);
+                    }
+
+                    // Render ke Canvas GrapesJS
+                    if (data.html) window.editor.setComponents(data.html);
+                    if (data.css) window.editor.setStyle(data.css);
                 }
-            } catch (e) { console.error('Gagal load:', e); }
+            } catch (e) { 
+                console.error('Error loading page:', e); 
+            }
+            this.loading = false;
         },
 
+        // --- FETCH PROVIDER PEMBAYARAN ---
         async fetchPaymentProviders() {
             try { 
                 const res = await fetch('/api/admin/templates?type=payment', { credentials: 'same-origin' }); 
-                if (res.status === 401) return; 
                 const json = await res.json(); 
                 this.paymentProviders = Array.isArray(json) ? json : (json.results || []); 
-            } catch (e) {}
+            } catch (e) {
+                console.error('Error fetch payment:', e);
+            }
         },
 
-        addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
-
-        // --- SAVE DATA (Lengkap dengan pengiriman Meta, Analytics, Scripts) ---
+        // --- ACTION SAVE ---
         async savePage() {
             this.loading = true;
             try {
-                let html = window.editor.getHtml();
-                // Menggunakan ID asli dari state page
-                html = html.replace('name="page_id" value="0"', `name="page_id" value="${this.page.id || 0}"`);
+                const html = window.editor.getHtml();
+                const css = window.editor.getCss();
                 
                 const payload = {
                     id: this.page.id,
@@ -432,10 +474,10 @@ function editorApp() {
                     product_type: this.page.product_type,
                     provider: this.page.slug_payment,
                     html: html,
-                    css: window.editor.getCss(),
-                    meta: this.page.meta,           // Data SEO baru
-                    analytics: this.page.analytics, // Data Tracking baru
-                    scripts: this.page.scripts,     // Data Script baru
+                    css: css,
+                    meta: this.page.meta,
+                    analytics: this.page.analytics,
+                    scripts: this.page.scripts,
                     product_config: this.page.config
                 };
 
@@ -446,27 +488,41 @@ function editorApp() {
                     body: JSON.stringify(payload) 
                 });
 
-                if (res.status === 401) { window.location.href = '/login'; return; }
-                this.notify(res.ok ? 'Sukses' : 'Error', res.ok ? 'Berhasil disimpan!' : 'Gagal menyimpan', res.ok ? 'success' : 'error');
+                if (res.status === 401) { 
+                    window.location.href = '/login'; 
+                    return; 
+                }
+                
+                if (res.ok) {
+                    this.notify('Sukses', 'Data dan pengaturan berhasil disimpan!', 'success');
+                } else {
+                    this.notify('Error', 'Gagal menyimpan data', 'error');
+                }
             } catch (e) { 
                 this.notify('Error', 'Koneksi bermasalah', 'error'); 
             }
             this.loading = false;
         },
 
-        // --- UI HELPERS (Tetap sesuai aslinya) ---
+        // --- UI HELPERS ---
         notify(title, msg, type = 'success') { 
             const id = Date.now(); 
             this.notifications.push({ id, title, msg, type, show: true }); 
             setTimeout(() => { this.notifications = this.notifications.filter(n => n.id !== id); }, 3000); 
         },
-        
+
         setDevice(d) { 
             this.device = d; 
             window.editor.setDevice(d === 'mobile' ? 'Mobile' : (d === 'tablet' ? 'Tablet' : 'Desktop')); 
         },
-        
-        cmd(c) { window.editor.runCommand(c); },
+
+        addVariant() { 
+            this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); 
+        },
+
+        cmd(c) { 
+            window.editor.runCommand(c); 
+        },
 
         initGrapes() {
             // === 1. BRIDGE CSS (CRITICAL: TAMPILAN SAMA PERSIS DENGAN PREVIEW) ===
