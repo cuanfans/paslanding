@@ -363,20 +363,23 @@
 // --- APP LOGIC ---
 function editorApp() {
     return {
-        showPreview: false,
-        showBlocks: true,
-        showLayer: false,
+        // Variabel UI Dasar (Wajib Ada)
+        device: 'mobile',
+        tab: 'blocks',
+        mobileMenuOpen: false,
         showSettings: false,
-        activeDevice: 'mobile',
+        settingsTab: 'commerce',
         loading: false,
         saving: false,
-        settingsTab: 'commerce',
+        notifications: [],
+
+        // Struktur Data Page
         page: { 
+            id: 0,
             slug: '', 
             title: '', 
             product_type: 'physical', 
-            slug_payment: 'whatsapp', 
-            id: 0,
+            slug_payment: 'whatsapp',
             meta: {
                 description: '',
                 keywords: '',
@@ -403,6 +406,7 @@ function editorApp() {
             } 
         },
 
+        // Fungsi Inisialisasi
         async init() {
             const urlParams = new URLSearchParams(window.location.search);
             const slug = urlParams.get('slug');
@@ -412,31 +416,36 @@ function editorApp() {
                     const res = await fetch(`/api/admin/pages/${slug}`);
                     const data = await res.json();
                     if (data) {
-                        this.page = {
-                            id: data.id,
-                            slug: data.slug,
-                            title: data.title,
-                            product_type: data.product_type || 'physical',
-                            slug_payment: data.provider || 'whatsapp',
-                            meta: data.meta || { description: '', keywords: '', og_image: '', favicon: '' },
-                            analytics: data.analytics || { fb_pixel: '', ga_id: '', tiktok_pixel: '' },
-                            scripts: data.scripts || { header: '', footer: '' },
-                            config: data.product_config || { price: 0, variants: [], shipping: { weight: 1000, cod: false }, order_bump: { active: false }, coupons: [], settings: {}, active_payments: [] }
-                        };
+                        this.page.id = data.id || 0;
+                        this.page.slug = data.slug || '';
+                        this.page.title = data.title || '';
+                        this.page.product_type = data.product_type || 'physical';
+                        this.page.slug_payment = data.provider || 'whatsapp';
+                        
+                        // Merge Meta & Config agar tidak undefined
+                        if (data.meta) this.page.meta = { ...this.page.meta, ...data.meta };
+                        if (data.analytics) this.page.analytics = { ...this.page.analytics, ...data.analytics };
+                        if (data.scripts) this.page.scripts = { ...this.page.scripts, ...data.scripts };
+                        if (data.product_config) this.page.config = { ...this.page.config, ...data.product_config };
+
                         if (data.html) {
                             window.editor.setComponents(data.html);
                             window.editor.setStyle(data.css || '');
                         }
                     }
                 } catch (e) {
-                    console.error('Gagal memuat halaman:', e);
+                    console.error('Gagal memuat data:', e);
+                    this.addNotification('Gagal memuat data halaman', 'error');
                 }
                 this.loading = false;
             }
         },
 
+        // Fungsi Simpan
         async savePage() {
-            this.saving = true;
+            if (this.loading) return;
+            this.loading = true;
+            
             const html = window.editor.getHtml();
             const css = window.editor.getCss();
             
@@ -460,22 +469,35 @@ function editorApp() {
                 });
                 
                 if (res.ok) {
-                    alert('Halaman Berhasil Disimpan!');
+                    this.addNotification('Halaman Berhasil Disimpan!', 'success');
                 } else {
-                    alert('Gagal Menyimpan Halaman');
+                    this.addNotification('Gagal Menyimpan Halaman', 'error');
                 }
             } catch (e) {
                 console.error(e);
-                alert('Terjadi Kesalahan Server');
+                this.addNotification('Terjadi Kesalahan Server', 'error');
             }
-            this.saving = false;
+            this.loading = false;
         },
 
-        setDevice(device) {
-            this.activeDevice = device;
-            window.editor.setDevice(device === 'mobile' ? 'Mobile' : 'Desktop');
+        // Fungsi Helper
+        setDevice(val) {
+            this.device = val;
+            const width = val === 'mobile' ? '450px' : (val === 'tablet' ? '800px' : '100%');
+            window.editor.setDevice(val === 'mobile' ? 'Mobile' : (val === 'tablet' ? 'Tablet' : 'Desktop'));
+            const canvas = document.querySelector('.gjs-cv-canvas');
+            if (canvas) canvas.style.width = width;
+            if (canvas) canvas.style.margin = '0 auto';
+        },
+
+        addNotification(msg, type = 'success') {
+            const id = Date.now();
+            this.notifications.push({ id, msg, type });
+            setTimeout(() => {
+                this.notifications = this.notifications.filter(n => n.id !== id);
+            }, 3000);
         }
-    }
+    };
 }
 
         initGrapes() {
