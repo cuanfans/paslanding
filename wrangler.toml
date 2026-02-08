@@ -10,3 +10,6 @@ database_id = "b7090254-9230-4df7-9684-fd9637c96ddf"
 [[analytics_engine_datasets]]
 binding = "ANALYTICS_ENGINE"
 dataset = "paslanding_events"
+
+[triggers]
+crons = ["*/15 * * * *"]
