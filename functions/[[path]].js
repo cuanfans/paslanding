@@ -15,16 +15,17 @@ const RELAY_SECRET = "BantarCaringin1";
 // Global Helper untuk Analytics Engine
 const trackVisit = (c, page, referrer) => {
     try {
-        // Jangan pakai await, biar gak nungguin log selesai baru render halaman
-        c.env.ANALYTICS_ENGINE.writeData({
-            blobs: [
-                page.slug,            // blob1
-                page.title,           // blob2
-                referrer || 'direct',  // blob3
-                'view'                // blob4
-            ],
-            indexes: [String(page.id)] // index1 (Harus String)
-        });
+        if (c.env.ANALYTICS_ENGINE && typeof c.env.ANALYTICS_ENGINE.writeData === 'function') {
+            c.env.ANALYTICS_ENGINE.writeData({
+                blobs: [
+                    page.slug,            // blob1
+                    page.title,           // blob2
+                    referrer || 'direct', // blob3
+                    'view'                // blob4
+                ],
+                indexes: [String(page.id)] 
+            });
+        }
     } catch (e) {
         console.error("AE Tracking Error:", e.message);
     }
@@ -53,7 +54,7 @@ async function initDB(db) {
     await db.prepare(`CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT UNIQUE, page_id INTEGER, amount INTEGER, status TEXT, customer_info TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS analytics (id INTEGER PRIMARY KEY AUTOINCREMENT, page_id INTEGER, event_type TEXT, referrer TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
     
-    // --- NEW: TABEL PESAN (CONTACT FORM) ---
+    // Tabel Pesan (Contact Form)
     await db.prepare(`CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         page_id INTEGER,
@@ -65,10 +66,19 @@ async function initDB(db) {
         status TEXT DEFAULT 'unread', 
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`).run();
+
+    // Tabel Rekap Analytics (D1)
+    await db.prepare(`CREATE TABLE IF NOT EXISTS analytics_rekap (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT,
+        views INTEGER,
+        period_start DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`).run();
 }
 
 // ===============================================
-// 1. ENGINE PEMBAYARAN (FlashPay & Generic)
+// 1. ENGINE PEMBAYARAN
 // ===============================================
 async function executeGenericAPI(c, type, slug, payload) {
     const table = type === 'shipping' ? 'shipping_templates' : 'payment_templates';
@@ -124,12 +134,10 @@ async function executeGenericAPI(c, type, slug, payload) {
 
     let bodyRaw = template.body_json || '{}';
     if (slug.includes('flashpay')) {
-        // Cleaning Phone
         if (payload.customer?.phone) {
             payload.customer.phone_clean = payload.customer.phone.replace(/[^0-9]/g, '');
         }
         
-        // Force Construct FlashPay Payload (Supaya Qty & Item detail sinkron)
         const fpPayload = {
             external_id: "INV-" + Date.now(),
             payment_type: [slug.toUpperCase().replace(/-/g, '_')],
@@ -146,7 +154,7 @@ async function executeGenericAPI(c, type, slug, payload) {
             item_details: [{
                 item_id: "ITEM-01",
                 information: payload.item_name || "Produk",
-                amount: Number(payload.amount), // Total amount (Price * Qty)
+                amount: Number(payload.amount),
                 beneficiary_bank: "MNC",
                 beneficiary_account: "5279910282",
                 beneficiary_name: "PASDIGI"
@@ -219,7 +227,6 @@ const requireAuth = async (c, next) => {
     const url = new URL(c.req.url);
     const path = url.pathname;
     
-    // Whitelist path yang boleh diakses publik
     const whitelisted = (
         path === '/' || path === '/login' || path === '/admin/login' ||
         path === '/api/login' || path === '/api/setup-first-user' ||
@@ -254,12 +261,12 @@ const requireAuth = async (c, next) => {
 app.use('*', requireAuth); 
 
 // ===============================================
-// 4. AUTH ROUTES (Login Fix)
+// 4. AUTH ROUTES
 // ===============================================
 app.post('/api/login', async (c) => {
     try {
         const { email, password } = await c.req.json();
-        await initDB(c.env.DB); // Pastikan DB Ready
+        await initDB(c.env.DB);
         const user = await c.env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
         
         if (!user) return c.json({ success: false, message: 'Email tidak ditemukan' }, 401);
@@ -294,20 +301,18 @@ app.post('/api/setup-first-user', async (c) => {
     } catch (e) { return c.json({ success: false, error: e.message }); }
 });
 
-// Pintu Rahasia buat Cron Eksternal
+// Pintu Rahasia
 app.get('/api/internal/rekap-analytics', async (c) => {
     const cronSecret = c.req.header('x-cron-secret');
-    const MASTER_SECRET = "BantarCaringin1"; // Ganti dengan secret terserah Abang
+    const MASTER_SECRET = "BantarCaringin1"; 
 
-    // 1. Validasi: Cek apakah yang nge-ping punya kunci yang bener
     if (cronSecret !== MASTER_SECRET) {
-        return c.json({ success: false, message: "Kunci Salah, Setan!" }, 401);
+        return c.json({ success: false, message: "Kunci Salah!" }, 401);
     }
 
     try {
-        // 2. Panggil fungsi rekap (Gunakan c.env karena di Pages env ada di context)
         await runAnalyticsRekap(c.env);
-        return c.json({ success: true, message: "Rekap Berhasil, Bang!" });
+        return c.json({ success: true, message: "Rekap Berhasil!" });
     } catch (e) {
         return c.json({ success: false, error: e.message }, 500);
     }
@@ -316,46 +321,33 @@ app.get('/api/internal/rekap-analytics', async (c) => {
 app.get('/api/logout', (c) => { deleteCookie(c, 'auth_token'); return c.redirect('/login'); });
 
 // ===============================================
-// 5. ADMIN ROUTES (Dashboard, Modules, Pages)
+// 5. ADMIN ROUTES
 // ===============================================
 app.get('/login', (c) => serveAsset(c, '/login.html'));
 app.get('/admin', (c) => c.redirect('/admin/dashboard'));
 app.get('/admin/*', (c) => serveAsset(c, '/_views' + c.req.path.replace('/admin','').replace(/^\/$/,'/dashboard') + '.html'));
-// --- MODULE: HOMEPAGE SETTING ---
 
-// 1. GET Homepage Slug (Dipanggil saat dashboard load)
+// --- MODULE: HOMEPAGE SETTING ---
 app.get('/api/admin/homepage-slug', async (c) => {
     try {
         const setting = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
         return c.json({ slug: setting?.value || null });
-    } catch (e) {
-        return c.json({ error: e.message }, 500);
-    }
+    } catch (e) { return c.json({ error: e.message }, 500); }
 });
 
-// 2. SET Homepage (Dipanggil saat tombol bintang diklik)
 app.post('/api/admin/set-homepage', async (c) => {
     try {
         const { slug } = await c.req.json();
-        
         if (!slug) return c.json({ error: "Slug tidak valid" }, 400);
 
-        // Validasi: Pastikan halaman benar-benar ada di database
         const page = await c.env.DB.prepare("SELECT id FROM pages WHERE slug = ?").bind(slug).first();
-        if (!page) return c.json({ error: "Halaman tidak ditemukan di database" }, 404);
+        if (!page) return c.json({ error: "Halaman tidak ditemukan" }, 404);
 
-        // Simpan/Update ke tabel settings
-        // Menggunakan ON CONFLICT agar jika key 'homepage_slug' sudah ada, nilainya di-update
-        await c.env.DB.prepare(`
-            INSERT INTO settings (key, value) VALUES ('homepage_slug', ?) 
-            ON CONFLICT(key) DO UPDATE SET value=excluded.value
-        `).bind(slug).run();
-
+        await c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('homepage_slug', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).bind(slug).run();
         return c.json({ success: true, message: "Homepage berhasil diatur", slug });
-    } catch (e) {
-        return c.json({ error: e.message }, 500);
-    }
+    } catch (e) { return c.json({ error: e.message }, 500); }
 });
+
 // --- MODULE: PAGES ---
 app.get('/api/admin/pages', async (c) => {
     const res = await c.env.DB.prepare("SELECT id, slug, title, product_type, created_at FROM pages ORDER BY created_at DESC").all();
@@ -374,7 +366,7 @@ app.get('/api/admin/pages/:slug', async (c) => {
     return c.json(page || {});
 });
 
-// --- MODULE: MESSAGES (KONTAK ADMIN) ---
+// --- MODULE: MESSAGES ---
 app.get('/api/admin/messages', async (c) => {
     try {
         const res = await c.env.DB.prepare("SELECT * FROM messages ORDER BY created_at DESC LIMIT 100").all();
@@ -400,7 +392,6 @@ app.delete('/api/admin/messages/:id', async (c) => {
 // --- MODULE: ANALYTICS ---
 app.get('/api/admin/analytics/data', async (c) => {
     try {
-        // 1. Ambil Total Views & Views Hari Ini dari tabel Rekap D1
         const stats = await c.env.DB.prepare(`
             SELECT 
                 SUM(views) as total_views,
@@ -408,14 +399,13 @@ app.get('/api/admin/analytics/data', async (c) => {
             FROM analytics_rekap
         `).first();
 
-        // 2. Ambil Top 10 Halaman Teramai (Join dengan tabel pages untuk dapet Title)
         const topPages = await c.env.DB.prepare(`
             SELECT 
                 p.title, 
                 r.slug, 
                 SUM(r.views) as views
             FROM analytics_rekap r
-            JOIN pages p ON r.slug = p.slug
+            JOIN pages p ON LOWER(r.slug) = LOWER(p.slug)
             GROUP BY r.slug
             ORDER BY views DESC
             LIMIT 10
@@ -429,9 +419,7 @@ app.get('/api/admin/analytics/data', async (c) => {
             }, 
             top_pages: topPages.results || [] 
         });
-    } catch(e) { 
-        return c.json({ success: false, error: e.message }, 500); 
-    }
+    } catch(e) { return c.json({ success: false, error: e.message }, 500); }
 });
 
 // --- MODULE: SETTINGS & TEMPLATES ---
@@ -520,15 +508,12 @@ app.post('/api/public/checkout', async (c) => {
         const qty = parseInt(quantity || 1);
         let finalAmount = unitPrice * qty;
 
-        // Cek Bump
-        let bumpName = '';
         if (body.take_bump && config.order_bump?.active) {
             const bumpPrice = Number(config.order_bump.price);
             finalAmount += bumpPrice; 
-            bumpName = config.order_bump.title;
+            if (config.order_bump.title) itemName += ` + ${config.order_bump.title}`;
         }
 
-        // Cek Kupon
         if (body.coupon_code && config.coupons) {
             const cp = config.coupons.find(x => x.code.toUpperCase() === body.coupon_code.toUpperCase());
             if (cp) {
@@ -541,7 +526,6 @@ app.post('/api/public/checkout', async (c) => {
             ...body,
             amount: finalAmount, 
             item_name: itemName + (qty > 1 ? ` (x${qty})` : ''),
-            bump_name: bumpName
         };
 
         const result = await executeGenericAPI(c, 'payment', slug_payment, apiPayload);
@@ -551,27 +535,18 @@ app.post('/api/public/checkout', async (c) => {
 });
 
 // ===============================================
-// 7. PUBLIC PAGE RENDERING & HOMEPAGE
+// 7. PUBLIC PAGE RENDERING
 // ===============================================
 
 // HOMEPAGE
 app.get('/', async (c) => {
     try {
         const setting = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
-        
         if (!setting || !setting.value) {
-            return c.html(`
-                <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-                    <h1>Welcome</h1>
-                    <p>Homepage belum diatur.</p>
-                    <a href="/login" style="color: blue;">Login Admin</a>
-                </div>
-            `);
+            return c.html(`<div style="font-family: sans-serif; text-align: center; padding: 50px;"><h1>Welcome</h1><p>Homepage belum diatur.</p><a href="/login" style="color: blue;">Login Admin</a></div>`);
         }
-
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(setting.value).first();
         if (!page) return c.text(`Error: Halaman '${setting.value}' tidak ditemukan.`, 404);
-
         trackVisit(c, page, 'direct-homepage');
         return renderPage(c, page);
     } catch (e) { return c.text(`Server Error: ${e.message}`, 500); }
@@ -584,18 +559,17 @@ app.get('/:slug', async (c) => {
         if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
         if(!page) return c.text('404 Not Found', 404);
-
         trackVisit(c, page, c.req.header('Referer'));
         return renderPage(c, page);
     } catch(e) { return c.env.ASSETS.fetch(c.req.raw); }
 });
 
-// FUNGSI RENDER UTAMA
+// FUNGSI RENDER
 async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
     const activePayments = config.active_payments || [];
     
-    // CSS, Tailwind, & JS Script string
+    // CSS & Tailwind
     const bridgeCSS = `
         body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
         .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; }
@@ -635,9 +609,11 @@ async function renderPage(c, page) {
         }
     `;
 
+    // SCRIPT LOGIC (SINGLE DECLARATION)
     const liveScripts = `
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // A. Notifikasi Pesan Terkirim
             const params = new URLSearchParams(window.location.search);
             if(params.get('status') === 'sent') {
                 Swal.fire({
@@ -649,9 +625,8 @@ async function renderPage(c, page) {
                 });
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
+            
+            // B. Gallery Logic
             document.querySelectorAll('.product-gallery').forEach(el => {
                 const main = el.querySelector('.main-img img');
                 const thumbs = el.querySelectorAll('.thumb');
@@ -665,6 +640,7 @@ async function renderPage(c, page) {
                 });
             });
             
+            // C. Carousel Logic
             document.querySelectorAll('.editable-carousel').forEach(el => {
                 const slides = el.querySelector('.slides');
                 const items = el.querySelectorAll('.slide');
@@ -681,6 +657,7 @@ async function renderPage(c, page) {
                 el.onmouseleave = () => timer = setInterval(() => show(idx+1), 5000);
             });
 
+            // D. Checkout Logic
             const container = document.body;
             if (container.innerHTML.includes('[ CHECKOUT ]')) {
                 const config = ${JSON.stringify(config)};
@@ -713,252 +690,6 @@ async function renderPage(c, page) {
                         </button>
                     </div>
                 \`;
-                container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', checkoutHTML);
-
-                document.getElementById('btn-submit-order')?.addEventListener('click', async () => {
-                    const payMethod = document.querySelector('input[name="pay_method"]:checked')?.value;
-                    const name = document.getElementById('c_name').value;
-                    const phone = document.getElementById('c_phone').value;
-
-                    if(!name || !phone) return Swal.fire('Data Kurang', 'Mohon lengkapi nama dan WhatsApp', 'warning');
-                    if(!payMethod) return Swal.fire('Pilih Pembayaran', 'Metode pembayaran belum dipilih', 'warning');
-
-                    const btn = document.getElementById('btn-submit-order');
-                    btn.disabled = true;
-                    btn.innerText = 'Memproses...';
-
-                    try {
-                        const res = await fetch('/api/public/checkout', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                page_id: ${page.id},
-                                slug_payment: payMethod,
-                                quantity: 1,
-                                customer: { name, phone }
-                            })
-                        });
-                        const d = await res.json();
-                        if(d.payment_url) window.location.href = d.payment_url;
-                        else Swal.fire('Gagal', d.error || 'Terjadi kesalahan sistem', 'error');
-                    } catch(e) { Swal.fire('Error', 'Koneksi bermasalah', 'error'); }
-                    btn.disabled = false;
-                    btn.innerText = 'BAYAR SEKARANG';
-                });
-            }
-        });
-    </script>
-    `;
-
-    return c.html(`
-    <!DOCTYPE html>
-    <html lang='id'>
-    <head>
-        <meta charset='UTF-8'>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${page.title}</title>
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script>${tailwindConfig}</script>
-        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-        <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
-        <style>
-            ${bridgeCSS}
-            ${page.css_content}
-        </style>
-    </head>
-    <body>
-        ${page.html_content}
-        <script>window.PAGE_ID=${page.id};</script>
-        ${liveScripts}
-    </body>
-    </html>
-    `);
-
-// ===============================================
-// 8. HOMEPAGE HANDLER (ROOT URL)
-// ===============================================
-app.get('/', async (c) => {
-    try {
-        // 1. Cek tabel settings untuk mencari 'homepage_slug'
-        const setting = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
-        
-        // 2. Jika belum di-set di database, tampilkan pesan default
-        if (!setting || !setting.value) {
-            return c.html(`
-                <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-                    <h1>Welcome</h1>
-                    <p>Homepage belum diatur. Silakan set 'homepage_slug' di database atau admin panel.</p>
-                    <a href="/login" style="color: blue;">Login Admin</a>
-                </div>
-            `);
-        }
-
-        // 3. Ambil data halaman berdasarkan slug yang ditemukan (misal: 'blink-site-landingpage')
-        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(setting.value).first();
-        
-        if (!page) return c.text(`Error: Halaman dengan slug '${setting.value}' tidak ditemukan di tabel pages.`, 404);
-
-        // 4. Track Analytics (Opsional: anggap ini kunjungan ke homepage)
-        trackVisit(c, page, 'direct-homepage');
-
-        // 5. Render halaman tersebut menggunakan fungsi renderPage yang sudah kita perbaiki
-        return renderPage(c, page);
-
-    } catch (e) {
-        return c.text(`Server Error: ${e.message}`, 500);
-    }
-});
-// ===============================================
-// 7. PAGE RENDERING (FINAL FIX & CLEAN)
-// ===============================================
-app.get('/:slug', async (c) => {
-    try {
-        const slug = c.req.param('slug');
-        if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
-        const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
-        if(!page) return c.text('404 Not Found', 404);
-
-        // TRACK ANALYTICS
-        trackVisit(c, page, c.req.header('Referer'));
-
-        return renderPage(c, page);
-    } catch(e) { return c.env.ASSETS.fetch(c.req.raw); }
-});
-
-async function renderPage(c, page) {
-    const config = JSON.parse(page.product_config_json || '{}');
-    const activePayments = config.active_payments || [];
-    
-    // 1. INJEKSI CSS KRITIS
-    const bridgeCSS = `
-        body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
-        /* ... CSS lainnya tetap sama ... */
-        .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; }
-        .product-gallery .main-img { border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 4/3; background: #f3f4f6; }
-        .product-gallery .main-img img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
-        .product-gallery .thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding-bottom: 5px; scroll-behavior: smooth; }
-        .product-gallery .thumb { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.7; transition: 0.2s; object-fit: cover; }
-        .product-gallery .thumb.active, .product-gallery .thumb:hover { border-color: #2563eb; opacity: 1; }
-        .editable-carousel { position: relative; width: 100%; overflow: hidden; }
-        .editable-carousel .slides { display: flex; flex-direction: row; width: 100%; height: 100%; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; height: 100%; }
-        .editable-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
-        .editable-carousel .carousel-controls { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); display: flex; justify-content: space-between; padding: 0 20px; pointer-events: none; z-index: 10; }
-        .editable-carousel .carousel-controls button { pointer-events: auto; background: rgba(0,0,0,0.2); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; backdrop-filter: blur(2px); }
-        .editable-carousel .carousel-controls button:hover { background: rgba(0,0,0,0.5); transform: scale(1.1); }
-        .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; position: relative; overflow: hidden; }
-        .pricing-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1); }
-        .pricing-card.highlight { border: 2px solid #2563eb; z-index: 2; box-shadow: 0 20px 40px -5px rgba(37, 99, 235, 0.15); }
-        .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; height: 100%; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-        .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 30s linear infinite; }
-        .btn { text-transform: none !important; }
-    `;
-
-    // 2. INJEKSI KONFIGURASI TAILWIND (ESCAPED)
-    const tailwindConfig = `
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        theme: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca', 800:'#3730a3' }
-                    }
-                }
-            }
-        }
-    `;
-
-    // 3. SCRIPT LOGIC (ESCAPED)
-    const liveScripts = `
-    <script>
-        // A. Notifikasi Pesan Terkirim (SweetAlert)
-        document.addEventListener('DOMContentLoaded', () => {
-            const params = new URLSearchParams(window.location.search);
-            if(params.get('status') === 'sent') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Pesan Terkirim!',
-                    text: 'Kami akan segera menghubungi Anda.',
-                    confirmButtonColor: '#2563eb',
-                    customClass: { popup: 'rounded-2xl' }
-                });
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-        });
-
-        // B. Inisialisasi Ulang Komponen
-        document.addEventListener('DOMContentLoaded', () => {
-            // 1. Gallery Thumbnail Logic
-            document.querySelectorAll('.product-gallery').forEach(el => {
-                const main = el.querySelector('.main-img img');
-                const thumbs = el.querySelectorAll('.thumb');
-                if(!main || thumbs.length === 0) return;
-                thumbs.forEach(t => {
-                    t.onclick = function() {
-                        main.src = this.src;
-                        thumbs.forEach(x => x.classList.remove('active'));
-                        this.classList.add('active');
-                    }
-                });
-            });
-            
-            // 2. Carousel Auto Play Logic
-            document.querySelectorAll('.editable-carousel').forEach(el => {
-                const slides = el.querySelector('.slides');
-                const items = el.querySelectorAll('.slide');
-                if(!slides || !items.length) return;
-                let idx = 0;
-                function show(n) { 
-                    idx = (n + items.length) % items.length; 
-                    slides.style.transform = 'translateX(-'+(idx*100)+'%)'; 
-                }
-                const next = el.querySelector('.next'); if(next) next.onclick = () => show(idx+1);
-                const prev = el.querySelector('.prev'); if(prev) prev.onclick = () => show(idx-1);
-                
-                let timer = setInterval(() => show(idx+1), 5000);
-                el.onmouseenter = () => clearInterval(timer);
-                el.onmouseleave = () => timer = setInterval(() => show(idx+1), 5000);
-            });
-
-            // 3. Logic Checkout
-            const container = document.body;
-            if (container.innerHTML.includes('[ CHECKOUT ]')) {
-                const config = ${JSON.stringify(config)};
-                const activePayments = ${JSON.stringify(activePayments)};
-                
-                const paymentHTML = activePayments.length > 0 ? activePayments.map(slug => 
-                    '<label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200 mb-2">' +
-                    '<input type="radio" name="pay_method" value="' + slug + '" class="mr-3 w-4 h-4 text-blue-600">' +
-                    '<span class="text-sm font-bold text-gray-700 uppercase">' + slug.split('-').join(' ') + '</span>' +
-                    '</label>'
-                ).join('') : '<p class="text-red-500 text-xs">Belum ada metode pembayaran.</p>';
-
-                const checkoutHTML = \`
-                    <div class="max-w-md mx-auto my-8 p-6 bg-white rounded-2xl shadow-xl border border-gray-100 font-sans">
-                        <h2 class="text-xl font-black text-gray-800 mb-6 text-center">Formulir Pemesanan</h2>
-                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6">
-                            <span class="font-bold text-blue-900">${page.title}</span>
-                            <span class="font-black text-blue-700">Rp \${new Intl.NumberFormat('id-ID').format(config.price || 0)}</span>
-                        </div>
-                        <div class="space-y-4 mb-6">
-                            <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full p-3 border rounded-lg">
-                            <input type="tel" id="c_phone" placeholder="No. WhatsApp" class="w-full p-3 border rounded-lg">
-                        </div>
-                        <div class="mb-6">
-                            <label class="text-xs font-bold text-gray-400 uppercase block mb-2">Pembayaran</label>
-                            <div class="grid gap-2">\${paymentHTML}</div>
-                        </div>
-                        <button id="btn-submit-order" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-700 transition">
-                            BAYAR SEKARANG
-                        </button>
-                    </div>
-                \`;
-                
                 container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', checkoutHTML);
 
                 document.getElementById('btn-submit-order')?.addEventListener('click', async () => {
@@ -997,7 +728,6 @@ async function renderPage(c, page) {
     </script>
     `;
 
-    // 4. RETURN HTML LENGKAP
     return c.html(`
     <!DOCTYPE html>
     <html lang='id'>
@@ -1005,15 +735,12 @@ async function renderPage(c, page) {
         <meta charset='UTF-8'>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${page.title}</title>
-        
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        
         <script src="https://cdn.tailwindcss.com"></script>
         <script>${tailwindConfig}</script>
         <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
         <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
-
         <style>
             ${bridgeCSS}
             ${page.css_content}
@@ -1027,42 +754,12 @@ async function renderPage(c, page) {
     </html>
     `);
 }
-    // 4. RETURN HTML LENGKAP
-    return c.html(`
-    <!DOCTYPE html>
-    <html lang='id'>
-    <head>
-        <meta charset='UTF-8'>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${page.title}</title>
-        
-        <script src="https://cdn.tailwindcss.com"><\/script>
-        <script>${tailwindConfig}<\/script>
-        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-        <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"><\/script>
-
-        <style>
-            ${bridgeCSS}
-            ${page.css_content}
-        </style>
-    </head>
-    <body>
-        ${page.html_content}
-        <script>window.PAGE_ID=${page.id};<\/script>
-        ${liveScripts}
-    </body>
-    </html>
-    `);
-}
-app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 // ===============================================
-// HELPER: LOGIKA REKAP ANALYTICS (TARUH DI LUAR ROUTE)
+// HELPER ANALYTICS
 // ===============================================
 async function runAnalyticsRekap(env) {
     try {
-        // AWAS: Ganti ini dengan Account ID & API Token Abang di Dashboard Cloudflare
         const ACCOUNT_ID = env.CF_ACCOUNT_ID; 
         const API_TOKEN = env.CF_API_TOKEN;   
 
@@ -1075,7 +772,6 @@ async function runAnalyticsRekap(env) {
             GROUP BY slug
         `;
 
-        // Kita harus pakai fetch manual ke API Cloudflare SQL
         const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/analytics_engine/sql`, {
             method: 'POST',
             headers: {
@@ -1092,17 +788,12 @@ async function runAnalyticsRekap(env) {
                 INSERT INTO analytics_rekap (slug, views, period_start) 
                 VALUES (?, ?, datetime('now', '-15 minutes'))
             `);
-            
-            await env.DB.batch(
-                resData.data.map(row => stmt.bind(row.slug, row.total_views))
-            );
-            console.log("Rekap Berhasil, Bang!");
+            await env.DB.batch(resData.data.map(row => stmt.bind(row.slug, row.total_views)));
+            console.log("Rekap Berhasil!");
         }
     } catch (e) {
         throw new Error("Gagal Rekap: " + e.message);
     }
 }
-// ===============================================
-// EXPORT UNTUK PAGES
-// ===============================================
+
 export const onRequest = handle(app);
