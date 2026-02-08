@@ -176,6 +176,7 @@ header {
 
     <div class="hidden md:flex absolute left-1/2 transform -translate-x-1/2 items-center bg-gray-100 rounded-lg p-1 border shadow-sm">
         <button @click="setDevice('desktop')" :class="device=='desktop'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-desktop text-lg"></i></button>
+        <button @click="setDevice('tablet')" :class="device=='tablet'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-tablet text-lg"></i></button>
         <button @click="setDevice('mobile')" :class="device=='mobile'?'bg-white shadow text-indigo-600':'text-gray-400'" class="p-1.5 rounded transition"><i class="ph ph-device-mobile text-lg"></i></button>
     </div>
 
@@ -194,6 +195,7 @@ header {
 
     <div class="mobile-tools">
         <button @click="setDevice('desktop')" :class="device=='desktop'?'text-indigo-600 bg-white border-indigo-200 shadow-sm':'text-gray-400 border-transparent'" class="p-1.5 rounded border transition"><i class="ph ph-desktop text-lg"></i></button>
+        <button @click="setDevice('tablet')" :class="device=='tablet'?'text-indigo-600 bg-white border-indigo-200 shadow-sm':'text-gray-400 border-transparent'" class="p-1.5 rounded border transition"><i class="ph ph-device-tablet text-lg"></i></button>
         <button @click="setDevice('mobile')" :class="device=='mobile'?'text-indigo-600 bg-white border-indigo-200 shadow-sm':'text-gray-400 border-transparent'" class="p-1.5 rounded border transition"><i class="ph ph-device-mobile text-lg"></i></button>
         <div class="w-px h-4 bg-gray-300"></div>
         <button @click="cmd('core:undo')" class="text-gray-500 active:text-indigo-600"><i class="ph ph-arrow-u-up-left text-lg"></i></button>
