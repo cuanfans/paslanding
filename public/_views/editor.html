@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LandingBuilder - Pro Mobile</title>
+    <title>LandingBuilder Pro - Fix</title>
     
     <script>
         (function() {
@@ -34,7 +34,6 @@
     <script src="https://unpkg.com/grapesjs-style-bg@2.0.1"></script>
 
     <style>
-        /* 1. LAYOUT CORE */
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; }
         [x-cloak] { display: none !important; }
 
@@ -72,64 +71,45 @@
             .mobile-overlay.show { display: block; }
         }
 
-        /* 2. UI GRAPESJS OVERRIDE */
+        /* HIDE GRAPESJS DEFAULT PANELS */
         .gjs-pn-views-container, .gjs-pn-panels, .gjs-pn-views, .gjs-pn-commands { display: none !important; width: 0 !important; }
         .gjs-cv-canvas { width: 100% !important; height: 100% !important; top: 0 !important; left: 0 !important; }
 
-        /* 3. COMPACT WIDGET BUTTONS (KECIL & 3 KOLOM) */
+        /* ULTRA COMPACT WIDGET BUTTONS (3 KOLOM) */
         .gjs-blocks-c { 
             display: grid !important; 
-            grid-template-columns: repeat(3, 1fr) !important; /* 3 Kolom biar padat */
-            gap: 6px !important; 
-            padding: 8px !important; 
+            grid-template-columns: repeat(3, 1fr) !important; 
+            gap: 4px !important; 
+            padding: 6px !important; 
         }
         .gjs-block { 
             width: 100% !important; 
-            min-height: 30px !important; /* Lebih pendek dari sebelumnya */
-            padding: 8px 4px !important; 
+            min-height: 45px !important; /* Sangat Pendek */
+            padding: 4px !important; 
             background: #fff; 
             border: 1px solid #e5e7eb; 
-            border-radius: 10px; 
+            border-radius: 6px; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             justify-content: center; 
-            gap: 4px; 
+            gap: 2px; 
             cursor: pointer; 
             transition: 0.2s;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
-        .gjs-block-label {
-            font-size: 9px !important; /* Tulisan diperkecil */
-            font-weight: 600;
-            text-align: center;
-            line-height: 1.1;
-            color: #4b5563;
-        }
-        .gjs-block svg, .gjs-block i, .gjs-block iconify-icon {
-            font-size: 18px !important; /* Icon diperkecil */
-            color: #6366f1;
-        }
-        .gjs-block:active { transform: scale(0.95); background: #f5f3ff; border-color: #6366f1; }
+        .gjs-block-label { font-size: 7px !important; font-weight: 800; text-transform: uppercase; color: #4b5563; text-align: center; }
+        .gjs-block i, .gjs-block iconify-icon { font-size: 14px !important; color: #6366f1; }
 
         .custom-scroll { overflow-y: auto; height: 100%; -webkit-overflow-scrolling: touch; }
         .gjs-selected { outline: 2px solid #6366f1 !important; outline-offset: -2px; }
 
-        .gjs-toolbar { background-color: #4f46e5 !important; border-radius: 8px !important; display: flex !important; }
-        .gjs-toolbar-item { padding: 8px !important; color: white !important; }
+        /* TOOLBAR & RESIZER */
+        .gjs-toolbar { background-color: #4f46e5 !important; border-radius: 6px !important; display: flex !important; }
+        .gjs-toolbar-item { padding: 6px 8px !important; color: white !important; }
         .gjs-resizer-h { width: 22px !important; height: 22px !important; background: #4f46e5 !important; border: 3px solid #fff !important; border-radius: 50% !important; z-index: 10 !important; }
     </style>
 </head>
 <body x-data="editorApp()">
-
-    <div class="fixed bottom-20 left-5 z-[9999] flex flex-col gap-2 pointer-events-none">
-        <template x-for="n in notifications" :key="n.id">
-            <div x-show="n.show" x-transition class="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border-l-4 bg-white min-w-[250px]" :class="n.type==='success'?'border-green-500':'border-red-500'">
-                <i class="ph text-xl" :class="n.type==='success'?'ph-check-circle text-green-500':'ph-warning-circle text-red-500'"></i>
-                <div><h4 class="text-xs font-bold text-gray-800" x-text="n.title"></h4><p class="text-[10px] text-gray-500" x-text="n.msg"></p></div>
-            </div>
-        </template>
-    </div>
 
     <header>
         <div class="flex items-center gap-3 overflow-hidden w-full max-w-[250px]">
@@ -137,7 +117,7 @@
             <div class="flex-1 min-w-0">
                 <input x-model="page.title" class="bg-transparent font-bold text-xs text-gray-800 outline-none w-full truncate" placeholder="Nama Halaman">
                 <div class="flex items-center gap-1">
-                    <span class="text-[8px] font-black text-gray-300 uppercase tracking-tighter">Slug:</span>
+                    <span class="text-[8px] font-black text-gray-300 uppercase shrink-0">Slug:</span>
                     <input x-model="page.slug" class="bg-transparent font-mono text-[9px] text-gray-400 outline-none w-full truncate">
                 </div>
             </div>
@@ -181,7 +161,10 @@
             </div>
             <div class="flex-1 bg-white custom-scroll relative w-full">
                 <div x-show="tab=='blocks'" class="h-full pb-20"><div id="blocks-container" class="p-2"></div></div>
-                <div x-show="tab=='styles'" class="h-full pb-20"><div id="selectors-container" class="p-3"></div><div id="styles-container" class="p-1"></div></div>
+                <div x-show="tab=='styles'" class="h-full pb-20">
+                    <div id="selectors-container" class="p-3 bg-gray-50 border-b"></div>
+                    <div id="styles-container" class="p-1"></div>
+                </div>
                 <div x-show="tab=='traits'" class="h-full pb-20"><div id="traits-container" class="p-4"></div></div>
                 <div x-show="tab=='layers'" class="h-full pb-20"><div id="layers-container"></div></div>
             </div>
@@ -197,56 +180,53 @@
     <div x-show="showSettings" x-cloak class="fixed inset-0 z-[400] bg-slate-900/50 backdrop-blur-sm flex justify-end" @click.self="showSettings = false">
         <div class="w-full md:w-[480px] h-full bg-white shadow-2xl flex flex-col border-l">
             <div class="p-5 border-b flex justify-between items-center bg-gray-50">
-                <h2 class="font-bold text-gray-800">Page Settings</h2>
-                <button @click="showSettings = false" class="text-gray-400"><i class="ph ph-x text-xl"></i></button>
+                <h2 class="font-bold text-gray-800 flex items-center gap-2"><i class="ph ph-faders text-indigo-600 text-xl"></i> Settings</h2>
+                <button @click="showSettings = false" class="text-gray-400 hover:text-red-500"><i class="ph ph-x text-xl"></i></button>
             </div>
             <div class="flex-1 overflow-y-auto p-6 space-y-4">
                 <div><label class="text-[10px] font-bold text-gray-400 uppercase">Nama Halaman</label><input x-model="page.title" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none"></div>
                 <div><label class="text-[10px] font-bold text-gray-400 uppercase">URL Slug</label><input x-model="page.slug" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none"></div>
             </div>
-            <div class="p-4 border-t bg-gray-50 flex justify-end gap-3"><button @click="showSettings=false" class="text-xs font-bold text-gray-500">CANCEL</button><button @click="savePage(); showSettings=false" class="px-8 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl">SAVE</button></div>
+            <div class="p-4 border-t bg-gray-50 flex justify-end gap-3">
+                <button @click="showSettings=false" class="text-xs font-bold text-gray-500 uppercase">Cancel</button>
+                <button @click="savePage(); showSettings=false" class="px-8 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl shadow-lg">Save Changes</button>
+            </div>
         </div>
+    </div>
+
+    <div class="fixed bottom-20 left-5 z-[9999] flex flex-col gap-2 pointer-events-none">
+        <template x-for="n in notifications" :key="n.id">
+            <div x-show="n.show" x-transition class="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border-l-4 bg-white min-w-[250px]" :class="n.type==='success'?'border-green-500':'border-red-500'">
+                <i class="ph text-xl" :class="n.type==='success'?'ph-check-circle text-green-500':'ph-warning-circle text-red-500'"></i>
+                <div><h4 class="text-xs font-bold text-gray-800" x-text="n.title"></h4><p class="text-[10px] text-gray-500" x-text="n.msg"></p></div>
+            </div>
+        </template>
     </div>
 
     <div id="iconify-picker-modal" class="fixed inset-0 hidden z-[99999] bg-black/40 flex items-start justify-center p-6 backdrop-blur-sm">
         <div class="bg-white rounded-xl w-full max-w-xl shadow-2xl mt-10 overflow-hidden">
-            <div class="flex items-center justify-between p-4 border-b bg-gray-50"><input id="iconify-picker-search" placeholder="Search icon..." class="w-full bg-transparent outline-none text-sm" /><button id="iconify-picker-close"><i class="ph ph-x text-lg"></i></button></div>
+            <div class="flex items-center justify-between p-4 border-b bg-gray-50">
+                <input id="iconify-picker-search" placeholder="Cari icon..." class="w-full bg-transparent outline-none text-sm" />
+                <button id="iconify-picker-close"><i class="ph ph-x text-lg"></i></button>
+            </div>
             <div id="iconify-picker-results" class="p-4 grid grid-cols-6 gap-3 max-h-[300px] overflow-y-auto"></div>
         </div>
     </div>
 
     <script>
-        // --- ICONIFY LOGIC ---
+        // --- LOGIKA ICONIFY PICKER ---
         (function(){
-            let activeModel = null; 
-            const modal = document.getElementById('iconify-picker-modal'); 
-            const input = document.getElementById('iconify-picker-search'); 
-            const results = document.getElementById('iconify-picker-results');
-            window.openIconifyPicker = function(model) { 
-                activeModel = model; modal.classList.remove('hidden'); input.value = ''; input.focus(); searchIcons('star'); 
-            };
-            document.getElementById('iconify-picker-close').onclick = () => modal.classList.add('hidden');
-            input.oninput = (e) => searchIcons(e.target.value);
-            async function searchIcons(q) { 
-                if(!q) return; 
-                try {
-                    const res = await fetch(`https://api.iconify.design/search?query=${q}&limit=18`); 
-                    const data = await res.json(); results.innerHTML = ''; 
-                    if(data.icons) { data.icons.forEach(icon => { 
-                        const btn = document.createElement('button'); btn.className = 'p-2 hover:bg-indigo-50 rounded flex flex-col items-center gap-1'; 
-                        btn.innerHTML = `<iconify-icon icon="${icon}" width="24"></iconify-icon><span class="text-[9px] text-gray-400 truncate w-full">${icon.split(':')[1]}</span>`; 
-                        btn.onclick = () => { if(activeModel) activeModel.setAttributes({ icon: icon }); modal.classList.add('hidden'); }; 
-                        results.appendChild(btn); 
-                    }); } 
-                } catch(e) {}
-            }
+            let activeModel = null; const modal = document.getElementById('iconify-picker-modal'); const input = document.getElementById('iconify-picker-search'); const results = document.getElementById('iconify-picker-results');
+            window.openIconifyPicker = function(model) { activeModel = model; modal.classList.remove('hidden'); input.value = ''; input.focus(); searchIcons('star'); };
+            document.getElementById('iconify-picker-close').onclick = () => modal.classList.add('hidden'); input.oninput = (e) => searchIcons(e.target.value);
+            async function searchIcons(q) { if(!q) return; try { const res = await fetch(`https://api.iconify.design/search?query=${q}&limit=18`); const data = await res.json(); results.innerHTML = ''; if(data.icons) { data.icons.forEach(icon => { const btn = document.createElement('button'); btn.className = 'p-2 hover:bg-indigo-50 rounded flex flex-col items-center gap-1'; btn.innerHTML = `<iconify-icon icon="${icon}" width="24"></iconify-icon><span class="text-[9px] text-gray-400 truncate w-full text-center">${icon.split(':')[1]}</span>`; btn.onclick = () => { if(activeModel) activeModel.setAttributes({ icon: icon }); modal.classList.add('hidden'); }; results.appendChild(btn); }); } } catch(e) {} }
         })();
 
-        // --- APP LOGIC ---
+        // --- APP LOGIC (ALPINE JS) ---
         function editorApp() {
             return {
                 device: 'desktop', tab: 'blocks', clipboard: null, mobileMenuOpen: false, showSettings: false, loading: false, notifications: [],
-                page: { id: 0, slug: '', title: '', meta: {}, analytics: {}, scripts: {}, config: { price: 0 } },
+                page: { id: 0, slug: '', title: '', meta: {}, product_type: 'physical', slug_payment: 'whatsapp', config: { price: 0 } },
 
                 async init() {
                     this.initGrapes();
@@ -281,8 +261,8 @@
                             css: window.editor.getCss(), meta: this.page.meta, product_config: this.page.config
                         };
                         const res = await fetch('/api/admin/pages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                        this.notify(res.ok ? 'Sukses' : 'Error', res.ok ? 'Published!' : 'Gagal Simpan', res.ok ? 'success' : 'error');
-                    } catch (e) { this.notify('Error', 'Koneksi bermasalah', 'error'); }
+                        this.notify(res.ok ? 'Sukses' : 'Error', res.ok ? 'Published!' : 'Gagal', res.ok ? 'success' : 'error');
+                    } catch (e) { this.notify('Error', 'Masalah koneksi', 'error'); }
                     this.loading = false;
                 },
 
@@ -296,12 +276,12 @@
 
                 initGrapes() {
                     const bridgeCSS = `
-                        body { min-height: 100vh; background: #fff; overflow-x: hidden; }
+                        body { min-height: 100vh; background: #fff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
                         .product-gallery { display: flex; flex-direction: column; gap: 12px; width: 100%; overflow: hidden; }
                         .gallery-main { display: flex; transition: transform 0.4s; width: 100%; }
                         .gallery-main img { width: 100%; flex-shrink: 0; aspect-ratio: 4/3; object-fit: cover; border-radius: 12px; }
                         .gallery-thumbs { display: flex; gap: 10px; overflow-x: auto; padding: 5px 0; }
-                        .thumb-item { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; opacity: 0.6; object-fit: cover; }
+                        .thumb-item { min-width: 60px; width: 60px; height: 60px; flex-shrink: 0; border-radius: 8px; cursor: pointer; opacity: 0.6; object-fit: cover; }
                         .thumb-item.active { border: 2px solid #4f46e5; opacity: 1; }
                     `;
 
@@ -318,16 +298,23 @@
                         layerManager: { appendTo: '#layers-container' },
                         selectorManager: { appendTo: '#selectors-container' },
                         traitManager: { appendTo: '#traits-container' },
-                        styleManager: { appendTo: '#styles-container', sectors: [{ name: 'Typography', open:true, buildProps:['font-family','font-size','font-weight','color'] }, { name: 'Decorations', buildProps:['background-color','border-radius','box-shadow'] }] }
+                        styleManager: { 
+                            appendTo: '#styles-container', 
+                            sectors: [
+                                { name: 'Typography', open:true, buildProps:['font-family','font-size','font-weight','color','text-align','line-height','letter-spacing'] },
+                                { name: 'Decorations', buildProps:['background-color','border','border-radius','box-shadow','opacity'] },
+                                { name: 'Dimensions', buildProps:['width','height','max-width','padding','margin'] }
+                            ] 
+                        }
                     });
 
                     const domc = window.editor.DomComponents;
                     const bm = window.editor.BlockManager;
 
-                    // 1. Iconify Type Definition
+                    // --- COMPONENT: ICONIFY (FIXED) ---
                     domc.addType('iconify-icon', { model: { defaults: { tagName: 'iconify-icon', attributes: { icon: 'ph:star-fill', width: '32' }, traits: [{ type: 'button', text: 'Change Icon', command: (ed, t) => window.openIconifyPicker(t.target) }] } } });
                     
-                    // 2. Slider Logic
+                    // --- COMPONENT: GALLERY ---
                     domc.addType('product-gallery', {
                         model: { defaults: { script: function() {
                             const main = this.querySelector('.gallery-main'); const thumbs = this.querySelectorAll('.thumb-item');
@@ -336,53 +323,51 @@
                         }}}
                     });
 
-                    // 3. EVENT LISTENERS: DOUBLE CLICK ICON (FIXED!)
+                    // --- LISTENERS: ICONIFY DOUBLE CLICK (FIXED) ---
                     window.editor.on('component:dblclick', (m) => { if(m.get('tagName') === 'iconify-icon') window.openIconifyPicker(m); });
                     
-                    // 4. TOOLBAR: MOVE, CUT, PASTE INSIDE (FIXED!)
+                    // --- LISTENERS: TOOLBAR (FIXED) ---
                     window.editor.on('component:selected', (model) => {
                         const toolbar = model.get('toolbar'); if (toolbar.find(item => item.id === 'cut-comp')) return;
                         toolbar.unshift(
                             { id: 'move-up', command: () => { const i = model.index(); if (i > 0) model.parent().components().add(model, { at: i - 1 }); }, label: '<i class="ph ph-arrow-up"></i>' },
                             { id: 'move-down', command: () => { const i = model.index(); model.parent().components().add(model, { at: i + 2 }); }, label: '<i class="ph ph-arrow-down"></i>' },
-                            { id: 'cut-comp', command: () => { this.clipboard = model.toHTML(); model.remove(); this.notify('Cut', 'Komponen dipotong', 'info'); }, label: '<i class="ph ph-scissors"></i>' },
-                            { id: 'paste-inside', command: () => { if (this.clipboard) { model.append(this.clipboard); this.notify('Sukses', 'Disisipkan', 'success'); } } , label: '<i class="ph ph-box-arrow-down"></i>' }
+                            { id: 'cut-comp', command: () => { this.clipboard = model.toHTML(); model.remove(); this.notify('Cut', 'Dipotong', 'info'); }, label: '<i class="ph ph-scissors"></i>' },
+                            { id: 'paste-inside', command: () => { if (this.clipboard) { model.append(this.clipboard); this.notify('Sukses', 'Ditempel', 'success'); } }, label: '<i class="ph ph-box-arrow-down"></i>' }
                         );
                         model.set('toolbar', toolbar);
                     });
 
-                    // 5. UNIVERSAL RESIZER
+                    // --- LISTENERS: RESIZER ---
                     window.editor.on('component:add', (m) => {
                         const types = ['image', 'video', 'button', 'text'];
                         if (types.includes(m.get('type')) || ['IMG', 'BUTTON'].includes(m.get('tagName'))) m.set('resizable', { cr: 1, cb: 1, br: 1 });
                     });
 
-                    // --- 6. BLOCK MANAGER (FULL LIST FROM EDITOR 32) ---
-                    bm.add('text-heading', { label: 'Heading', category: 'Basic', content: '<h2 class="text-3xl font-black text-gray-800 mb-4">Tulis Judul</h2>' });
-                    bm.add('text-paragraph', { label: 'Paragraph', category: 'Basic', content: '<p class="text-gray-600 mb-4">Tulis teks Anda.</p>' });
-                    bm.add('ui-button', { label: 'Pro Button', category: 'Basic', content: '<a href="#" class="btn btn-primary px-6 py-3 rounded-lg font-bold text-white shadow-lg">Click Me</a>' });
-                    bm.add('ui-image', { label: 'Picture', category: 'Basic', content: { type: 'image', activeOnRender: 1 } });
+                    // --- BLOCK MANAGER: ALL BLOCKS ---
+                    bm.add('text-heading', { label: 'Judul', category: 'Basic', content: '<h2 class="text-3xl font-black mb-4">Tulis Judul</h2>' });
+                    bm.add('text-paragraph', { label: 'Teks', category: 'Basic', content: '<p class="text-gray-600 mb-4">Teks paragraf.</p>' });
+                    bm.add('ui-button', { label: 'Tombol', category: 'Basic', content: '<a href="#" class="btn btn-primary px-6 py-3 rounded-lg font-bold">Button</a>' });
+                    bm.add('ui-image', { label: 'Gambar', category: 'Basic', content: { type: 'image' } });
                     bm.add('iconify-blk', { label: 'Icon', category: 'Basic', content: { type: 'iconify-icon' } });
-                    bm.add('ui-divider', { label: 'Divider', category: 'Basic', content: '<div class="divider py-4"></div>' });
+                    bm.add('ui-divider', { label: 'Garis', category: 'Basic', content: '<div class="divider py-4"></div>' });
 
-                    bm.add('header-sticky', { label: 'H-Sticky', category: '1. Header & Hero', content: `<header style="position:sticky;top:0;z-index:50;background:white;border-bottom:1px solid #eee"><div class="container mx-auto px-4 h-16 flex items-center justify-between"><div class="font-bold text-xl">BRAND</div><button class="btn btn-primary btn-sm">Get Started</button></div></header>` });
-                    bm.add('hero-slider', { label: 'Hero Slide', category: '1. Header & Hero', content: `<div class="editable-carousel h-[400px] bg-slate-900 text-white"><div class="slides"><div class="slide flex items-center justify-center h-full"><h1>Slide 1</h1></div></div></div>` });
-
-                    bm.add('gallery-carousel-1', { label: 'Thumb Slider', category: '2. Media', content: '<div class="product-gallery" data-gjs-type="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Slide+1"><img src="https://via.placeholder.com/800x600/10b981/fff?text=Slide+2"></div><div class="gallery-thumbs"><img src="https://via.placeholder.com/150/2563eb/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff" class="thumb-item"></div></div>' });
+                    bm.add('gallery-carousel-1', { label: 'Slider', category: '2. Media', content: '<div class="product-gallery" data-gjs-type="product-gallery"><div class="gallery-main"><img src="https://via.placeholder.com/800x600/2563eb/fff?text=Slide+1"><img src="https://via.placeholder.com/800x600/10b981/fff?text=Slide+2"></div><div class="gallery-thumbs"><img src="https://via.placeholder.com/150/2563eb/fff" class="thumb-item active"><img src="https://via.placeholder.com/150/10b981/fff" class="thumb-item"></div></div>' });
                     bm.add('video-yt', { label: 'Youtube', category: '2. Media', content: `<div class="aspect-video bg-black"><iframe width="100%" height="100%" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0"></iframe></div>` });
 
-                    bm.add('feature-grid', { label: 'Features', category: '3. Content', content: `<section class="py-8"><div class="grid grid-cols-3 gap-4 text-center"><div><iconify-icon icon="ph:rocket" class="text-2xl"></iconify-icon><h3>Fast</h3></div></div></section>` });
-                    bm.add('faq-pro', { label: 'FAQ Pro', category: '3. Content', content: `<section class="py-8 px-4"><div class="p-4 border rounded-xl mb-2"><h3>Pertanyaan?</h3><p>Jawaban Anda.</p></div></section>` });
-                    bm.add('testimonials', { label: 'Testimonials', category: '3. Content', content: `<section class="py-8 bg-gray-50"><div class="text-center p-4 border rounded-lg bg-white">"Layanan Luar Biasa!"</div></section>` });
-                    bm.add('countdown-smart', { label: 'Countdown', category: '3. Content', content: { type: 'countdown-smart', content: `<div class="py-6 bg-slate-900 text-white text-center">00:00:00</div>` } });
+                    bm.add('feature-grid', { label: 'Fitur', category: '3. Content', content: `<section class="py-8"><div class="grid grid-cols-3 gap-4 text-center"><div><iconify-icon icon="ph:rocket" class="text-2xl"></iconify-icon><h3>Fast</h3></div></div></section>` });
+                    bm.add('testimonials', { label: 'Testi', category: '3. Content', content: `<section class="py-8 bg-gray-50 p-4 border rounded-lg">"Layanan Mantap!"</section>` });
+                    bm.add('faq-pro', { label: 'FAQ', category: '3. Content', content: `<section class="py-8 px-4"><div class="p-4 border rounded-xl mb-2"><h3>Pertanyaan?</h3><p>Isi jawaban.</p></div></section>` });
+                    bm.add('trust-badges', { label: 'Badges', category: '3. Content', content: `<div class="flex justify-center gap-4 py-8 opacity-50"><iconify-icon icon="logos:visa" width="48"></iconify-icon><iconify-icon icon="logos:mastercard" width="48"></iconify-icon></div>` });
+                    bm.add('countdown-smart', { label: 'Timer', category: '3. Content', content: { type: 'countdown-smart', content: `<div class="py-6 bg-slate-900 text-white text-center">00:00:00</div>` } });
 
-                    bm.add('pricing-table', { label: 'Pricing', category: '4. Commerce', content: `<div class="p-6 border-2 border-indigo-600 rounded-2xl text-center"><h3 class="font-bold">PRO</h3><div class="text-2xl font-black">Rp 99k</div><button class="btn btn-primary w-full mt-4">Pilih</button></div>` });
-                    bm.add('contact-form', { label: 'Contact', category: '4. Commerce', content: `<form class="p-6 border rounded-xl space-y-4"><input type="text" class="input input-bordered w-full" placeholder="Nama"><button type="button" class="btn btn-primary w-full">Kirim</button></form>` });
+                    bm.add('pricing-table', { label: 'Harga', category: '4. Commerce', content: `<div class="p-6 border-2 border-indigo-600 rounded-2xl text-center"><h3>PRO</h3><div class="text-2xl font-black">Rp 99k</div><button class="btn btn-primary w-full mt-4">Pilih</button></div>` });
+                    bm.add('contact-form', { label: 'Kontak', category: '4. Commerce', content: `<form class="p-6 border rounded-xl space-y-4"><input type="text" class="input input-bordered w-full" placeholder="Nama"><button type="button" class="btn btn-primary w-full">Kirim</button></form>` });
 
                     bm.add('container-1000', { label: 'C-1000px', category: '5. Basic', content: `<div class="py-4 bg-gray-50"><div class="mx-auto max-w-[1000px] w-full min-h-[100px] bg-white border-x border-dashed border-blue-400"></div></div>` });
                     bm.add('container-1200', { label: 'C-1200px', category: '5. Basic', content: `<div class="py-4 bg-gray-50"><div class="mx-auto max-w-[1200px] w-full min-h-[100px] bg-white border-x border-dashed border-blue-400"></div></div>` });
 
-                    // 7. Click-to-Add Logic
+                    // --- CLICK TO ADD ---
                     setTimeout(() => {
                         const container = document.getElementById('blocks-container');
                         if (container) {
