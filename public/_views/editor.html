@@ -35,107 +35,120 @@
     <script src="https://unpkg.com/grapesjs-typed@1.0.5"></script>
     <script src="https://unpkg.com/grapesjs-style-bg@2.0.1"></script>
 
-    <style>
-        /* 1. RESET & LAYOUT */
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #fff; }
-        [x-cloak] { display: none !important; }
+    /* 1. RESET & CORE LAYOUT */
+body, html { 
+    margin: 0; padding: 0; height: 100%; width: 100%; 
+    overflow: hidden; /* Mencegah scroll ganda pada editor */
+    font-family: 'Inter', sans-serif; background: #fff; 
+}
+[x-cloak] { display: none !important; }
 
-        /* 2. HEADER UTAMA (Fixed Top) */
-        header {
-            height: 60px; width: 100%; position: fixed; top: 0; left: 0; z-index: 100;
-            background: white; border-bottom: 1px solid #e2e8f0;
-            display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
-        }
+/* 2. HEADER & NAVIGATION */
+header {
+    height: 60px; width: 100%; position: fixed; top: 0; left: 0; 
+    z-index: 100; /* Header Utama */
+    background: white; border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
+}
 
-        /* 3. MOBILE TOOLS BAR (Sub-Header Khusus HP) */
-        .mobile-tools {
-            display: none; /* Default Hidden di Desktop */
-            height: 50px; width: 100%; position: fixed; top: 60px; left: 0; z-index: 90;
-            background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-            align-items: center; justify-content: center; gap: 15px;
-        }
+/* 3. SUB-HEADER KHUSUS MOBILE (Tools Bar) */
+.mobile-tools {
+    display: none; 
+    height: 50px; width: 100%; position: fixed; top: 60px; left: 0; 
+    z-index: 90; /* Di bawah Header Utama */
+    background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+    align-items: center; justify-content: center; gap: 15px;
+}
 
-        /* 4. WORKSPACE (DESKTOP: FLEXBOX SIDE-BY-SIDE) */
-        .workspace {
-            position: absolute;
-            top: 60px; bottom: 0; left: 0; right: 0;
-            background: #f3f4f6; overflow: hidden;
-            display: flex; /* KUNCI DESKTOP AGAR TIDAK MENUMPUK */
-        }
+/* 4. WORKSPACE & CANVAS */
+.workspace {
+    position: absolute;
+    top: 60px; bottom: 0; left: 0; right: 0;
+    background: #f3f4f6; overflow: hidden;
+    display: flex; /* Sidebar & Canvas berdampingan di desktop */
+}
 
-        /* 5. CANVAS (DESKTOP: MENGISI SISA RUANG) */
-        #gjs {
-            position: relative !important;
-            flex: 1; /* Auto fill space */
-            height: 100% !important;
-            width: auto !important;
-            min-width: 0;
-            overflow: hidden;
-        }
-        .gjs-cv-canvas { width: 100%; height: 100%; top: 0 !important; }
+#gjs {
+    position: relative !important;
+    flex: 1; height: 100% !important; width: auto !important;
+    min-width: 0; overflow: hidden;
+}
 
-        /* 6. SIDEBAR (DESKTOP: DIAM DI KANAN) */
-        .sidebar-panel {
-            position: relative;
-            width: 320px;
-            height: 100%;
-            background: white; border-left: 1px solid #e2e8f0;
-            z-index: 50; display: flex; flex-direction: column;
-            flex-shrink: 0; /* Jangan mengecil */
-        }
+/* 5. SIDEBAR (DESKTOP) */
+.sidebar-panel {
+    position: relative; width: 320px; height: 100%;
+    background: white; border-left: 1px solid #e2e8f0;
+    z-index: 50; display: flex; flex-direction: column; flex-shrink: 0;
+}
 
-        /* 7. RESPONSIVE MOBILE (Layar < 768px) */
-        @media (max-width: 768px) {
-            /* Tampilkan Toolbar Tambahan */
-            .mobile-tools { display: flex; }
+/* 6. RESPONSIVE MOBILE FIXES (< 768px) */
+@media (max-width: 768px) {
+    .mobile-tools { display: flex; }
 
-            /* TURUNKAN WORKSPACE (Solusi Canvas Tertutup) */
-            .workspace {
-                top: 110px; /* 60px Header + 50px Mobile Tools */
-            }
+    /* Geser workspace ke bawah agar tidak tertutup mobile tools */
+    .workspace { top: 110px; } 
 
-            /* Canvas Full Width & Height (dikurangi bottom bar) */
-            #gjs { 
-                right: 0 !important; 
-                bottom: 60px !important; /* Ruang untuk Bottom Action Bar */
-            }
-            
-            /* Sidebar Melayang & Sembunyi */
-            .sidebar-panel {
-                position: fixed;
-                top: 110px; /* Mulai di bawah Mobile Tools */
-                bottom: 60px; /* Stop di atas Bottom Bar */
-                width: 100%; /* Full width di HP biar lega */
-                max-width: 100%;
-                transform: translateX(100%);
-                z-index: 200;
-                border-left: none;
-            }
-            .sidebar-panel.open { transform: translateX(0); }
+    /* Canvas dikurangi tinggi bottom bar agar tidak terpotong */
+    #gjs { 
+        right: 0 !important; 
+        bottom: 60px !important; /* Ruang Action Bar Bawah */
+    }
+    
+    /* MODIFIKASI SIDEBAR MOBILE (KRITIS!) */
+    .sidebar-panel {
+        position: fixed;
+        right: 0;
+        top: 110px; /* Di bawah Header + Mobile Tools */
+        bottom: 60px; /* Di atas Action Bar */
+        width: 100% !important;
+        z-index: 9999 !important; /* HARUS DI ATAS CANVAS AGAR BISA DIKLIK */
+        transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-left: none;
+    }
+    .sidebar-panel.open { transform: translateX(0); }
 
-            /* Overlay Mobile */
-            .mobile-overlay {
-                position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150;
-                top: 110px; bottom: 60px; display: none;
-            }
-            .mobile-overlay.show { display: block; }
-        }
+    /* Overlay untuk nutup sidebar */
+    .mobile-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5); 
+        z-index: 150; top: 110px; bottom: 60px; display: none;
+    }
+    .mobile-overlay.show { display: block; }
+}
 
-        /* 8. UI CLEANUP (Hapus Panel Hitam GrapesJS) */
-        .gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views, .gjs-pn-panels { display: none !important; }
-        
-        /* Grid Widget */
-        .gjs-blocks-c { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 10px; }
-        .gjs-block { width: 100% !important; min-height: auto !important; padding: 10px 5px !important; background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .gjs-block:hover { border-color: #6366f1; color: #6366f1; transform: translateY(-2px); }
-        
-        /* Custom Scroll */
-        .custom-scroll { overflow-y: auto; height: 100%; -webkit-overflow-scrolling: touch; }
-        
-        /* Hide Default Blocks */
-        .gjs-block[title="Form"], .gjs-block[title="Input"], .gjs-block[title="Textarea"], .gjs-block[title="Select"], .gjs-block[title="Button"], .gjs-block[title="Label"], .gjs-block[title="Checkbox"], .gjs-block[title="Radio"], .gjs-block[title="Text"], .gjs-block[title="Link"], .gjs-block[title="Image"], .gjs-block[title="Video"], .gjs-block[title="Map"] { display: none !important; }
-        .gjs-selected { outline: 2px solid #2563eb !important; outline-offset: -2px; }
-    </style>
+/* 7. UI GRAPESJS OVERRIDE (Agar Bersih) */
+.gjs-pn-top-panel, .gjs-pn-views-container, .gjs-pn-views, .gjs-pn-panels { display: none !important; }
+
+/* GRID BLOCKS (Area Klik Jempol) */
+.gjs-blocks-c { 
+    display: grid; grid-template-columns: repeat(2, 1fr); 
+    gap: 10px; padding: 12px; 
+}
+.gjs-block { 
+    width: 100% !important; min-height: 90px !important; /* Lebih tinggi agar enak di-tap */
+    padding: 12px 8px !important; background: #fff; 
+    border: 1px solid #e5e7eb; border-radius: 12px; 
+    display: flex; flex-direction: column; align-items: center; 
+    justify-content: center; gap: 6px; cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: 0.2s;
+}
+.gjs-block:active { transform: scale(0.95); background: #f5f3ff; border-color: #6366f1; }
+.gjs-block:hover { border-color: #6366f1; color: #6366f1; }
+
+/* Custom Scrollbar Panel */
+.custom-scroll { overflow-y: auto; height: 100%; -webkit-overflow-scrolling: touch; }
+.custom-scroll::-webkit-scrollbar { width: 4px; }
+.custom-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+
+/* Sembunyikan blok default GJS yang tidak perlu */
+.gjs-block[title="Form"], .gjs-block[title="Input"], .gjs-block[title="Textarea"], 
+.gjs-block[title="Select"], .gjs-block[title="Button"], .gjs-block[title="Label"], 
+.gjs-block[title="Checkbox"], .gjs-block[title="Radio"], .gjs-block[title="Text"], 
+.gjs-block[title="Link"], .gjs-block[title="Image"], .gjs-block[title="Video"], 
+.gjs-block[title="Map"] { display: none !important; }
+
+.gjs-selected { outline: 2px solid #6366f1 !important; outline-offset: -2px; }
+</style>
 </head>
 <body x-data="editorApp()">
 
