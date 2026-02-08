@@ -400,17 +400,38 @@ app.delete('/api/admin/messages/:id', async (c) => {
 // --- MODULE: ANALYTICS ---
 app.get('/api/admin/analytics/data', async (c) => {
     try {
-        const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
-        const today = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics WHERE date(created_at) = date('now')").first();
-        const topPages = await c.env.DB.prepare(`SELECT p.title, p.slug, COUNT(a.id) as views FROM pages p LEFT JOIN analytics a ON p.id = a.page_id GROUP BY p.id ORDER BY views DESC LIMIT 10`).all();
-        const recent = await c.env.DB.prepare(`SELECT p.title, a.referrer, a.created_at FROM analytics a JOIN pages p ON a.page_id = p.id ORDER BY a.created_at DESC LIMIT 20`).all();
-        
+        // 1. Ambil Total Views & Views Hari Ini dari tabel Rekap D1
+        const stats = await c.env.DB.prepare(`
+            SELECT 
+                SUM(views) as total_views,
+                SUM(CASE WHEN date(created_at) = date('now') THEN views ELSE 0 END) as today_views
+            FROM analytics_rekap
+        `).first();
+
+        // 2. Ambil Top 10 Halaman Teramai (Join dengan tabel pages untuk dapet Title)
+        const topPages = await c.env.DB.prepare(`
+            SELECT 
+                p.title, 
+                r.slug, 
+                SUM(r.views) as views
+            FROM analytics_rekap r
+            JOIN pages p ON r.slug = p.slug
+            GROUP BY r.slug
+            ORDER BY views DESC
+            LIMIT 10
+        `).all();
+
         return c.json({ 
-            stats: { total_views: total?.count||0, today_views: today?.count||0 }, 
-            top_pages: topPages.results||[], 
-            recent: recent.results||[] 
+            success: true,
+            stats: { 
+                total_views: stats?.total_views || 0, 
+                today_views: stats?.today_views || 0 
+            }, 
+            top_pages: topPages.results || [] 
         });
-    } catch(e) { return c.json({ error: e.message }); }
+    } catch(e) { 
+        return c.json({ success: false, error: e.message }, 500); 
+    }
 });
 
 // --- MODULE: SETTINGS & TEMPLATES ---
