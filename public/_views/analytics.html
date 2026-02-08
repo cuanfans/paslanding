@@ -11,7 +11,6 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         [x-cloak] { display: none !important; }
-        /* Kustomisasi scrollbar agar tipis dan rapi */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
@@ -21,109 +20,75 @@
 <body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200 font-sans" x-data="analyticsApp()" x-init="init()" :class="darkMode ? 'dark' : ''">
 
     <div class="flex h-screen overflow-hidden" x-cloak>
-        
-        <aside class="flex flex-col h-screen">
-    <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0">
-        <span x-show="sidebarOpen" class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span>
-        <span x-show="!sidebarOpen" class="text-xl font-bold text-blue-600 hidden md:block">B</span>
-    </div>
-
-    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md group">
-            <i class="ph ph-squares-four text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Dashboard</span>
-        </a>
-
-        <a href="/admin/pages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-files text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Halaman</span>
-        </a>
-
-        <a href="/admin/reports" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-chart-line-up text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Laporan</span>
-        </a>
-
-        <a href="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-trend-up text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Traffic</span>
-        </a>
-
-        <a href="/admin/messages" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-envelope-simple text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Pesan Masuk</span>
-        </a>
-
-        <a href="/admin/settings" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
-            <i class="ph ph-gear text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Settings</span>
-        </a>
-    </nav>
-
-    <div class="p-4 border-t dark:border-gray-700 shrink-0">
-        <button @click="logout()" class="flex items-center gap-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 w-full p-2 rounded-lg transition-colors group">
-            <i class="ph ph-sign-out text-xl shrink-0"></i>
-            <span x-show="sidebarOpen" class="font-medium whitespace-nowrap">Keluar</span>
-        </button>
-    </div>
-</aside>
+        <aside class="flex flex-col h-screen border-r dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-300" :class="sidebarOpen ? 'w-64' : 'w-20'">
+            <div class="h-16 flex items-center justify-center border-b dark:border-gray-700 shrink-0">
+                <span x-show="sidebarOpen" class="text-xl font-black text-blue-600 tracking-tighter">BlinkSite</span>
+                <span x-show="!sidebarOpen" class="text-xl font-bold text-blue-600">B</span>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <a href="/admin/dashboard" class="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i class="ph ph-squares-four text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium">Dashboard</span>
+                </a>
+                <a href="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-lg bg-blue-600 text-white shadow-md">
+                    <i class="ph ph-trend-up text-xl shrink-0"></i>
+                    <span x-show="sidebarOpen" class="font-medium">Traffic</span>
+                </a>
+                </nav>
+        </aside>
 
         <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-4 shadow-sm z-20 shrink-0">
+            <header class="h-16 bg-white dark:bg-gray-800 border-b dark:border-gray-700 flex justify-between items-center px-4 shadow-sm z-20">
                 <div class="flex items-center gap-4">
-                    <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <i class="ph ph-list text-2xl"></i>
-                    </button>
-                    <h1 class="font-bold text-lg truncate text-gray-800 dark:text-white">Traffic Analytics</h1>
+                    <button @click="sidebarOpen = !sidebarOpen" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"><i class="ph ph-list text-2xl"></i></button>
+                    <h1 class="font-bold text-lg text-gray-800 dark:text-white">Traffic Stats</h1>
                 </div>
-                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 border dark:border-gray-600 transition-colors text-gray-600 dark:text-gray-300">
-                    <i x-show="!darkMode" class="ph ph-moon text-xl"></i>
-                    <i x-show="darkMode" class="ph ph-sun text-xl text-yellow-400"></i>
-                </button>
+                <div class="flex items-center gap-3">
+                    <div class="text-right mr-4 hidden md:block">
+                        <p class="text-xs text-gray-500">Total Views</p>
+                        <p class="font-bold dark:text-white" x-text="totalViews.toLocaleString()"></p>
+                    </div>
+                    <button @click="toggleTheme()" class="p-2 rounded-full border dark:border-gray-600 text-gray-600 dark:text-gray-300">
+                        <i x-show="!darkMode" class="ph ph-moon text-xl"></i>
+                        <i x-show="darkMode" class="ph ph-sun text-xl text-yellow-400"></i>
+                    </button>
+                </div>
             </header>
 
             <main class="flex-1 overflow-y-auto p-4 md:p-8">
                 <div class="max-w-7xl mx-auto space-y-6">
                     
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border dark:border-gray-700 flex flex-col">
-                            <h3 class="font-bold text-sm uppercase text-gray-500 mb-4 tracking-wide">Top 10 Halaman</h3>
-                            <div class="relative h-64 w-full">
+                    <div class="grid grid-cols-1 gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border dark:border-gray-700">
+                            <h3 class="font-bold text-sm uppercase text-gray-500 mb-6">Distribusi Views per Halaman</h3>
+                            <div class="relative h-80 w-full">
                                 <canvas id="topPagesChart"></canvas>
-                            </div>
-                        </div>
-                        
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border dark:border-gray-700 flex flex-col">
-                            <h3 class="font-bold text-sm uppercase text-gray-500 mb-4 tracking-wide">Sumber Traffic</h3>
-                            <div class="relative h-64 w-full flex justify-center">
-                                <canvas id="sourceChart"></canvas>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border dark:border-gray-700 flex flex-col h-full">
-                        <h3 class="font-bold text-sm uppercase text-gray-500 mb-4 tracking-wide">Aktivitas Terbaru</h3>
-                        
-                        <div class="overflow-auto max-h-80 border rounded-lg dark:border-gray-600">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 overflow-hidden">
+                        <div class="p-5 border-b dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="font-bold text-sm uppercase text-gray-500">Detail Performa Halaman</h3>
+                            <span class="text-[10px] bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-bold">Update per 15 Menit</span>
+                        </div>
+                        <div class="overflow-x-auto">
                             <table class="w-full text-left text-sm">
-                                <thead class="bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700 sticky top-0 z-10">
+                                <thead class="bg-gray-50 dark:bg-gray-900 border-b dark:border-gray-700">
                                     <tr>
-                                        <th class="px-4 py-3 text-[10px] uppercase text-gray-500 font-bold">Halaman</th>
-                                        <th class="px-4 py-3 text-[10px] uppercase text-gray-500 font-bold">Referrer</th>
-                                        <th class="px-4 py-3 text-[10px] uppercase text-gray-500 font-bold text-right">Waktu</th>
+                                        <th class="px-6 py-4 text-xs uppercase text-gray-500 font-bold">Halaman</th>
+                                        <th class="px-6 py-4 text-xs uppercase text-gray-500 font-bold">Path/Slug</th>
+                                        <th class="px-6 py-4 text-xs uppercase text-gray-500 font-bold text-right">Total Views</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                                    <template x-for="log in recentLogs" :key="log.created_at">
+                                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                    <template x-for="page in topPages" :key="page.slug">
                                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                                            <td class="px-4 py-3 font-medium text-blue-600 truncate max-w-[200px]" x-text="log.title"></td>
-                                            <td class="px-4 py-3 text-gray-500 text-xs truncate max-w-[150px]" x-text="log.referrer"></td>
-                                            <td class="px-4 py-3 text-right text-[10px] text-gray-400 font-mono" x-text="new Date(log.created_at).toLocaleString()"></td>
+                                            <td class="px-6 py-4 font-semibold text-gray-800 dark:text-gray-200" x-text="page.title"></td>
+                                            <td class="px-6 py-4 text-blue-600 font-mono text-xs">/<span x-text="page.slug"></span></td>
+                                            <td class="px-6 py-4 text-right font-bold text-gray-700 dark:text-gray-300" x-text="page.views.toLocaleString()"></td>
                                         </tr>
                                     </template>
-                                    <tr x-show="recentLogs.length === 0">
-                                        <td colspan="3" class="p-8 text-center text-gray-400 text-xs">Belum ada data traffic.</td>
-                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -132,8 +97,6 @@
                 </div>
             </main>
         </div>
-
-        <div x-show="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/50 z-20 md:hidden" x-transition.opacity></div>
     </div>
 
     <script>
@@ -141,80 +104,59 @@
         return {
             sidebarOpen: window.innerWidth > 768,
             darkMode: localStorage.getItem('theme') === 'dark',
-            recentLogs: [],
-            token: localStorage.getItem('admin_pass'),
+            topPages: [],
+            totalViews: 0,
 
             async init() {
-                if (!this.token) return window.location.href = '/login';
                 if (this.darkMode) document.documentElement.classList.add('dark');
+                await this.fetchData();
+            },
 
+            async fetchData() {
                 try {
-                    const res = await fetch('/api/admin/analytics/data', {
-                        headers: { 
-                            'Authorization': `Bearer ${this.token}`,
-                            'Cache-Control': 'no-cache'
-                        }
-                    });
+                    // Kita tidak perlu header Authorization jika Cookie auth_token sudah ada
+                    const res = await fetch('/api/admin/analytics/data');
                     
                     if (res.ok) {
                         const data = await res.json();
-                        this.recentLogs = data.recent || [];
-                        this.renderCharts(data);
+                        this.topPages = data.top_pages || [];
+                        this.totalViews = data.stats.total_views || 0;
+                        this.renderCharts(data.top_pages);
                     } else if (res.status === 401) {
-                        localStorage.removeItem('admin_pass');
                         window.location.href = '/login';
                     }
                 } catch (e) {
-                    console.error("Gagal load analytics:", e);
+                    console.error("Gagal load data:", e);
                 }
             },
 
-            renderCharts(data) {
-                // Hancurkan chart lama jika ada
+            renderCharts(pages) {
                 if (Chart.getChart("topPagesChart")) Chart.getChart("topPagesChart").destroy();
-                if (Chart.getChart("sourceChart")) Chart.getChart("sourceChart").destroy();
 
-                // 1. Chart Top Pages (BAR)
                 new Chart(document.getElementById('topPagesChart').getContext('2d'), {
                     type: 'bar',
                     data: {
-                        labels: data.top_pages.map(p => p.title),
+                        labels: pages.map(p => p.title),
                         datasets: [{
                             label: 'Views',
-                            data: data.top_pages.map(p => p.views),
+                            data: pages.map(p => p.views),
                             backgroundColor: '#3b82f6',
-                            borderRadius: 4,
-                            barThickness: 20 // Batasi tebal bar agar rapi
+                            borderRadius: 8,
                         }]
                     },
                     options: { 
                         responsive: true, 
-                        maintainAspectRatio: false, // PENTING: Agar ikut tinggi container (h-64)
+                        maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
                         scales: {
-                            y: { beginAtZero: true, grid: { display: false } },
-                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
-                        }
-                    }
-                });
-
-                // 2. Chart Referrer (DOUGHNUT)
-                new Chart(document.getElementById('sourceChart').getContext('2d'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: data.referrers.map(r => r.referrer || 'Direct'),
-                        datasets: [{
-                            data: data.referrers.map(r => r.count),
-                            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: { 
-                        responsive: true, 
-                        maintainAspectRatio: false, // PENTING
-                        cutout: '70%', // Membuat donat lebih tipis elegan
-                        plugins: { 
-                            legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } 
+                            y: { 
+                                beginAtZero: true,
+                                grid: { color: this.darkMode ? '#374151' : '#f3f4f6' }
+                            },
+                            x: { 
+                                grid: { display: false },
+                                ticks: { color: this.darkMode ? '#9ca3af' : '#6b7280' }
+                            }
                         }
                     }
                 });
@@ -224,14 +166,15 @@
                 this.darkMode = !this.darkMode;
                 localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
                 document.documentElement.classList.toggle('dark');
+                if (this.topPages.length) this.renderCharts(this.topPages);
             },
 
-            logout() {
-                localStorage.removeItem('admin_pass');
+            async logout() {
+                await fetch('/api/logout');
                 window.location.href = '/login';
             }
         }
     }
-</script>
+    </script>
 </body>
 </html>
