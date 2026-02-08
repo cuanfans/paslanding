@@ -288,29 +288,30 @@ header {
                 </div>
             </div>
 
-            <div x-show="settingsTab === 'seo'" class="space-y-4">
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Meta Description</label>
-                    <textarea x-model="page.meta.description" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm h-24 outline-none resize-none" placeholder="Deskripsi pencarian Google..."></textarea>
-                </div>
-                
+                <div x-show="settingsTab === 'seo'" class="space-y-4">
                 <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Favicon URL</label>
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Favicon</label>
                     <div class="flex gap-2 mt-2">
-                        <input x-model="page.meta.favicon" class="flex-1 px-4 py-2 bg-white border rounded-lg text-xs outline-none focus:border-indigo-500 transition" placeholder="https://...">
-                        <div class="w-10 h-10 bg-white border rounded flex items-center justify-center overflow-hidden shrink-0">
-                            <template x-if="page.meta.favicon"><img :src="page.meta.favicon" class="w-6 h-6 object-contain"></template>
-                        </div>
+                        <input x-model="page.meta.favicon" class="flex-1 px-4 py-2 bg-white border rounded-lg text-xs outline-none focus:border-indigo-500" placeholder="URL Favicon...">
+                        <button @click="$refs.faviconInput.click()" class="w-10 h-10 bg-indigo-600 text-white rounded-lg flex items-center justify-center hover:bg-indigo-700 transition">
+                            <i class="ph ph-cloud-arrow-up text-xl"></i>
+                        </button>
+                        <input type="file" x-ref="faviconInput" class="hidden" accept="image/*" @change="uploadToCloudinary($event, 'favicon')">
                     </div>
                 </div>
-
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Social Share Image (OG URL)</label>
-                    <input x-model="page.meta.og_image" class="w-full mt-1 px-4 py-3 bg-gray-50 border rounded-xl text-sm outline-none focus:border-indigo-500" placeholder="https://...">
+            
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-xs">Social Share Image (OG)</label>
+                    <div class="flex gap-2 mt-2">
+                        <input x-model="page.meta.og_image" class="flex-1 px-4 py-2 bg-white border rounded-lg text-xs outline-none focus:border-indigo-500" placeholder="URL Gambar Share...">
+                        <button @click="$refs.ogInput.click()" class="w-10 h-10 bg-slate-800 text-white rounded-lg flex items-center justify-center hover:bg-black transition">
+                            <i class="ph ph-image-plus text-xl"></i>
+                        </button>
+                        <input type="file" x-ref="ogInput" class="hidden" accept="image/*" @change="uploadToCloudinary($event, 'og_image')">
+                    </div>
                 </div>
             </div>
-
-            <div x-show="settingsTab === 'advanced'" class="space-y-6">
+                <div x-show="settingsTab === 'advanced'" class="space-y-6">
                 <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
                     <h4 class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Tracking Analytics</h4>
                     <div>
@@ -519,9 +520,40 @@ function editorApp() {
 
         setDevice(d) { 
             this.device = d; 
-            window.editor.setDevice(d === 'mobile' ? 'Mobile' : (d === 'tablet' ? 'Tablet' : 'Desktop')); 
+            if (window.editor) window.editor.setDevice(d); 
         },
-
+        // --- FUNGSI UPLOAD CLOUDINARY UNTUK CONFIG ---
+        async uploadToCloudinary(event, target) {
+            const file = event.target.files[0];
+            if (!file) return;
+        
+            this.loading = true;
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+        
+                const res = await fetch('/api/admin/upload', { 
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    body: formData 
+                });
+        
+                const data = await res.json();
+                if (res.ok && data.url) {
+                    // Target adalah 'favicon' atau 'og_image'
+                    this.page.meta[target] = data.url;
+                    this.notify('Sukses', 'Gambar diupdate!', 'success');
+                } else {
+                    throw new Error(data.error || 'Gagal upload');
+                }
+            } catch (e) {
+                this.notify('Error', e.message, 'error');
+            } finally {
+                this.loading = false;
+                event.target.value = ''; // Reset input
+            }
+        },
+        // Pilih varian
         addVariant() { this.page.config.variants.push({ id: Date.now(), name: '', price: 0 }); },
         cmd(c) { window.editor.runCommand(c); },
         
