@@ -183,6 +183,28 @@ header {
         font-size: 18px !important;
     }
 }
+/* RESIZER MOBILE: Biar titik tariknya gede dan gampang di-drag jempol */
+.gjs-resizer-h {
+    width: 25px !important; /* Dari 10px jadi 25px */
+    height: 25px !important;
+    background-color: #4f46e5 !important;
+    border: 3px solid white !important;
+    border-radius: 50% !important;
+    display: block !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2) !important;
+}
+
+/* Sembunyikan titik yang tidak perlu agar tidak ruwet */
+.gjs-resizer-h-tl, .gjs-resizer-h-tr, .gjs-resizer-h-bl { 
+    display: none !important; 
+}
+
+/* Titik kanan bawah (Bottom Right) dibuat paling besar untuk ditarik */
+.gjs-resizer-h-br {
+    display: block !important;
+    bottom: -10px !important;
+    right: -10px !important;
+}        
 </style>
 </head>
 <body x-data="editorApp()">
@@ -746,6 +768,22 @@ function editorApp() {
                 );
                 model.set('toolbar', toolbar);
             });
+
+            window.editor.on('component:add', (model) => {
+            // Daftar tipe yang diizinkan untuk di-resize manual dengan drag
+            const resizableTypes = ['image', 'video', 'button', 'text', 'textnode', 'link', 'map'];
+            
+            // Jika komponen termasuk dalam daftar atau memiliki tag visual tertentu
+            if (resizableTypes.includes(model.get('type')) || ['IMG', 'VIDEO', 'BUTTON'].includes(model.get('tagName'))) {
+                model.set('resizable', {
+                    cr: 1, // Penarik Kanan (Center Right)
+                    cb: 1, // Penarik Bawah (Center Bottom)
+                    br: 1, // Penarik Pojok (Bottom Right)
+                    keyWidth: 'width',
+                    keyHeight: 'height',
+                });
+            }
+        });
             
             // 2. Carousel Logic
             domc.addType('editable-carousel', { model: { defaults: { script: function() { 
