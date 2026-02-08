@@ -6,15 +6,18 @@
     <title>LandingBuilder - Perfect Mobile</title>
     
     <script>
-        (function() {
-            const originalWarn = console.warn;
-            console.warn = function(...args) {
-                if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
-                originalWarn.apply(console, args);
-            };
-        })();
+    (function() {
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            const msg = args[0];
+            if (typeof msg === 'string' && (msg.includes('cdn.tailwindcss.com') || msg.includes('production'))) {
+                return;
+            }
+            originalWarn.apply(console, args);
+        };
+    })();
     </script>
-
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
@@ -402,6 +405,7 @@ function editorApp() {
         // --- UI STATES ---
         device: 'desktop',
         tab: 'blocks',
+        clipboard: null,
         mobileMenuOpen: false,
         showSettings: false,
         settingsTab: 'commerce',
@@ -708,66 +712,54 @@ function editorApp() {
             // 1. Iconify
             domc.addType('iconify-icon', { model: { defaults: { tagName: 'iconify-icon', droppable: false, attributes: { icon: 'ph:star-fill', width: '32', class: 'text-yellow-400' }, traits: [{ type: 'button', text: '🔍 Change Icon', full: true, command: (ed, trait) => window.openIconifyPicker(trait.target) }, { name: 'width', type: 'number', label: 'Size' }, { name: 'class', label: 'Class' }] } } });
             // 1. FITUR DOUBLE CLICK ICON (Tetap Pertahankan)
-window.editor.on('component:dblclick', (model) => { 
-    if(model.get('tagName') === 'iconify-icon') window.openIconifyPicker(model); 
-});
-
-    // 2. FITUR TOOLTIP GESER & COPY-PASTE (Tambahkan di bawahnya)
-    window.editor.on('component:selected', (model) => {
-        const toolbar = model.get('toolbar');
-        
-        // Cegah duplikasi tombol
-        if (toolbar.find(item => item.id === 'cut-comp')) return;
-    
-        toolbar.unshift(
-            {
-                id: 'move-up',
-                command: () => {
-                    const index = model.index();
-                    if (index > 0) model.parent().components().add(model, { at: index - 1 });
-                },
-                label: '<i class="ph ph-arrow-up"></i>',
-                attributes: { title: 'Geser Atas' }
-            },
-            {
-                id: 'move-down',
-                command: () => {
-                    const index = model.index();
-                    model.parent().components().add(model, { at: index + 2 });
-                },
-                label: '<i class="ph ph-arrow-down"></i>',
-                attributes: { title: 'Geser Bawah' }
-            },
-            {
-                id: 'cut-comp',
-                command: (ed) => {
-                    ed.runCommand('core:copy'); // Salin ke buffer GJS
-                    model.remove(); // Hapus dari posisi lama
-                    this.notify('Cut', 'Komponen dipotong, pilih target tempel', 'info');
-                },
-                label: '<i class="ph ph-scissors"></i>',
-                attributes: { title: 'Potong (Cut)' }
-            },
-            {
-                id: 'paste-inside',
-                command: (ed) => {
-                    // Ambil data dari buffer internal GrapesJS
-                    const buffer = ed.getCopy(); 
-                    if (buffer) {
-                        model.append(buffer); // Masukkan sebagai ANAK (Child) komponen ini
-                        this.notify('Sukses', 'Berhasil ditempel ke dalam', 'success');
-                    } else {
-                        this.notify('Gagal', 'Tidak ada komponen yang disalin', 'error');
+            window.editor.on('component:selected', (model) => {
+                const toolbar = model.get('toolbar');
+                if (toolbar.find(item => item.id === 'cut-comp')) return;
+            
+                toolbar.unshift(
+                    {
+                        id: 'move-up',
+                        command: () => {
+                            const index = model.index();
+                            if (index > 0) model.parent().components().add(model, { at: index - 1 });
+                        },
+                        label: '<i class="ph ph-arrow-up"></i>'
+                    },
+                    {
+                        id: 'move-down',
+                        command: () => {
+                            const index = model.index();
+                            model.parent().components().add(model, { at: index + 2 });
+                        },
+                        label: '<i class="ph ph-arrow-down"></i>'
+                    },
+                    {
+                        id: 'cut-comp',
+                        command: () => {
+                            // Kloning model agar bisa dipaste berkali-kali jika butuh
+                            this.clipboard = model.clone(); 
+                            model.remove();
+                            this.notify('Cut', 'Komponen dipotong', 'info');
+                        },
+                        label: '<i class="ph ph-scissors"></i>'
+                    },
+                    {
+                        id: 'paste-inside',
+                        command: () => {
+                            if (this.clipboard) {
+                                // Masukkan kloningan clipboard ke dalam komponen yang dipilih
+                                model.append(this.clipboard.clone());
+                                this.notify('Sukses', 'Berhasil disisipkan ke dalam', 'success');
+                            } else {
+                                this.notify('Kosong', 'Tidak ada yang bisa ditempel', 'error');
+                            }
+                        },
+                        label: '<i class="ph ph-box-arrow-down"></i>'
                     }
-                },
-                label: '<i class="ph ph-box-arrow-down"></i>',
-                attributes: { title: 'Tempel ke Dalam (Paste Inside)' }
-            }
-        );
-        
-        model.set('toolbar', toolbar);
-    });
-
+                );
+                model.set('toolbar', toolbar);
+            });
+            
             // 2. Carousel Logic
             domc.addType('editable-carousel', { model: { defaults: { script: function() { 
                 const el = this; const slides = el.querySelector('.slides'); const items = el.querySelectorAll('.slide'); let idx = 0; 
