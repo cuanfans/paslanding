@@ -25,7 +25,7 @@ async function sha256(message) {
 async function initDB(db) {
     // Tabel Utama System
     await db.prepare(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT, name TEXT, role TEXT)`).run();
-    await db.prepare(`CREATE TABLE IF NOT EXISTS pages (id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT UNIQUE, title TEXT, html_content TEXT, css_content TEXT, product_config_json TEXT, product_type TEXT, provider TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
+    await db.prepare(`CREATE TABLE IF NOT EXISTS pages (id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT UNIQUE, title TEXT, html_content TEXT, css_content TEXT, product_config_json TEXT, product_type TEXT, provider TEXT, views_count INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS credentials (provider_slug TEXT PRIMARY KEY, encrypted_data TEXT, iv TEXT)`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`).run();
     
@@ -235,6 +235,30 @@ const requireAuth = async (c, next) => {
 app.use('*', requireAuth); 
 
 // ===============================================
+// 3.1 ANALYTICS ENGINE MIDDLEWARE (BUFFER)
+// ===============================================
+app.use('*', async (c, next) => {
+    await next(); 
+    const url = new URL(c.req.url);
+    const path = url.pathname;
+    const isPage = !path.includes('.') && !path.startsWith('/api/admin') && !path.startsWith('/admin');
+
+    if (isPage) {
+        try {
+            c.env.ANALYTICS.writeDataPoint({
+                blobs: [
+                    path,
+                    c.req.header('referer') || 'direct'
+                ],
+                doubles: [1]
+            });
+        } catch (e) {
+            console.error("Analytics Engine Error:", e.message);
+        }
+    }
+});
+
+// ===============================================
 // 4. AUTH ROUTES (Login Fix)
 // ===============================================
 app.post('/api/login', async (c) => {
@@ -283,9 +307,8 @@ app.get('/api/logout', (c) => { deleteCookie(c, 'auth_token'); return c.redirect
 app.get('/login', (c) => serveAsset(c, '/login.html'));
 app.get('/admin', (c) => c.redirect('/admin/dashboard'));
 app.get('/admin/*', (c) => serveAsset(c, '/_views' + c.req.path.replace('/admin','').replace(/^\/$/,'/dashboard') + '.html'));
-// --- MODULE: HOMEPAGE SETTING ---
 
-// 1. GET Homepage Slug (Dipanggil saat dashboard load)
+// --- MODULE: HOMEPAGE SETTING ---
 app.get('/api/admin/homepage-slug', async (c) => {
     try {
         const setting = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
@@ -295,32 +318,22 @@ app.get('/api/admin/homepage-slug', async (c) => {
     }
 });
 
-// 2. SET Homepage (Dipanggil saat tombol bintang diklik)
 app.post('/api/admin/set-homepage', async (c) => {
     try {
         const { slug } = await c.req.json();
-        
         if (!slug) return c.json({ error: "Slug tidak valid" }, 400);
-
-        // Validasi: Pastikan halaman benar-benar ada di database
         const page = await c.env.DB.prepare("SELECT id FROM pages WHERE slug = ?").bind(slug).first();
         if (!page) return c.json({ error: "Halaman tidak ditemukan di database" }, 404);
-
-        // Simpan/Update ke tabel settings
-        // Menggunakan ON CONFLICT agar jika key 'homepage_slug' sudah ada, nilainya di-update
-        await c.env.DB.prepare(`
-            INSERT INTO settings (key, value) VALUES ('homepage_slug', ?) 
-            ON CONFLICT(key) DO UPDATE SET value=excluded.value
-        `).bind(slug).run();
-
+        await c.env.DB.prepare(`INSERT INTO settings (key, value) VALUES ('homepage_slug', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).bind(slug).run();
         return c.json({ success: true, message: "Homepage berhasil diatur", slug });
     } catch (e) {
         return c.json({ error: e.message }, 500);
     }
 });
+
 // --- MODULE: PAGES ---
 app.get('/api/admin/pages', async (c) => {
-    const res = await c.env.DB.prepare("SELECT id, slug, title, product_type, created_at FROM pages ORDER BY created_at DESC").all();
+    const res = await c.env.DB.prepare("SELECT id, slug, title, product_type, created_at, views_count FROM pages ORDER BY created_at DESC").all();
     return c.json(res.results);
 });
 
@@ -362,15 +375,12 @@ app.delete('/api/admin/messages/:id', async (c) => {
 // --- MODULE: ANALYTICS ---
 app.get('/api/admin/analytics/data', async (c) => {
     try {
-        const total = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics").first();
-        const today = await c.env.DB.prepare("SELECT COUNT(*) as count FROM analytics WHERE date(created_at) = date('now')").first();
-        const topPages = await c.env.DB.prepare(`SELECT p.title, p.slug, COUNT(a.id) as views FROM pages p LEFT JOIN analytics a ON p.id = a.page_id GROUP BY p.id ORDER BY views DESC LIMIT 10`).all();
-        const recent = await c.env.DB.prepare(`SELECT p.title, a.referrer, a.created_at FROM analytics a JOIN pages p ON a.page_id = p.id ORDER BY a.created_at DESC LIMIT 20`).all();
-        
+        const total = await c.env.DB.prepare("SELECT SUM(views_count) as count FROM pages").first();
+        const topPages = await c.env.DB.prepare(`SELECT title, slug, views_count as views FROM pages ORDER BY views DESC LIMIT 10`).all();
         return c.json({ 
-            stats: { total_views: total?.count||0, today_views: today?.count||0 }, 
+            stats: { total_views: total?.count||0 }, 
             top_pages: topPages.results||[], 
-            recent: recent.results||[] 
+            recent: [] 
         });
     } catch(e) { return c.json({ error: e.message }); }
 });
@@ -407,72 +417,42 @@ app.delete('/api/admin/templates', async (c) => {
 // 6. PUBLIC API (Checkout & Contact)
 // ===============================================
 
-// --- PUBLIC CONTACT FORM ---
 app.post('/api/public/contact', async (c) => {
     try {
         await initDB(c.env.DB);
         let body;
         const contentType = c.req.header('Content-Type');
-        
-        if (contentType && contentType.includes('application/json')) {
-            body = await c.req.json();
-        } else {
-            body = await c.req.parseBody();
-        }
-
+        if (contentType && contentType.includes('application/json')) { body = await c.req.json(); } else { body = await c.req.parseBody(); }
         const { page_id, subject, name, email, phone, message } = body;
-
         if (!name || !message) return c.json({ error: "Nama dan Pesan wajib diisi!" }, 400);
-
-        await c.env.DB.prepare(`INSERT INTO messages (page_id, subject, name, email, phone, message) VALUES (?, ?, ?, ?, ?, ?)`)
-            .bind(page_id || 0, subject || 'General', name, email || '', phone || '', message)
-            .run();
-
-        // Redirect jika form HTML biasa, JSON response jika AJAX
-        if (!contentType || !contentType.includes('application/json')) {
-            return c.redirect(c.req.header('Referer') + '?status=sent');
-        }
-
+        await c.env.DB.prepare(`INSERT INTO messages (page_id, subject, name, email, phone, message) VALUES (?, ?, ?, ?, ?, ?)`).bind(page_id || 0, subject || 'General', name, email || '', phone || '', message).run();
+        if (!contentType || !contentType.includes('application/json')) { return c.redirect(c.req.header('Referer') + '?status=sent'); }
         return c.json({ success: true, message: "Pesan terkirim!" });
     } catch (e) { return c.json({ error: e.message }, 500); }
 });
 
-// --- PUBLIC CHECKOUT ---
 app.post('/api/public/checkout', async (c) => {
     try {
         const body = await c.req.json();
         const { slug_payment, customer, quantity } = body;
-        
         if (!slug_payment || !customer?.phone) return c.json({ error: "Data tidak lengkap!" }, 400);
-
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE id = ?").bind(body.page_id).first();
         const config = JSON.parse(page.product_config_json || '{}');
-
-        // --- HITUNG HARGA DI BACKEND ---
         let unitPrice = 0;
         let itemName = page.title;
-
-        // Cek Varian
         if (config.variants && config.variants[body.variant_index]) {
             unitPrice = Number(config.variants[body.variant_index].price);
             itemName += ` (${config.variants[body.variant_index].name})`;
         } else {
             unitPrice = Number(config.price || 0);
         }
-
-        // Cek Qty (Default 1)
         const qty = parseInt(quantity || 1);
         let finalAmount = unitPrice * qty;
-
-        // Cek Bump
         let bumpName = '';
         if (body.take_bump && config.order_bump?.active) {
-            const bumpPrice = Number(config.order_bump.price);
-            finalAmount += bumpPrice; 
+            finalAmount += Number(config.order_bump.price); 
             bumpName = config.order_bump.title;
         }
-
-        // Cek Kupon
         if (body.coupon_code && config.coupons) {
             const cp = config.coupons.find(x => x.code.toUpperCase() === body.coupon_code.toUpperCase());
             if (cp) {
@@ -480,18 +460,9 @@ app.post('/api/public/checkout', async (c) => {
                 finalAmount = Math.max(0, finalAmount - disc);
             }
         }
-        
-        // Update Payload
-        const apiPayload = {
-            ...body,
-            amount: finalAmount, 
-            item_name: itemName + (qty > 1 ? ` (x${qty})` : ''),
-            bump_name: bumpName
-        };
-
+        const apiPayload = { ...body, amount: finalAmount, item_name: itemName + (qty > 1 ? ` (x${qty})` : ''), bump_name: bumpName };
         const result = await executeGenericAPI(c, 'payment', slug_payment, apiPayload);
         return c.json({ payment_url: result.payment_url || result._raw?.data?.payment_url });
-
     } catch (e) { return c.json({ error: "Proses Gagal: " + e.message }, 500); }
 });
 
@@ -500,37 +471,16 @@ app.post('/api/public/checkout', async (c) => {
 // ===============================================
 app.get('/', async (c) => {
     try {
-        // 1. Cek tabel settings untuk mencari 'homepage_slug'
         const setting = await c.env.DB.prepare("SELECT value FROM settings WHERE key='homepage_slug'").first();
-        
-        // 2. Jika belum di-set di database, tampilkan pesan default
         if (!setting || !setting.value) {
-            return c.html(`
-                <div style="font-family: sans-serif; text-align: center; padding: 50px;">
-                    <h1>Welcome</h1>
-                    <p>Homepage belum diatur. Silakan set 'homepage_slug' di database atau admin panel.</p>
-                    <a href="/login" style="color: blue;">Login Admin</a>
-                </div>
-            `);
+            return c.html(`<div style="font-family: sans-serif; text-align: center; padding: 50px;"><h1>Welcome</h1><p>Homepage belum diatur.</p><a href="/login" style="color: blue;">Login Admin</a></div>`);
         }
-
-        // 3. Ambil data halaman berdasarkan slug yang ditemukan (misal: 'blink-site-landingpage')
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(setting.value).first();
-        
-        if (!page) return c.text(`Error: Halaman dengan slug '${setting.value}' tidak ditemukan di tabel pages.`, 404);
-
-        // 4. Track Analytics (Opsional: anggap ini kunjungan ke homepage)
-        c.env.DB.prepare("INSERT INTO analytics (page_id, event_type, referrer) VALUES (?, 'view', ?)")
-            .bind(page.id, 'direct-homepage')
-            .run().catch(()=>{});
-
-        // 5. Render halaman tersebut menggunakan fungsi renderPage yang sudah kita perbaiki
+        if (!page) return c.text(`Error: Halaman '${setting.value}' tidak ditemukan.`, 404);
         return renderPage(c, page);
-
-    } catch (e) {
-        return c.text(`Server Error: ${e.message}`, 500);
-    }
+    } catch (e) { return c.text(`Server Error: ${e.message}`, 500); }
 });
+
 // ===============================================
 // 7. PAGE RENDERING (FINAL FIX & CLEAN)
 // ===============================================
@@ -540,10 +490,6 @@ app.get('/:slug', async (c) => {
         if (slug.includes('.')) return c.env.ASSETS.fetch(c.req.raw);
         const page = await c.env.DB.prepare("SELECT * FROM pages WHERE slug=?").bind(slug).first();
         if(!page) return c.text('404 Not Found', 404);
-
-        // TRACK ANALYTICS
-        c.env.DB.prepare("INSERT INTO analytics (page_id, event_type, referrer) VALUES (?, 'view', ?)").bind(page.id, c.req.header('Referer') || 'direct').run().catch(()=>{});
-
         return renderPage(c, page);
     } catch(e) { return c.env.ASSETS.fetch(c.req.raw); }
 });
@@ -551,192 +497,41 @@ app.get('/:slug', async (c) => {
 async function renderPage(c, page) {
     const config = JSON.parse(page.product_config_json || '{}');
     const activePayments = config.active_payments || [];
-    
-    // 1. INJEKSI CSS KRITIS (BRIDGE CSS - SAMA PERSIS DENGAN EDITOR)
-    const bridgeCSS = `
-        body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; }
-        
-        /* Thumbnail Gallery */
-        .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; }
-        .product-gallery .main-img { border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 4/3; background: #f3f4f6; }
-        .product-gallery .main-img img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
-        .product-gallery .thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; padding-bottom: 5px; scroll-behavior: smooth; }
-        .product-gallery .thumb { min-width: 70px; width: 70px; height: 70px; flex-shrink: 0; border-radius: 8px; cursor: pointer; border: 2px solid transparent; opacity: 0.7; transition: 0.2s; object-fit: cover; }
-        .product-gallery .thumb.active, .product-gallery .thumb:hover { border-color: #2563eb; opacity: 1; }
+    const bridgeCSS = `body { min-height: 100vh; background-color: #ffffff; overflow-x: hidden; font-family: 'Inter', sans-serif; } .product-gallery { display: flex; flex-direction: column; gap: 12px; width:100%; } .product-gallery .main-img { border-radius: 12px; overflow: hidden; width: 100%; aspect-ratio: 4/3; background: #f3f4f6; } .product-gallery .main-img img { width: 100%; height: 100%; object-fit: cover; } .product-gallery .thumbs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; } .product-gallery .thumb { min-width: 70px; width: 70px; height: 70px; border-radius: 8px; cursor: pointer; opacity: 0.7; object-fit: cover; } .product-gallery .thumb.active { border: 2px solid #2563eb; opacity: 1; } .editable-carousel { position: relative; width: 100%; overflow: hidden; } .editable-carousel .slides { display: flex; transition: transform 0.5s; } .editable-carousel .slide { min-width: 100%; } .pricing-card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; transition: 0.3s; }`;
+    const tailwindConfig = `tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } } }`;
+    const liveScripts = `<script>if(new URLSearchParams(window.location.search).get('status') === 'sent') alert('Pesan diterima!'); document.addEventListener('DOMContentLoaded', () => { document.querySelectorAll('.product-gallery').forEach(el => { const main = el.querySelector('.main-img img'); const thumbs = el.querySelectorAll('.thumb'); if(main && thumbs.length) thumbs.forEach(t => t.onclick = function() { main.src = this.src; thumbs.forEach(x => x.classList.remove('active')); this.classList.add('active'); })}); if (document.body.innerHTML.includes('[ CHECKOUT ]')) { const activePayments = ${JSON.stringify(activePayments)}; const paymentHTML = activePayments.map(slug => '<label class="flex items-center p-3 border rounded-lg mb-2"><input type="radio" name="pay_method" value="' + slug + '" class="mr-3"><span>' + slug.toUpperCase() + '</span></label>').join(''); const checkoutHTML = '<div class="max-w-md mx-auto p-6 bg-white shadow-xl rounded-2xl"><h2>Form Pemesanan</h2>' + paymentHTML + '<button id="btn-submit-order" class="w-full py-4 bg-blue-600 text-white rounded-xl">BAYAR</button></div>'; document.body.innerHTML = document.body.innerHTML.replace('[ CHECKOUT ]', checkoutHTML); document.getElementById('btn-submit-order')?.addEventListener('click', async () => { const payMethod = document.querySelector('input[name="pay_method"]:checked')?.value; if(!payMethod) return alert('Pilih pembayaran!'); const res = await fetch('/api/public/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ page_id: ${page.id}, slug_payment: payMethod, quantity: 1, customer: { name: 'User', phone: '0812' } }) }); const d = await res.json(); if(d.payment_url) window.location.href = d.payment_url; }); } }); <\/script>`;
 
-        /* Carousel Slider */
-        .editable-carousel { position: relative; width: 100%; overflow: hidden; }
-        .editable-carousel .slides { display: flex; flex-direction: row; width: 100%; height: 100%; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        .editable-carousel .slide { min-width: 100%; flex-shrink: 0; position: relative; height: 100%; }
-        .editable-carousel .slide img { width: 100%; height: 100%; object-fit: cover; }
-        .editable-carousel .carousel-controls { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); display: flex; justify-content: space-between; padding: 0 20px; pointer-events: none; z-index: 10; }
-        .editable-carousel .carousel-controls button { pointer-events: auto; background: rgba(0,0,0,0.2); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; backdrop-filter: blur(2px); }
-        .editable-carousel .carousel-controls button:hover { background: rgba(0,0,0,0.5); transform: scale(1.1); }
-
-        /* Pricing & Cards */
-        .pricing-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; height: 100%; transition: 0.3s; position: relative; overflow: hidden; }
-        .pricing-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1); }
-        .pricing-card.highlight { border: 2px solid #2563eb; z-index: 2; box-shadow: 0 20px 40px -5px rgba(37, 99, 235, 0.15); }
-        .testimonial-card { background: #fff; border: 1px solid #f1f5f9; padding: 24px; border-radius: 12px; height: 100%; }
-
-        /* Utils */
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-        .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 30s linear infinite; }
-        .btn { text-transform: none !important; }
-    `;
-
-    // 2. INJEKSI KONFIGURASI TAILWIND (ESCAPED)
-    const tailwindConfig = `
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        theme: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca', 800:'#3730a3' }
-                    }
-                }
-            }
-        }
-    `;
-
-    // 3. SCRIPT LOGIC (ESCAPED </script> -> <\/script>)
-    const liveScripts = `
-    <script>
-        // A. Notifikasi Pesan Terkirim
-        if(new URLSearchParams(window.location.search).get('status') === 'sent') {
-            alert('Pesan Anda telah kami terima! Kami akan segera menghubungi Anda.');
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-
-        // B. Inisialisasi Ulang Komponen
-        document.addEventListener('DOMContentLoaded', () => {
-            
-            // 1. Gallery Thumbnail Logic
-            document.querySelectorAll('.product-gallery').forEach(el => {
-                const main = el.querySelector('.main-img img');
-                const thumbs = el.querySelectorAll('.thumb');
-                if(!main || thumbs.length === 0) return;
-                thumbs.forEach(t => {
-                    t.onclick = function() {
-                        main.src = this.src;
-                        thumbs.forEach(x => x.classList.remove('active'));
-                        this.classList.add('active');
-                    }
-                });
-            });
-            
-            // 2. Carousel Auto Play Logic
-            document.querySelectorAll('.editable-carousel').forEach(el => {
-                const slides = el.querySelector('.slides');
-                const items = el.querySelectorAll('.slide');
-                if(!slides || !items.length) return;
-                let idx = 0;
-                function show(n) { 
-                    idx = (n + items.length) % items.length; 
-                    slides.style.transform = 'translateX(-'+(idx*100)+'%)'; 
-                }
-                const next = el.querySelector('.next'); if(next) next.onclick = () => show(idx+1);
-                const prev = el.querySelector('.prev'); if(prev) prev.onclick = () => show(idx-1);
-                
-                let timer = setInterval(() => show(idx+1), 5000);
-                el.onmouseenter = () => clearInterval(timer);
-                el.onmouseleave = () => timer = setInterval(() => show(idx+1), 5000);
-            });
-
-            // 3. Logic Checkout
-            const container = document.body;
-            if (container.innerHTML.includes('[ CHECKOUT ]')) {
-                const config = ${JSON.stringify(config)};
-                const activePayments = ${JSON.stringify(activePayments)};
-                
-                const paymentHTML = activePayments.length > 0 ? activePayments.map(slug => 
-                    '<label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition border-gray-200 mb-2">' +
-                    '<input type="radio" name="pay_method" value="' + slug + '" class="mr-3 w-4 h-4 text-blue-600">' +
-                    '<span class="text-sm font-bold text-gray-700 uppercase">' + slug.split('-').join(' ') + '</span>' +
-                    '</label>'
-                ).join('') : '<p class="text-red-500 text-xs">Belum ada metode pembayaran.</p>';
-
-                const checkoutHTML = \`
-                    <div class="max-w-md mx-auto my-8 p-6 bg-white rounded-2xl shadow-xl border border-gray-100 font-sans">
-                        <h2 class="text-xl font-black text-gray-800 mb-6 text-center">Formulir Pemesanan</h2>
-                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6">
-                            <span class="font-bold text-blue-900">${page.title}</span>
-                            <span class="font-black text-blue-700">Rp \${new Intl.NumberFormat('id-ID').format(config.price || 0)}</span>
-                        </div>
-                        <div class="space-y-4 mb-6">
-                            <input type="text" id="c_name" placeholder="Nama Lengkap" class="w-full p-3 border rounded-lg">
-                            <input type="tel" id="c_phone" placeholder="No. WhatsApp" class="w-full p-3 border rounded-lg">
-                        </div>
-                        <div class="mb-6">
-                            <label class="text-xs font-bold text-gray-400 uppercase block mb-2">Pembayaran</label>
-                            <div class="grid gap-2">\${paymentHTML}</div>
-                        </div>
-                        <button id="btn-submit-order" class="w-full py-4 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-700 transition">
-                            BAYAR SEKARANG
-                        </button>
-                    </div>
-                \`;
-                
-                container.innerHTML = container.innerHTML.replace('[ CHECKOUT ]', checkoutHTML);
-
-                document.getElementById('btn-submit-order')?.addEventListener('click', async () => {
-                    const payMethod = document.querySelector('input[name="pay_method"]:checked')?.value;
-                    const name = document.getElementById('c_name').value;
-                    const phone = document.getElementById('c_phone').value;
-
-                    if(!name || !phone) return alert('Mohon lengkapi data!');
-                    if(!payMethod) return alert('Pilih pembayaran!');
-
-                    try {
-                        const res = await fetch('/api/public/checkout', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                page_id: ${page.id},
-                                slug_payment: payMethod,
-                                quantity: 1,
-                                customer: { name, phone }
-                            })
-                        });
-                        const d = await res.json();
-                        if(d.payment_url) window.location.href = d.payment_url;
-                        else alert(d.error || 'Gagal memproses.');
-                    } catch(e) { alert('Error koneksi.'); }
-                });
-            }
-        });
-    <\/script>
-    `;
-
-    // 4. RETURN HTML LENGKAP
-    return c.html(`
-    <!DOCTYPE html>
-    <html lang='id'>
-    <head>
-        <meta charset='UTF-8'>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${page.title}</title>
-        
-        <script src="https://cdn.tailwindcss.com"><\/script>
-        <script>${tailwindConfig}<\/script>
-        <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-        <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"><\/script>
-
-        <style>
-            ${bridgeCSS}
-            ${page.css_content}
-        </style>
-    </head>
-    <body>
-        ${page.html_content}
-        <script>window.PAGE_ID=${page.id};<\/script>
-        ${liveScripts}
-    </body>
-    </html>
-    `);
+    return c.html(`<!DOCTYPE html><html lang='id'><head><meta charset='UTF-8'><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${page.title}</title><script src="https://cdn.tailwindcss.com"><\/script><script>${tailwindConfig}<\/script><style>${bridgeCSS}${page.css_content}</style></head><body>${page.html_content}<script>window.PAGE_ID=${page.id};<\/script>${liveScripts}</body></html>`);
 }
+
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
-export const onRequest = handle(app);
+
+// ===============================================
+// 9. CRON SYNC & EXPORT
+// ===============================================
+async function syncAnalyticsToDB(env) {
+    const query = `SELECT blob1 AS slug, count() AS total_hits FROM paslanding_event WHERE timestamp > NOW() - INTERVAL '6' HOUR GROUP BY slug`;
+    try {
+        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/analytics_engine/sql`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${env.CF_API_TOKEN}` },
+            body: query
+        });
+        const result = await response.json();
+        if (result.data) {
+            for (const row of result.data) {
+                const cleanSlug = row.slug.replace(/^\/|\/$/g, '');
+                if (cleanSlug) {
+                    await env.DB.prepare(`UPDATE pages SET views_count = COALESCE(views_count, 0) + ? WHERE slug = ?`).bind(row.total_hits, cleanSlug).run();
+                }
+            }
+        }
+    } catch (e) { console.error("Sync Error:", e.message); }
+}
+
+export default {
+    fetch: app.fetch,
+    async scheduled(event, env, ctx) {
+        ctx.waitUntil(syncAnalyticsToDB(env));
+    }
+};
