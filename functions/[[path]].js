@@ -755,45 +755,4 @@ async function renderPage(c, page) {
     `);
 }
 app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
-
-// --- LOGIC REKAP ANALYTICS ---
-async function runAnalyticsRekap(env) {
-    try {
-        // 1. Ambil rekap data dari Analytics Engine untuk 15 menit terakhir
-        const query = await env.ANALYTICS_ENGINE.query(`
-            SELECT 
-                blob1 as slug, 
-                count() as total_views 
-            FROM paslanding_events 
-            WHERE timestamp >= now() - INTERVAL '15' MINUTE
-            GROUP BY slug
-        `);
-
-        if (query.data && query.data.length > 0) {
-            // 2. Masukkan hasil rekap ke D1
-            const stmt = env.DB.prepare(`
-                INSERT INTO analytics_rekap (slug, views, period_start) 
-                VALUES (?, ?, datetime('now', '-15 minutes'))
-            `);
-            
-            // Jalankan batch insert biar kencang
-            await env.DB.batch(
-                query.data.map(row => stmt.bind(row.slug, row.total_views))
-            );
-            console.log("Rekap Analytics Berhasil Disimpan ke D1");
-        }
-    } catch (e) {
-        console.error("Gagal Rekap Analytics:", e.message);
-    }
-}
-
-// --- EXPORT HANDLER ---
-export default {
-    // Handler untuk HTTP Request (Hono)
-    fetch: app.fetch,
-
-    // Handler untuk Cron Trigger (Setiap 15 Menit)
-    async scheduled(event, env, ctx) {
-        ctx.waitUntil(runAnalyticsRekap(env));
-    }
-};
+export const onRequest = handle(app);
